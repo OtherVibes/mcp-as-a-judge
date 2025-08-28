@@ -1,4 +1,4 @@
-# 🚨 MCP as a Judge
+# ⚖️ MCP as a Judge
 
 > **Prevent bad coding practices with AI-powered evaluation and user-driven decision making**
 
@@ -15,9 +15,9 @@
 
 **MCP as a Judge** is a revolutionary Model Context Protocol (MCP) server that **transforms the developer-AI collaboration experience**. It acts as an intelligent gatekeeper for software development, preventing bad coding practices by using AI-powered evaluation and involving users in critical decisions when requirements are unclear or obstacles arise.
 
-> **Concept**: This project extends the **LLM-as-a-Judge** paradigm to software engineering workflows, where AI models evaluate and guide development decisions rather than just generating code.
+> **⚖️ Concept**: This project extends the **LLM-as-a-Judge** paradigm to software engineering workflows, where AI models evaluate and guide development decisions rather than just generating code.
 
-## 🎯 **Main Purpose: Improve Developer-AI Interface**
+## ⚖️ **Main Purpose: Improve Developer-AI Interface**
 
 **The core mission is to enhance the interface between developers and AI coding assistants** by:
 - 🛡️ **Preventing AI from making poor decisions** through intelligent evaluation
@@ -62,7 +62,7 @@
 - **No hidden fallbacks** - transparent decision making
 - **Interactive problem solving** with real-time user input
 
-### **⚖️ Five Powerful Tools**
+### **⚖️ Five Powerful Judge Tools**
 
 1. **`check_swe_compliance`** - Workflow guidance and best practices
 2. **`judge_coding_plan`** - Comprehensive plan evaluation with requirements alignment
