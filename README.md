@@ -15,6 +15,8 @@
 
 **MCP as a Judge** is a revolutionary Model Context Protocol (MCP) server that acts as an intelligent gatekeeper for software development. It prevents bad coding practices by using AI-powered evaluation and involving users in critical decisions when requirements are unclear or obstacles arise.
 
+> **Concept**: This project extends the **LLM-as-a-Judge** paradigm to software engineering workflows, where AI models evaluate and guide development decisions rather than just generating code.
+
 ## 🎯 **This MCP Will Change Many Developers' Lives!**
 
 ### **What It Prevents:**
@@ -34,7 +36,7 @@
 ## 🛠️ **Features**
 
 ### **🔍 Intelligent Code Evaluation**
-- **LLM-powered analysis** using sampling capability
+- **LLM-powered analysis** using MCP [sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling) capability
 - **Software engineering best practices** enforcement
 - **Security vulnerability detection**
 - **Performance and maintainability assessment**
@@ -46,10 +48,10 @@
 - **Implementation approach evaluation**
 
 ### **🤝 User-Driven Decision Making**
-- **Obstacle resolution** through user involvement
+- **Obstacle resolution** through user involvement via MCP [elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation)
 - **Requirements clarification** when requests are unclear
 - **No hidden fallbacks** - transparent decision making
-- **Elicitation-based** problem solving
+- **Interactive problem solving** with real-time user input
 
 ### **⚖️ Five Powerful Tools**
 
@@ -63,8 +65,10 @@
 
 ### **Prerequisites**
 - Python 3.12+ (latest secure version)
-- MCP-compatible client (Claude Desktop, Cursor, etc.)
-- LLM sampling capability (required for AI evaluation)
+- MCP-compatible client that supports:
+  - **[Sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling)** - Required for AI-powered code evaluation
+  - **[Elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation)** - Required for user decision prompts
+- Compatible clients: Claude Desktop, Cursor, etc.
 
 > **Note**: MCP servers communicate via stdio (standard input/output), not HTTP ports. No network configuration is needed.
 
