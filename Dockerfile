@@ -1,9 +1,7 @@
 # Multi-stage build for production-ready MCP as a Judge server
 FROM python:3.12-slim AS builder
 
-# Set build arguments
-ARG PORT=8050
-ARG TRANSPORT=sse
+
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -36,16 +34,10 @@ RUN .venv/bin/uv pip install -e .
 # Production stage
 FROM python:3.12-slim AS production
 
-# Set build arguments
-ARG PORT=8050
-ARG TRANSPORT=sse
-
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/app/.venv/bin:$PATH" \
-    PORT=${PORT} \
-    TRANSPORT=${TRANSPORT}
+    PATH="/app/.venv/bin:$PATH"
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y \
@@ -72,12 +64,9 @@ RUN chown -R mcpuser:mcpuser /app
 # Switch to non-root user
 USER mcpuser
 
-# Expose port
-EXPOSE ${PORT}
-
-# Health check
+# Health check for MCP server (check if process is running)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+    CMD pgrep -f "mcp-as-a-judge" || exit 1
 
 # Default command
 CMD ["mcp-as-a-judge"]

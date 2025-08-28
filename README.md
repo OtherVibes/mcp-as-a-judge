@@ -62,9 +62,11 @@
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
-- Python 3.12.10+ (latest secure version)
+- Python 3.12+ (latest secure version)
 - MCP-compatible client (Claude Desktop, Cursor, etc.)
 - LLM sampling capability (required for AI evaluation)
+
+> **Note**: MCP servers communicate via stdio (standard input/output), not HTTP ports. No network configuration is needed.
 
 ### **Installation**
 
@@ -85,12 +87,7 @@ mcp-as-a-judge
 **Quick Start with Docker:**
 ```bash
 # Pull and run the latest image
-docker run -d \
-  --name mcp-as-a-judge \
-  -p 8050:8050 \
-  -e TRANSPORT=sse \
-  -e PORT=8050 \
-  ghcr.io/hepivax/mcp-as-a-judge:latest
+docker run -it --name mcp-as-a-judge ghcr.io/hepivax/mcp-as-a-judge:latest
 ```
 
 **Build from Source:**
@@ -103,11 +100,8 @@ cd mcp-as-a-judge
 docker build -t mcp-as-a-judge:latest .
 
 # Run with custom configuration
-docker run -d \
+docker run -it \
   --name mcp-as-a-judge \
-  -p 8050:8050 \
-  -e TRANSPORT=sse \
-  -e PORT=8050 \
   -e LOG_LEVEL=INFO \
   --restart unless-stopped \
   mcp-as-a-judge:latest
@@ -417,7 +411,7 @@ pip install mcp-as-a-judge
 docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
 
 # Run the container
-docker run -d --name mcp-as-a-judge -p 8050:8050 ghcr.io/hepivax/mcp-as-a-judge:latest
+docker run -it --name mcp-as-a-judge ghcr.io/hepivax/mcp-as-a-judge:latest
 
 # Or use docker-compose for production
 docker-compose --profile production up -d
