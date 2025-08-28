@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mcp-as-a-judge": {
+      "command": "uv",
+      "args": ["run", "mcp-as-a-judge"],
+      "cwd": "/path/to/mcp-as-a-judge"
+    }
+  }
+}
