@@ -13,11 +13,19 @@
 [![Docker Image](https://ghcr-badge.egpl.dev/hepivax/mcp-as-a-judge/latest_tag?trim=major&label=latest)](https://github.com/hepivax/mcp-as-a-judge/pkgs/container/mcp-as-a-judge)
 [![codecov](https://codecov.io/gh/hepivax/mcp-as-a-judge/branch/main/graph/badge.svg)](https://codecov.io/gh/hepivax/mcp-as-a-judge)
 
-**MCP as a Judge** is a revolutionary Model Context Protocol (MCP) server that acts as an intelligent gatekeeper for software development. It prevents bad coding practices by using AI-powered evaluation and involving users in critical decisions when requirements are unclear or obstacles arise.
+**MCP as a Judge** is a revolutionary Model Context Protocol (MCP) server that **transforms the developer-AI collaboration experience**. It acts as an intelligent gatekeeper for software development, preventing bad coding practices by using AI-powered evaluation and involving users in critical decisions when requirements are unclear or obstacles arise.
 
 > **Concept**: This project extends the **LLM-as-a-Judge** paradigm to software engineering workflows, where AI models evaluate and guide development decisions rather than just generating code.
 
-## 🎯 **This MCP Will Change Many Developers' Lives!**
+## 🎯 **Main Purpose: Improve Developer-AI Interface**
+
+**The core mission is to enhance the interface between developers and AI coding assistants** by:
+- 🛡️ **Preventing AI from making poor decisions** through intelligent evaluation
+- 🤝 **Involving humans in critical choices** instead of AI making assumptions
+- 🔍 **Enforcing research and best practices** before implementation
+- ⚖️ **Creating a collaborative AI-human workflow** for better software quality
+
+## 🚀 **This MCP Will Change Many Developers' Lives!**
 
 ### **What It Prevents:**
 - ❌ Reinventing the wheel instead of using existing solutions
@@ -32,6 +40,7 @@
 - ✅ **User requirements alignment** in all implementations
 - ✅ **Comprehensive planning** before coding begins
 - ✅ **User involvement** in all critical decisions
+- ✅ **Intelligent AI-human collaboration** with clear boundaries and responsibilities
 
 ## 🛠️ **Features**
 
