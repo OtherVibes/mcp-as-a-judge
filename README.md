@@ -68,22 +68,16 @@
 
 ### **Installation**
 
-#### **Method 1: Using uv (Recommended for Development)**
+#### **Method 1: Using uv (Recommended)**
 ```bash
 # Install uv if you don't have it
 pip install uv
 
-# Clone the repository
-git clone https://github.com/hepivax/mcp-as-a-judge.git
-cd mcp-as-a-judge
-
-# Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e .
+# Install from PyPI
+uv add mcp-as-a-judge
 
 # Run the server
-uv run mcp-as-a-judge
+mcp-as-a-judge
 ```
 
 #### **Method 2: Using Docker (Recommended for Production)**
@@ -119,30 +113,37 @@ docker run -d \
   mcp-as-a-judge:latest
 ```
 
-**Using Docker Compose (Recommended for Production):**
+**Using Docker Compose:**
 ```bash
-# Clone the repository
-git clone https://github.com/hepivax/mcp-as-a-judge.git
-cd mcp-as-a-judge
-
-# Start production environment
+# For production (uses pre-built image from GitHub Container Registry)
 docker-compose --profile production up -d
 
-# Or start development environment
+# For development (builds from source)
+git clone https://github.com/hepivax/mcp-as-a-judge.git
+cd mcp-as-a-judge
 docker-compose --profile development up
 ```
 
 #### **Method 3: Using pip (Alternative)**
 ```bash
-# Clone the repository
+# Install from PyPI
+pip install mcp-as-a-judge
+
+# Run the server
+mcp-as-a-judge
+```
+
+#### **Method 4: From Source (Development)**
+```bash
+# Clone the repository for development
 git clone https://github.com/hepivax/mcp-as-a-judge.git
 cd mcp-as-a-judge
 
-# Install with pip
-pip install -e .
+# Install with uv
+uv sync --all-extras --dev
 
 # Run the server
-python -m mcp_as_a_judge.server
+uv run mcp-as-a-judge
 ```
 
 ### **Configuration**
@@ -412,18 +413,21 @@ pip install mcp-as-a-judge
 
 ### **From Docker**
 ```bash
-# Pull the latest image
+# Pull the latest image from GitHub Container Registry
 docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
 
-# Or use docker-compose
-docker-compose up -d
+# Run the container
+docker run -d --name mcp-as-a-judge -p 8050:8050 ghcr.io/hepivax/mcp-as-a-judge:latest
+
+# Or use docker-compose for production
+docker-compose --profile production up -d
 ```
 
-### **From Source**
+### **From Source (Development)**
 ```bash
 git clone https://github.com/hepivax/mcp-as-a-judge.git
 cd mcp-as-a-judge
-uv sync
+uv sync --all-extras --dev
 ```
 
 ## 🤝 **Contributing**

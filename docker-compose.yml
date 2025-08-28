@@ -2,12 +2,7 @@ version: '3.8'
 
 services:
   mcp-as-a-judge:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PORT: 8050
-        TRANSPORT: sse
+    image: ghcr.io/hepivax/mcp-as-a-judge:latest
     container_name: mcp-as-a-judge
     ports:
       - "8050:8050"
@@ -17,9 +12,6 @@ services:
       - PORT=8050
       - LOG_LEVEL=INFO
       - DEBUG=false
-    volumes:
-      # Mount source code for development (comment out for production)
-      - ./src:/app/src:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8050/health"]
@@ -29,6 +21,35 @@ services:
       start_period: 40s
     networks:
       - mcp-network
+    profiles:
+      - production
+
+  # Development service - builds from source
+  mcp-as-a-judge-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder  # Use builder stage for development
+    container_name: mcp-as-a-judge-dev
+    ports:
+      - "8050:8050"
+    environment:
+      - TRANSPORT=sse
+      - HOST=0.0.0.0
+      - PORT=8050
+      - LOG_LEVEL=DEBUG
+      - DEBUG=true
+      - DEVELOPMENT_MODE=true
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./.env:/app/.env
+    command: ["uv", "run", "src/mcp_as_a_judge/server.py"]
+    restart: "no"
+    networks:
+      - mcp-network
+    profiles:
+      - development
 
   # Optional: Add a reverse proxy for production
   nginx:
@@ -52,32 +73,4 @@ networks:
   mcp-network:
     driver: bridge
 
-# Development override
-# Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
----
-version: '3.8'
 
-services:
-  mcp-as-a-judge-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: builder  # Use builder stage for development
-    container_name: mcp-as-a-judge-dev
-    ports:
-      - "8050:8050"
-    environment:
-      - TRANSPORT=sse
-      - HOST=0.0.0.0
-      - PORT=8050
-      - LOG_LEVEL=DEBUG
-      - DEBUG=true
-      - DEVELOPMENT_MODE=true
-    volumes:
-      - ./src:/app/src
-      - ./tests:/app/tests
-      - ./.env:/app/.env
-    command: ["uv", "run", "src/mcp_as_a_judge/server.py"]
-    restart: "no"
-    profiles:
-      - development
