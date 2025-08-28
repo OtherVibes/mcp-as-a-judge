@@ -9,9 +9,9 @@ import json
 from mcp.server.fastmcp import FastMCP, Context
 from mcp.server.session import ServerSession
 from mcp.types import SamplingMessage, TextContent, ClientCapabilities, SamplingCapability
-from pydantic import BaseModel
 
-from .models import JudgeResponse
+
+from .models import JudgeResponse, ObstacleResolutionDecision, RequirementsClarification
 
 
 # Create the MCP server instance
@@ -150,18 +150,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
         return f"❌ ERROR: Failed to elicit requirement clarifications. Error: {str(e)}. Cannot proceed without clear requirements."
 
 
-# Elicitation schemas
-class ObstacleResolutionDecision(BaseModel):
-    """Schema for eliciting user decision when agent encounters obstacles."""
-    chosen_option: str  # The option the user chooses from the provided list
-    additional_context: str  # Any additional context or modifications the user provides
 
-
-class RequirementsClarification(BaseModel):
-    """Schema for eliciting missing requirements from user."""
-    clarified_requirements: str  # The clarified or additional requirements
-    priority_level: str  # "high", "medium", "low" - how critical these requirements are
-    additional_context: str  # Any additional context about the requirements
 
 
 @mcp.tool()
