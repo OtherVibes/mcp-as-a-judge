@@ -10,7 +10,7 @@
 [![CI](https://github.com/hepivax/mcp-as-a-judge/workflows/CI/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/ci.yml)
 [![Release](https://github.com/hepivax/mcp-as-a-judge/workflows/Release/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/release.yml)
 [![PyPI version](https://badge.fury.io/py/mcp-as-a-judge.svg)](https://badge.fury.io/py/mcp-as-a-judge)
-[![Docker Image](https://ghcr-badge.egpl.dev/hepivax/mcp-as-a-judge/latest_tag?trim=major&label=latest)](https://github.com/hepivax/mcp-as-a-judge/pkgs/container/mcp-as-a-judge)
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker)](https://github.com/hepivax/mcp-as-a-judge/pkgs/container/mcp-as-a-judge)
 [![codecov](https://codecov.io/gh/hepivax/mcp-as-a-judge/branch/main/graph/badge.svg)](https://codecov.io/gh/hepivax/mcp-as-a-judge)
 
 **MCP as a Judge** is a revolutionary Model Context Protocol (MCP) server that **transforms the developer-AI collaboration experience**. It acts as an intelligent gatekeeper for software development, preventing bad coding practices by using AI-powered evaluation and involving users in critical decisions when requirements are unclear or obstacles arise.
@@ -26,15 +26,7 @@
 - 🔍 **Enforcing research and best practices** before implementation
 - ⚖️ **Creating a collaborative AI-human workflow** for better software quality
 
-## 🚀 **Vibe Coding doesn't have to be frustrating**
-
-### **What It Prevents:**
-
-- ❌ Reinventing the wheel instead of using existing solutions
-- ❌ Building workarounds instead of proper implementations
-- ❌ Insufficient research leading to poor architectural decisions
-- ❌ Misalignment between code and user requirements
-- ❌ Deployment of problematic code without proper review
+## 😌 **Vibe Coding doesn't have to be frustrating**
 
 ### **What It Enforces:**
 
@@ -78,13 +70,28 @@
 
 ## 🚀 **Quick Start**
 
-### **Prerequisites**
+### **Requirements & Recommendations**
+
+#### **⚠️ Critical Requirements**
+
+MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** features for its core functionality:
+
+- **[MCP Sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling)** - Required for AI-powered code evaluation and judgment
+- **[MCP Elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation)** - Required for interactive user decision prompts
+
+#### **🔧 Supported AI Assistants**
+
+Currently, **GitHub Copilot in VS Code** is the only AI assistant that fully supports these MCP features. Other coding assistants and other versions of GitHub Copilot are not supported at this time.
+
+#### **📋 Technical Prerequisites**
 
 - Python 3.12+ (latest secure version)
-- MCP-compatible client that supports:
-  - **[Sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling)** - Required for AI-powered code evaluation
-  - **[Elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation)** - Required for user decision prompts
-- Compatible clients: Claude Desktop, Cursor, etc.
+- GitHub Copilot with MCP support enabled
+
+#### **💡 Recommendations**
+
+- **Large Context Window Models**: 1M+ token size models are strongly preferred for optimal performance
+- Models with larger context windows provide better code analysis and more comprehensive judgments
 
 > **Note**: MCP servers communicate via stdio (standard input/output), not HTTP ports. No network configuration is needed.
 
@@ -166,51 +173,67 @@ uv sync --all-extras --dev
 uv run mcp-as-a-judge
 ```
 
-### **Configuration**
+## 🔧 **VS Code Configuration**
 
-#### **MCP Client Configuration**
+Configure MCP as a Judge in VS Code with GitHub Copilot using one of these methods:
 
-**For Claude Desktop / Cursor (SSE Transport):**
+### **Option 1: Using uv (Recommended)**
 
-```json
-{
-  "mcpServers": {
-    "mcp-as-a-judge": {
-      "transport": "sse",
-      "url": "http://localhost:8050/sse"
-    }
-  }
-}
-```
+1. **Install the package:**
 
-**For Stdio Transport (Development):**
+   ```bash
+   uv add mcp-as-a-judge
+   ```
 
-```json
-{
-  "mcpServers": {
-    "mcp-as-a-judge": {
-      "command": "uv",
-      "args": ["run", "mcp-as-a-judge"],
-      "env": {
-        "TRANSPORT": "stdio"
-      }
-    }
-  }
-}
-```
+2. **Configure VS Code MCP settings:**
 
-**For Docker with SSE Transport:**
+   Add this to your VS Code MCP configuration file:
 
-```json
-{
-  "mcpServers": {
-    "mcp-as-a-judge": {
-      "transport": "sse",
-      "url": "http://localhost:8050/sse"
-    }
-  }
-}
-```
+   ```json
+   {
+     "servers": {
+       "mcp-as-a-judge": {
+         "command": "uv",
+         "args": ["run", "mcp-as-a-judge"]
+       }
+     }
+   }
+   ```
+
+### **Option 2: Using Docker**
+
+1. **Pull the Docker image:**
+
+   ```bash
+   docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
+   ```
+
+2. **Configure VS Code MCP settings:**
+
+   Add this to your VS Code MCP configuration file:
+
+   ```json
+   {
+     "servers": {
+       "mcp-as-a-judge": {
+         "command": "docker",
+         "args": ["run", "--rm", "-i", "ghcr.io/hepivax/mcp-as-a-judge:latest"]
+       }
+     }
+   }
+   ```
+
+### **📍 VS Code MCP Configuration Location**
+
+The MCP configuration file is typically located at:
+
+- **Windows**: `%APPDATA%\Code\User\globalStorage\github.copilot-chat\mcp.json`
+- **macOS**: `~/Library/Application Support/Code/User/globalStorage/github.copilot-chat/mcp.json`
+- **Linux**: `~/.config/Code/User/globalStorage/github.copilot-chat/mcp.json`
+
+### **🔄 Restart VS Code**
+
+After adding the configuration, restart VS Code to load the MCP server.
 
 #### **Environment Variables**
 
@@ -254,223 +277,63 @@ DEBUG=false
 
 ## 📖 **How It Works**
 
-### **1. Mandatory Workflow Enforcement**
+Once MCP as a Judge is configured in VS Code with GitHub Copilot, it automatically guides your AI assistant through a structured software engineering workflow. The system operates transparently in the background, ensuring every development task follows best practices.
 
-```
-User Request → check_swe_compliance → Guided Planning → judge_coding_plan → Implementation → judge_code_change
-```
+### **🔄 Automatic Workflow Enforcement**
 
-### **2. Obstacle Handling**
+**1. Initial Task Analysis**
+- When you make any development request, the AI assistant automatically calls `check_swe_compliance`
+- This tool analyzes your request and provides specific guidance on which validation steps are required
+- No manual intervention needed - the workflow starts automatically
 
-```
-Agent Hits Blocker → raise_obstacle → User Decision → Continue with User Choice
-```
+**2. Planning & Design Phase**
+- For any implementation task, the AI assistant must first help you create:
+  - **Detailed coding plan** - Step-by-step implementation approach
+  - **System design** - Architecture, components, and technical decisions
+  - **Research findings** - Analysis of existing solutions and best practices
+- Once complete, `judge_coding_plan` automatically evaluates the plan using MCP Sampling
+- **AI-powered evaluation** checks for design quality, security, research thoroughness, and requirements alignment
 
-### **3. Requirements Clarification**
+**3. Code Implementation Review**
+- After any code is written or modified, `judge_code_change` is automatically triggered
+- **Mandatory code review** happens immediately after file creation/modification
+- Uses MCP Sampling to evaluate code quality, security vulnerabilities, and best practices
+- Ensures every code change meets professional standards
 
-```
-Unclear Request → elicit_missing_requirements → User Clarification → Proceed with Clear Requirements
-```
+### **🤝 User Involvement When Needed**
 
-## 🎯 **Example Usage**
+**Obstacle Resolution**
+- When the AI assistant encounters blockers or conflicting requirements, `raise_obstacle` automatically engages you
+- Uses MCP Elicitation to present options and get your decision
+- No hidden fallbacks - you're always involved in critical decisions
 
-### **Planning Evaluation**
+**Requirements Clarification**
+- If your request lacks sufficient detail, `elicit_missing_requirements` automatically asks for clarification
+- Uses MCP Elicitation to gather specific missing information
+- Ensures implementation matches your actual needs
 
-```python
-# Agent calls this when user wants to implement something
-await judge_coding_plan(
-    plan="Detailed implementation steps...",
-    design="System architecture and components...",
-    research="Analysis of existing solutions...",
-    user_requirements="What the user actually wants to achieve",
-    context="Additional project context"
-)
-```
+### **🎯 What to Expect**
 
-### **Obstacle Resolution**
+- **Automatic guidance** - No need to explicitly ask the AI coding assistant to call tools
+- **Comprehensive planning** - Every implementation starts with proper design and research
+- **Quality enforcement** - All code changes are automatically reviewed against industry standards
+- **User-driven decisions** - You're involved whenever your original request cannot be satisfied
+- **Professional standards** - Consistent application of software engineering best practices
 
-```python
-# Agent calls this when hitting blockers
-await raise_obstacle(
-    problem="Cannot use LLM sampling - client doesn't support it",
-    research="Researched alternatives: configure client, use different client, etc.",
-    options=[
-        "Configure Cursor to support sampling",
-        "Use Claude Desktop instead",
-        "Wait for Cursor sampling support",
-        "Cancel the evaluation"
-    ]
-)
-```
+## 🔒 **Privacy & API Key Free**
 
-## 🐳 **Docker Usage Examples**
+### **🔑 No LLM API Key Required**
 
-### **Development with Docker**
+- All judgments are performed using **MCP Sampling** capability
+- No need to configure or pay for external LLM API services
+- Works directly with your MCP-compatible client's existing AI model
 
-```bash
-# Start development environment with hot reload
-docker-compose --profile development up
+### **🛡️ Your Privacy Matters**
 
-# View logs
-docker-compose logs -f mcp-as-a-judge-dev
-
-# Stop development environment
-docker-compose down
-```
-
-### **Production Deployment**
-
-```bash
-# Start production environment
-docker-compose --profile production up -d
-
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs mcp-as-a-judge
-
-# Update to latest version
-docker-compose pull
-docker-compose --profile production up -d
-
-# Stop production environment
-docker-compose down
-```
-
-### **Docker Health Checks**
-
-```bash
-# Check container health
-docker inspect --format='{{.State.Health.Status}}' mcp-as-a-judge
-
-# View health check logs
-docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' mcp-as-a-judge
-```
-
-### **Docker Networking**
-
-```bash
-# Run with custom network
-docker network create mcp-network
-docker run -d \
-  --name mcp-as-a-judge \
-  --network mcp-network \
-  -p 8050:8050 \
-  -e TRANSPORT=sse \
-  mcp-as-a-judge:latest
-
-# Connect other services to the same network
-docker run -d \
-  --name nginx-proxy \
-  --network mcp-network \
-  -p 80:80 \
-  nginx:alpine
-```
-
-## 🔧 **Development**
-
-### **Project Structure**
-
-```
-mcp-as-a-judge/
-├── src/mcp_as_a_judge/
-│   ├── __init__.py
-│   ├── server.py          # Main MCP server implementation
-│   └── models.py          # Pydantic models and schemas
-├── tests/                 # Test suite
-├── docs/                  # Documentation
-├── Dockerfile            # Production container
-├── docker-compose.yml    # Multi-environment setup
-├── pyproject.toml        # Project configuration
-└── README.md            # This file
-```
-
-### **Running Tests**
-
-```bash
-# Run all tests
-uv run pytest
-
-# Run with coverage
-uv run pytest --cov=src/mcp_as_a_judge
-
-# Run specific test types
-uv run pytest -m "not slow"  # Skip slow tests
-
-# Run tests in Docker
-docker run --rm \
-  -v $(pwd):/app \
-  -w /app \
-  python:3.12-slim \
-  bash -c "pip install uv && uv pip install -e .[dev] && pytest"
-```
-
-### **Code Quality**
-
-```bash
-# Format code
-uv run black src tests
-
-# Lint code
-uv run ruff check src tests
-
-# Type checking
-uv run mypy src
-
-# All quality checks
-make quality
-```
-
-## 🌟 **Why This Changes Everything**
-
-### **Before MCP as a Judge:**
-
-- Developers build quick fixes and workarounds
-- Insufficient research leads to reinventing existing solutions
-- Code doesn't align with actual user requirements
-- Bad practices slip through without review
-
-### **After MCP as a Judge:**
-
-- ✅ **Forced deep research** prevents reinventing the wheel
-- ✅ **User involvement** ensures requirements alignment
-- ✅ **No hidden fallbacks** - transparent decision making
-- ✅ **Quality enforcement** at every step
-- ✅ **Best practices** become automatic
-
-## 📦 **Installation**
-
-### **From PyPI (Recommended)**
-
-```bash
-# Install with uv (recommended)
-uv add mcp-as-a-judge
-
-# Or with pip
-pip install mcp-as-a-judge
-```
-
-### **From Docker**
-
-```bash
-# Pull the latest image from GitHub Container Registry
-docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
-
-# Run the container
-docker run -it --name mcp-as-a-judge ghcr.io/hepivax/mcp-as-a-judge:latest
-
-# Or use docker-compose for production
-docker-compose --profile production up -d
-```
-
-### **From Source (Development)**
-
-```bash
-git clone https://github.com/hepivax/mcp-as-a-judge.git
-cd mcp-as-a-judge
-uv sync --all-extras --dev
-```
+- The server runs **locally** on your machine
+- **No data collection** - your code and conversations stay private
+- **No external API calls** - everything happens within your local environment
+- Complete control over your development workflow and sensitive information
 
 ## 🤝 **Contributing**
 

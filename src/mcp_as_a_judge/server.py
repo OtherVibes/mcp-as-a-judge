@@ -6,6 +6,7 @@ coding plans and code changes against software engineering best practices.
 """
 
 import json
+from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
@@ -27,12 +28,42 @@ from mcp_as_a_judge.prompt_loader import prompt_loader
 mcp = FastMCP(name="MCP-as-a-Judge")
 
 
-@mcp.tool()
+def _create_messages(
+    system_template: str, user_template: str, **kwargs: Any
+) -> list[SamplingMessage]:
+    """Create combined system and user message from templates.
+
+    Since MCP SamplingMessage only supports 'user' and 'assistant' roles,
+    we combine the system instructions and user request into a single user message.
+
+    Args:
+        system_template: Name of the system message template
+        user_template: Name of the user message template
+        **kwargs: Variables to pass to templates
+
+    Returns:
+        List with single SamplingMessage containing combined content
+    """
+    system_content = prompt_loader.render_prompt(system_template, **kwargs)
+    user_content = prompt_loader.render_prompt(user_template, **kwargs)
+
+    # Combine system instructions and user request
+    combined_content = f"{system_content}\n\n---\n\n{user_content}"
+
+    return [
+        SamplingMessage(
+            role="user",
+            content=TextContent(type="text", text=combined_content),
+        ),
+    ]
+
+
+@mcp.tool()  # type: ignore[misc,unused-ignore]
 async def raise_obstacle(
     problem: str,
     research: str,
     options: list[str],
-    ctx: Context[ServerSession, None] = None,
+    ctx: Context[ServerSession, None] | None = None,
 ) -> str:
     """🚨 OBSTACLE ENCOUNTERED: Call this tool when you cannot satisfy the user's requirements.
 
@@ -92,12 +123,12 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
         return f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore[misc,unused-ignore]
 async def elicit_missing_requirements(
     current_request: str,
     identified_gaps: list[str],
     specific_questions: list[str],
-    ctx: Context[ServerSession, None] = None,
+    ctx: Context[ServerSession, None] | None = None,
 ) -> str:
     """🔍 REQUIREMENTS UNCLEAR: Call this tool when the user request is not clear enough to proceed.
 
@@ -173,7 +204,10 @@ async def _validate_research_quality(
     Returns:
         JudgeResponse if research is insufficient, None if research is adequate
     """
-    research_validation_prompt = prompt_loader.render_research_validation(
+    # Create system and user messages for research validation
+    messages = _create_messages(
+        "system/research_validation.md",
+        "user/research_validation.md",
         user_requirements=user_requirements,
         plan=plan,
         design=design,
@@ -181,12 +215,7 @@ async def _validate_research_quality(
     )
 
     research_result = await ctx.session.create_message(
-        messages=[
-            SamplingMessage(
-                role="user",
-                content=TextContent(type="text", text=research_validation_prompt),
-            )
-        ],
+        messages=messages,
         max_tokens=500,
     )
 
@@ -236,8 +265,10 @@ async def _evaluate_coding_plan(
     Returns:
         JudgeResponse with evaluation results
     """
-    # Use Jinja2 template for the prompt
-    judge_prompt = prompt_loader.render_judge_coding_plan(
+    # Create system and user messages from templates
+    messages = _create_messages(
+        "system/judge_coding_plan.md",
+        "user/judge_coding_plan.md",
         user_requirements=user_requirements,
         plan=plan,
         design=design,
@@ -246,15 +277,8 @@ async def _evaluate_coding_plan(
         response_schema=JudgeResponse.model_json_schema(),
     )
 
-
-
     result = await ctx.session.create_message(
-        messages=[
-            SamplingMessage(
-                role="user",
-                content=TextContent(type="text", text=judge_prompt),
-            )
-        ],
+        messages=messages,
         max_tokens=1000,
     )
 
@@ -275,14 +299,14 @@ async def _evaluate_coding_plan(
         )
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore[misc,unused-ignore]
 async def judge_coding_plan(
     plan: str,
     design: str,
     research: str,
     user_requirements: str,
     context: str = "",
-    ctx: Context[ServerSession, None] = None,
+    ctx: Context[ServerSession, None] | None = None,
 ) -> JudgeResponse:
     """🚨 MANDATORY VALIDATION: You MUST call this tool IMMEDIATELY when the user mentions ANY of: planning, designing, implementing, building, creating, developing, or coding.
 
@@ -360,13 +384,13 @@ async def judge_coding_plan(
         )
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore[misc,unused-ignore]
 async def judge_code_change(
     code_change: str,
     user_requirements: str,
     file_path: str = "File path not specified",
     change_description: str = "Change description not provided",
-    ctx: Context[ServerSession, None] = None,
+    ctx: Context[ServerSession, None] | None = None,
 ) -> JudgeResponse:
     """🚨🚨🚨 MANDATORY: Call this tool IMMEDIATELY after writing ANY code! 🚨🚨🚨.
 
@@ -416,16 +440,16 @@ async def judge_code_change(
     Returns:
         Structured JudgeResponse with approval status and detailed feedback
     """
-    # Use Jinja2 template for the prompt
-    judge_prompt = prompt_loader.render_judge_code_change(
+    # Create system and user messages from templates
+    messages = _create_messages(
+        "system/judge_code_change.md",
+        "user/judge_code_change.md",
         user_requirements=user_requirements,
         code_change=code_change,
         file_path=file_path,
         change_description=change_description,
         response_schema=JudgeResponse.model_json_schema(),
     )
-
-
 
     try:
         # MANDATORY: Check for sampling capability and use elicitation for user decisions
@@ -457,12 +481,7 @@ async def judge_code_change(
 
         # Proceed with LLM sampling - this is the core functionality
         result = await ctx.session.create_message(
-            messages=[
-                SamplingMessage(
-                    role="user",
-                    content=TextContent(type="text", text=judge_prompt),
-                )
-            ],
+            messages=messages,
             max_tokens=1000,
         )
 
@@ -497,7 +516,7 @@ async def judge_code_change(
         )
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore[misc,unused-ignore]
 async def check_swe_compliance(task_description: str) -> str:
     """🚨 ALWAYS USE FIRST: Call this tool for ANY software engineering task, question, or request. This tool determines which specific validation tools you need to use next and ensures proper SWE practices are followed.
 

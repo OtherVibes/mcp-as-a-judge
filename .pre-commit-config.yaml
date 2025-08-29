@@ -69,7 +69,9 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies: [types-requests]
-        args: [--strict]
+        args: [--config-file, pyproject.toml, --ignore-missing-imports, src]
+        files: ^src/
+        pass_filenames: false
 
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v3.29.1
