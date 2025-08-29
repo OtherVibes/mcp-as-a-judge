@@ -28,6 +28,7 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "jinja2>=3.1.6",
     "mcp[cli]>=1.13.0",
     "pydantic>=2.0.0",
 ]

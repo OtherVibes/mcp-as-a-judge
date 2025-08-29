@@ -26,7 +26,7 @@
 - 🔍 **Enforcing research and best practices** before implementation
 - ⚖️ **Creating a collaborative AI-human workflow** for better software quality
 
-## 🚀 **This MCP Will Change Many Developers' Lives!**
+## 🚀 **Vibe Coding doesn't have to be frustrating**
 
 ### **What It Prevents:**
 

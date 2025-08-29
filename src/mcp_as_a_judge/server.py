@@ -21,6 +21,7 @@ from mcp_as_a_judge.models import (
     ObstacleResolutionDecision,
     RequirementsClarification,
 )
+from mcp_as_a_judge.prompt_loader import prompt_loader
 
 # Create the MCP server instance
 mcp = FastMCP(name="MCP-as-a-Judge")
@@ -172,41 +173,12 @@ async def _validate_research_quality(
     Returns:
         JudgeResponse if research is insufficient, None if research is adequate
     """
-    research_validation_prompt = f"""
-You are evaluating the comprehensiveness of research for a software development task.
-
-USER REQUIREMENTS: {user_requirements}
-PLAN: {plan}
-DESIGN: {design}
-RESEARCH PROVIDED: {research}
-
-Evaluate if the research is comprehensive enough and if the design is properly based on the research. Consider:
-
-1. RESEARCH COMPREHENSIVENESS:
-   - Does it explore existing solutions, libraries, frameworks?
-   - Are alternatives and best practices considered?
-   - Is there analysis of trade-offs and comparisons?
-   - Does it identify potential pitfalls or challenges?
-
-2. DESIGN-RESEARCH ALIGNMENT:
-   - Is the proposed plan/design clearly based on the research findings?
-   - Does it leverage existing solutions where appropriate?
-   - Are research insights properly incorporated into the approach?
-   - Does it avoid reinventing the wheel unnecessarily?
-
-3. RESEARCH QUALITY:
-   - Is the research specific and actionable?
-   - Does it demonstrate understanding of the problem domain?
-   - Are sources and references appropriate?
-
-Respond with JSON:
-{{
-    "research_adequate": boolean,
-    "design_based_on_research": boolean,
-    "issues": ["list of specific issues if any"],
-    "feedback": "detailed feedback on research quality and design alignment"
-}}
-"""
+    research_validation_prompt = prompt_loader.render_research_validation(
+        user_requirements=user_requirements,
+        plan=plan,
+        design=design,
+        research=research,
+    )
 
     research_result = await ctx.session.create_message(
         messages=[
@@ -264,140 +236,17 @@ async def _evaluate_coding_plan(
     Returns:
         JudgeResponse with evaluation results
     """
-    # Construct the prompt for the LLM judge
-    judge_prompt = f"""You are an expert software engineering judge. Review the following coding plan and provide feedback.
+    # Use Jinja2 template for the prompt
+    judge_prompt = prompt_loader.render_judge_coding_plan(
+        user_requirements=user_requirements,
+        plan=plan,
+        design=design,
+        research=research,
+        context=context,
+        response_schema=JudgeResponse.model_json_schema(),
+    )
 
-USER REQUIREMENTS:
-{user_requirements}
 
-CONTEXT:
-{context}
-
-PLAN:
-{plan}
-
-DESIGN:
-{design}
-
-RESEARCH:
-{research}
-
-Please evaluate this submission against the following comprehensive SWE best practices:
-
-1. **Design Quality & Completeness**:
-   - Is the system design comprehensive and well-documented?
-   - Are all major components, interfaces, and data flows clearly defined?
-   - Does the design follow SOLID principles and established patterns?
-   - Are technical decisions justified and appropriate?
-   - Is the design modular, maintainable, and scalable?
-   - **DRY Principle**: Does it avoid duplication and promote reusability?
-   - **Orthogonality**: Are components independent and loosely coupled?
-
-2. **Research Thoroughness**:
-   - Has the agent researched existing solutions and alternatives?
-   - Are appropriate libraries, frameworks, and tools identified?
-   - Is there evidence of understanding industry best practices?
-   - Are trade-offs between different approaches analyzed?
-   - Does the research demonstrate avoiding reinventing the wheel?
-   - **"Use the Source, Luke"**: Are authoritative sources and documentation referenced?
-
-3. **Architecture & Implementation Plan**:
-   - Does the plan follow the proposed design consistently?
-   - Is the implementation approach logical and well-structured?
-   - Are potential technical challenges identified and addressed?
-   - Does it avoid over-engineering or under-engineering?
-   - **Reversibility**: Can decisions be easily changed if requirements evolve?
-   - **Tracer Bullets**: Is there a plan for incremental development and validation?
-
-4. **Security & Robustness**:
-   - Are security vulnerabilities identified and mitigated in the design?
-   - Does the plan follow security best practices?
-   - Are inputs, authentication, and authorization properly planned?
-   - **Design by Contract**: Are preconditions, postconditions, and invariants defined?
-   - **Defensive Programming**: How are invalid inputs and edge cases handled?
-   - **Fail Fast**: Are errors detected and reported as early as possible?
-
-5. **Testing & Quality Assurance**:
-   - Is there a comprehensive testing strategy?
-   - Are edge cases and error scenarios considered?
-   - Is the testing approach aligned with the design complexity?
-   - **Test Early, Test Often**: Is testing integrated throughout development?
-   - **Debugging Mindset**: Are debugging and troubleshooting strategies considered?
-
-6. **Performance & Scalability**:
-   - Are performance requirements considered in the design?
-   - Is the solution scalable for expected load?
-   - Are potential bottlenecks identified and addressed?
-   - **Premature Optimization**: Is optimization balanced with clarity and maintainability?
-   - **Prototype to Learn**: Are performance assumptions validated?
-
-7. **Maintainability & Evolution**:
-   - Is the overall approach maintainable and extensible?
-   - Are coding standards and documentation practices defined?
-   - Is the design easy to understand and modify?
-   - **Easy to Change**: How well does the design accommodate future changes?
-   - **Good Enough Software**: Is the solution appropriately scoped for current needs?
-   - **Refactoring Strategy**: Is there a plan for continuous improvement?
-
-8. **Communication & Documentation**:
-   - Are requirements clearly understood and documented?
-   - Is the design communicated effectively to stakeholders?
-   - **Plain Text Power**: Is documentation in accessible, version-controllable formats?
-   - **Rubber Duck Debugging**: Can the approach be explained clearly to others?
-
-EVALUATION GUIDELINES:
-- **Good Enough Software**: APPROVE if the submission demonstrates reasonable effort and covers the main aspects, even if not perfect
-- **Focus on Critical Issues**: Identify the most critical missing elements rather than minor improvements
-- **Context Matters**: Consider the project complexity and constraints when evaluating completeness
-- **Constructive Feedback**: Provide actionable guidance that helps improve without overwhelming
-- **Tracer Bullet Mindset**: Value working solutions that can be iteratively improved
-
-APPROVE when:
-- Core design elements are present and logical
-- Basic research shows awareness of existing solutions (avoiding reinventing the wheel)
-- Plan demonstrates understanding of key requirements
-- Major security and quality concerns are addressed
-- **DRY and Orthogonal**: Design shows good separation of concerns
-- **Reversible Decisions**: Architecture allows for future changes
-- **Defensive Programming**: Error handling and edge cases are considered
-
-REQUIRE REVISION only when:
-- Critical design flaws or security vulnerabilities exist
-- No evidence of research or consideration of alternatives
-- Plan is too vague or missing essential components
-- Major architectural decisions are unjustified
-- **Broken Windows**: Fundamental quality issues that will compound over time
-- **Premature Optimization**: Over-engineering without clear benefit
-- **Coupling Issues**: Components are too tightly coupled or not orthogonal
-
-**Key Principle**: If requiring revision, limit to 3-5 most important improvements to avoid overwhelming the user. Remember: "Perfect is the enemy of good enough."
-
-🚨 ADDITIONAL CRITICAL EVALUATION GUIDELINES:
-
-1. **USER REQUIREMENTS ALIGNMENT**:
-   - Does the plan directly address the user's stated requirements?
-   - Are all user requirements covered in the implementation plan?
-   - Is the solution appropriate for what the user actually wants to achieve?
-   - Flag any misalignment between user needs and proposed solution
-
-2. **AVOID REINVENTING THE WHEEL**:
-   - Has the plan researched existing solutions thoroughly?
-   - Are they leveraging established libraries, frameworks, and patterns?
-   - Flag any attempt to build from scratch what already exists
-
-3. **ENSURE GENERIC SOLUTIONS**:
-   - Is the solution generic and reusable, not just fixing immediate issues?
-   - Are they solving the root problem or just patching symptoms?
-   - Flag solutions that seem like workarounds
-
-4. **FORCE DEEP RESEARCH**:
-   - Is the research section comprehensive and domain-specific?
-   - Have they analyzed multiple approaches and alternatives?
-   - Flag shallow research that misses obvious solutions
-
-You must respond with a JSON object that matches this schema:
-{JudgeResponse.model_json_schema()}
-"""
 
     result = await ctx.session.create_message(
         messages=[
@@ -567,107 +416,16 @@ async def judge_code_change(
     Returns:
         Structured JudgeResponse with approval status and detailed feedback
     """
-    # Construct the prompt for the LLM judge
-    judge_prompt = f"""You are an expert software engineering judge. Review the following code content and provide feedback.
+    # Use Jinja2 template for the prompt
+    judge_prompt = prompt_loader.render_judge_code_change(
+        user_requirements=user_requirements,
+        code_change=code_change,
+        file_path=file_path,
+        change_description=change_description,
+        response_schema=JudgeResponse.model_json_schema(),
+    )
 
-USER REQUIREMENTS:
-{user_requirements}
 
-FILE PATH: {file_path}
-
-CHANGE DESCRIPTION:
-{change_description}
-
-CODE CONTENT (new file or modifications):
-{code_change}
-
-Please evaluate this code content against the following comprehensive criteria:
-
-1. **User Requirements Alignment**:
-   - Does the code directly address the user's stated requirements?
-   - Will this code accomplish what the user wants to achieve?
-   - Is the implementation approach appropriate for the user's needs?
-   - **Good Enough Software**: Is the solution appropriately scoped and not over-engineered?
-
-2. **Code Quality & Clarity**:
-   - Is the code clean, readable, and well-structured?
-   - Does it follow language-specific conventions and best practices?
-   - Are variable and function names descriptive and intention-revealing?
-   - **DRY Principle**: Is duplication avoided and logic centralized?
-   - **Orthogonality**: Are functions focused and loosely coupled?
-   - **Code Comments**: Do comments explain WHY, not just WHAT?
-
-3. **Security & Defensive Programming**:
-   - Are there any security vulnerabilities?
-   - Is input validation proper and comprehensive?
-   - Are there any injection risks or attack vectors?
-   - **Design by Contract**: Are preconditions and postconditions clear?
-   - **Assertive Programming**: Are assumptions validated with assertions?
-   - **Principle of Least Privilege**: Does code have minimal necessary permissions?
-
-4. **Performance & Efficiency**:
-   - Are there obvious performance issues?
-   - Is the algorithm choice appropriate for the problem size?
-   - Are there unnecessary computations or resource usage?
-   - **Premature Optimization**: Is optimization balanced with readability?
-   - **Prototype to Learn**: Are performance assumptions reasonable?
-
-5. **Error Handling & Robustness**:
-   - Is error handling comprehensive and appropriate?
-   - Are edge cases and boundary conditions handled properly?
-   - Are errors logged appropriately with sufficient context?
-   - **Fail Fast**: Are errors detected and reported as early as possible?
-   - **Exception Safety**: Is the code exception-safe and resource-leak-free?
-
-6. **Testing & Debugging**:
-   - Is the code testable and well-structured for testing?
-   - Are there obvious test cases missing?
-   - **Test Early, Test Often**: Is the code designed with testing in mind?
-   - **Debugging Support**: Are there adequate logging and debugging aids?
-
-7. **Dependencies & Reuse**:
-   - Are third-party libraries used appropriately?
-   - Is existing code reused where possible?
-   - Are new dependencies justified and well-vetted?
-   - **Don't Reinvent the Wheel**: Are standard solutions used where appropriate?
-
-8. **Maintainability & Evolution**:
-   - Is the code easy to understand and modify?
-   - Is it properly documented with clear intent?
-   - Does it follow the existing codebase patterns?
-   - **Easy to Change**: How well will this code adapt to future requirements?
-   - **Refactoring-Friendly**: Is the code structure conducive to improvement?
-   - **Version Control**: Are changes atomic and well-described?
-
-You must respond with a JSON object that matches this schema:
-{JudgeResponse.model_json_schema()}
-
-EVALUATION GUIDELINES:
-- **Good Enough Software**: APPROVE if the code follows basic best practices and doesn't have critical issues
-- **Broken Windows Theory**: Focus on issues that will compound over time if left unfixed
-- **Context-Driven**: Consider the complexity, timeline, and constraints when evaluating
-- **Constructive Feedback**: Provide actionable guidance for improvement
-
-APPROVE when:
-- Code is readable and follows reasonable conventions
-- No obvious security vulnerabilities or major bugs
-- Basic error handling is present where needed
-- Implementation matches the intended functionality
-- **DRY Principle**: Minimal duplication and good abstraction
-- **Orthogonality**: Functions are focused and loosely coupled
-- **Fail Fast**: Errors are detected early and handled appropriately
-
-REQUIRE REVISION only for:
-- Security vulnerabilities or injection risks
-- Major bugs or logical errors that will cause failures
-- Completely missing error handling in critical paths
-- Code that violates fundamental principles (DRY, SOLID, etc.)
-- **Broken Windows**: Quality issues that will encourage more poor code
-- **Tight Coupling**: Code that makes future changes difficult
-- **Premature Optimization**: Complex optimizations without clear benefit
-
-**Key Principle**: If requiring revision, limit to 3-5 most critical issues to avoid overwhelming the user. Remember: "Don't let perfect be the enemy of good enough" - focus on what matters most for maintainable, working software.
-"""
 
     try:
         # MANDATORY: Check for sampling capability and use elicitation for user decisions
