@@ -200,7 +200,7 @@ RESEARCH FINDINGS:
 ADDITIONAL CONTEXT:
 {context}
 
-Please evaluate this submission against the following SWE best practices (inspired by The Pragmatic Programmer):
+Please evaluate this submission against the following comprehensive SWE best practices:
 
 1. **Design Quality & Completeness**:
    - Is the system design comprehensive and well-documented?
@@ -266,7 +266,7 @@ Please evaluate this submission against the following SWE best practices (inspir
 You must respond with a JSON object that matches this schema:
 {JudgeResponse.model_json_schema()}
 
-EVALUATION GUIDELINES (Pragmatic Approach):
+EVALUATION GUIDELINES:
 - **Good Enough Software**: APPROVE if the submission demonstrates reasonable effort and covers the main aspects, even if not perfect
 - **Focus on Critical Issues**: Identify the most critical missing elements rather than minor improvements
 - **Context Matters**: Consider the project complexity and constraints when evaluating completeness
@@ -291,7 +291,7 @@ REQUIRE REVISION only when:
 - **Premature Optimization**: Over-engineering without clear benefit
 - **Coupling Issues**: Components are too tightly coupled or not orthogonal
 
-**Pragmatic Principle**: If requiring revision, limit to 3-5 most important improvements to avoid overwhelming the user. Remember: "Perfect is the enemy of good enough."
+**Key Principle**: If requiring revision, limit to 3-5 most important improvements to avoid overwhelming the user. Remember: "Perfect is the enemy of good enough."
 """
 
     try:
@@ -512,7 +512,7 @@ CHANGE DESCRIPTION:
 CODE CHANGES:
 {code_change}
 
-Please evaluate these code changes against the following criteria (inspired by The Pragmatic Programmer):
+Please evaluate these code changes against the following comprehensive criteria:
 
 1. **User Requirements Alignment**:
    - Does the code directly address the user's stated requirements?
@@ -573,7 +573,7 @@ Please evaluate these code changes against the following criteria (inspired by T
 You must respond with a JSON object that matches this schema:
 {JudgeResponse.model_json_schema()}
 
-EVALUATION GUIDELINES (Pragmatic Programming Approach):
+EVALUATION GUIDELINES:
 - **Good Enough Software**: APPROVE if the code follows basic best practices and doesn't have critical issues
 - **Broken Windows Theory**: Focus on issues that will compound over time if left unfixed
 - **Context-Driven**: Consider the complexity, timeline, and constraints when evaluating
@@ -597,7 +597,7 @@ REQUIRE REVISION only for:
 - **Tight Coupling**: Code that makes future changes difficult
 - **Premature Optimization**: Complex optimizations without clear benefit
 
-**Pragmatic Principle**: If requiring revision, limit to 3-5 most critical issues to avoid overwhelming the user. Remember: "Don't let perfect be the enemy of good enough" - focus on what matters most for maintainable, working software.
+**Key Principle**: If requiring revision, limit to 3-5 most critical issues to avoid overwhelming the user. Remember: "Don't let perfect be the enemy of good enough" - focus on what matters most for maintainable, working software.
 """
 
     try:
