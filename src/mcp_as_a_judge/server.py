@@ -350,15 +350,76 @@ REJECT if:
 
             # Additional validation based on guidelines
             if response_data.get("approved", False):
-                # Check if research seems insufficient
-                research_lower = research.lower()
-                research_keywords = ["existing", "library", "framework", "solution", "alternative", "best practice", "comparison", "analysis"]
+                # AI-powered research validation
+                research_validation_prompt = f"""
+You are evaluating the comprehensiveness of research for a software development task.
 
-                if len(research) < 200 or sum(1 for keyword in research_keywords if keyword in research_lower) < 3:
+USER REQUIREMENTS: {user_requirements}
+PLAN: {plan}
+DESIGN: {design}
+RESEARCH PROVIDED: {research}
+
+Evaluate if the research is comprehensive enough and if the design is properly based on the research. Consider:
+
+1. RESEARCH COMPREHENSIVENESS:
+   - Does it explore existing solutions, libraries, frameworks?
+   - Are alternatives and best practices considered?
+   - Is there analysis of trade-offs and comparisons?
+   - Does it identify potential pitfalls or challenges?
+
+2. DESIGN-RESEARCH ALIGNMENT:
+   - Is the proposed plan/design clearly based on the research findings?
+   - Does it leverage existing solutions where appropriate?
+   - Are research insights properly incorporated into the approach?
+   - Does it avoid reinventing the wheel unnecessarily?
+
+3. RESEARCH QUALITY:
+   - Is the research specific and actionable?
+   - Does it demonstrate understanding of the problem domain?
+   - Are sources and references appropriate?
+
+Respond with JSON:
+{{
+    "research_adequate": boolean,
+    "design_based_on_research": boolean,
+    "issues": ["list of specific issues if any"],
+    "feedback": "detailed feedback on research quality and design alignment"
+}}
+"""
+
+                research_result = await ctx.session.create_message(
+                    messages=[
+                        SamplingMessage(
+                            role="user",
+                            content=TextContent(type="text", text=research_validation_prompt),
+                        )
+                    ],
+                    max_tokens=500,
+                )
+
+                if research_result.content.type == "text":
+                    research_response_text = research_result.content.text
+                else:
+                    research_response_text = str(research_result.content)
+
+                try:
+                    research_data = json.loads(research_response_text)
+
+                    if not research_data.get("research_adequate", False) or not research_data.get("design_based_on_research", False):
+                        issues = research_data.get("issues", ["Research validation failed"])
+                        feedback = research_data.get("feedback", "Research appears insufficient or design not properly based on research.")
+
+                        return JudgeResponse(
+                            approved=False,
+                            required_improvements=issues,
+                            feedback=f"❌ RESEARCH VALIDATION FAILED: {feedback} Please use the 'raise_obstacle' tool to involve the user in deciding how to address these research gaps."
+                        )
+
+                except (json.JSONDecodeError, KeyError) as e:
                     return JudgeResponse(
                         approved=False,
-                        required_improvements=["Insufficient research detected"],
-                        feedback=f"❌ RESEARCH GAP DETECTED: The research section appears insufficient (length: {len(research)} chars, keywords found: {[kw for kw in research_keywords if kw in research_lower]}). This may lead to reinventing the wheel or missing existing solutions. Please use the 'raise_obstacle' tool to involve the user in deciding how to address this research gap."
+                        required_improvements=["Research validation error"],
+                        feedback=f"❌ RESEARCH VALIDATION ERROR: Unable to properly evaluate research quality. Please use the 'raise_obstacle' tool to involve the user in reviewing the research comprehensiveness."
                     )
 
             return JudgeResponse(**response_data)
