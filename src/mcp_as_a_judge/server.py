@@ -6,6 +6,7 @@ coding plans and code changes against software engineering best practices.
 """
 
 import json
+import pdb; pdb.set_trace()  # This will trigger debug statement check
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
