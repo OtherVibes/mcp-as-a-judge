@@ -11,7 +11,7 @@ from mcp.server.session import ServerSession
 from mcp.types import SamplingMessage, TextContent, ClientCapabilities, SamplingCapability
 
 
-from .models import JudgeResponse, ObstacleResolutionDecision, RequirementsClarification
+from mcp_as_a_judge.models import JudgeResponse, ObstacleResolutionDecision, RequirementsClarification
 
 
 # Create the MCP server instance

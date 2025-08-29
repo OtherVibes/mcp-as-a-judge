@@ -1,4 +1,11 @@
 repos:
+  # Security scanning with gitleaks - MUST be first for security
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks
+
+  # General pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
@@ -11,7 +18,43 @@ repos:
       - id: check-merge-conflict
       - id: debug-statements
       - id: check-docstring-first
+      - id: check-case-conflict
+      - id: name-tests-test
+        args: ['--pytest-test-first']
 
+  # Python import sorting with isort
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black", "--line-length=88"]
+
+  # Python code formatting with black
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        language_version: python3
+        args: ["--line-length=88"]
+
+  # Python linting with flake8
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        args: [
+          "--max-line-length=88",
+          "--extend-ignore=E203,W503,E501",
+          "--max-complexity=10"
+        ]
+        additional_dependencies: [
+          flake8-docstrings,
+          flake8-bugbear,
+          flake8-comprehensions,
+          flake8-simplify
+        ]
+
+  # Ruff for additional fast linting (complementary to flake8)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
