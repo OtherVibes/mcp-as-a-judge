@@ -246,51 +246,36 @@ Respond with JSON:
     return None
 
 
-@mcp.tool()
-async def judge_coding_plan(
+async def _evaluate_coding_plan(
     plan: str,
     design: str,
     research: str,
     user_requirements: str,
-    context: str = "",
-    ctx: Context[ServerSession, None] = None,
+    context: str,
+    ctx: Context[ServerSession, None],
 ) -> JudgeResponse:
-    """🚨 MANDATORY VALIDATION: You MUST call this tool IMMEDIATELY when the user mentions ANY of: planning, designing, implementing, building, creating, developing, or coding.
-
-    BEFORE calling this tool, you MUST first help the user create:
-    1. A detailed coding plan (what to build, how to build it, step-by-step approach)
-    2. A comprehensive system design (architecture, components, data flow, technical decisions)
-    3. Research findings (existing solutions, libraries, frameworks, best practices)
-
-    DO NOT call this tool until you have gathered all required information from the user. Work with the user to develop these materials first, then validate them.
-
-    Args:
-        plan: The detailed coding plan to be reviewed (REQUIRED - must be comprehensive)
-        design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
-        research: Research findings on existing solutions, libraries, frameworks, and best practices for this problem (REQUIRED)
-        user_requirements: Clear statement of what the user wants to achieve (REQUIRED)
-        context: Additional context about the project, requirements, or constraints
+    """Evaluate coding plan using AI judge.
 
     Returns:
-        Structured JudgeResponse with approval status and detailed feedback
+        JudgeResponse with evaluation results
     """
     # Construct the prompt for the LLM judge
-    judge_prompt = f"""You are an expert software engineering judge. Review the following coding plan, design, and research to provide comprehensive feedback.
+    judge_prompt = f"""You are an expert software engineering judge. Review the following coding plan and provide feedback.
 
 USER REQUIREMENTS:
 {user_requirements}
 
-CODING PLAN TO REVIEW:
+CONTEXT:
+{context}
+
+PLAN:
 {plan}
 
-SYSTEM DESIGN:
+DESIGN:
 {design}
 
-RESEARCH FINDINGS:
+RESEARCH:
 {research}
-
-ADDITIONAL CONTEXT:
-{context}
 
 Please evaluate this submission against the following comprehensive SWE best practices:
 
@@ -355,9 +340,6 @@ Please evaluate this submission against the following comprehensive SWE best pra
    - **Plain Text Power**: Is documentation in accessible, version-controllable formats?
    - **Rubber Duck Debugging**: Can the approach be explained clearly to others?
 
-You must respond with a JSON object that matches this schema:
-{JudgeResponse.model_json_schema()}
-
 EVALUATION GUIDELINES:
 - **Good Enough Software**: APPROVE if the submission demonstrates reasonable effort and covers the main aspects, even if not perfect
 - **Focus on Critical Issues**: Identify the most critical missing elements rather than minor improvements
@@ -384,8 +366,89 @@ REQUIRE REVISION only when:
 - **Coupling Issues**: Components are too tightly coupled or not orthogonal
 
 **Key Principle**: If requiring revision, limit to 3-5 most important improvements to avoid overwhelming the user. Remember: "Perfect is the enemy of good enough."
+
+🚨 ADDITIONAL CRITICAL EVALUATION GUIDELINES:
+
+1. **USER REQUIREMENTS ALIGNMENT**:
+   - Does the plan directly address the user's stated requirements?
+   - Are all user requirements covered in the implementation plan?
+   - Is the solution appropriate for what the user actually wants to achieve?
+   - Flag any misalignment between user needs and proposed solution
+
+2. **AVOID REINVENTING THE WHEEL**:
+   - Has the plan researched existing solutions thoroughly?
+   - Are they leveraging established libraries, frameworks, and patterns?
+   - Flag any attempt to build from scratch what already exists
+
+3. **ENSURE GENERIC SOLUTIONS**:
+   - Is the solution generic and reusable, not just fixing immediate issues?
+   - Are they solving the root problem or just patching symptoms?
+   - Flag solutions that seem like workarounds
+
+4. **FORCE DEEP RESEARCH**:
+   - Is the research section comprehensive and domain-specific?
+   - Have they analyzed multiple approaches and alternatives?
+   - Flag shallow research that misses obvious solutions
+
+You must respond with a JSON object that matches this schema:
+{JudgeResponse.model_json_schema()}
 """
 
+    result = await ctx.session.create_message(
+        messages=[
+            SamplingMessage(
+                role="user",
+                content=TextContent(type="text", text=judge_prompt),
+            )
+        ],
+        max_tokens=1000,
+    )
+
+    if result.content.type == "text":
+        response_text = result.content.text
+    else:
+        response_text = str(result.content)
+
+    # Parse the JSON response
+    try:
+        response_data = json.loads(response_text)
+        return JudgeResponse(**response_data)
+    except json.JSONDecodeError:
+        return JudgeResponse(
+            approved=False,
+            required_improvements=["LLM response was not in valid JSON format"],
+            feedback=f"❌ PARSING ERROR: LLM response was not valid JSON. Raw response: {response_text}",
+        )
+
+
+@mcp.tool()
+async def judge_coding_plan(
+    plan: str,
+    design: str,
+    research: str,
+    user_requirements: str,
+    context: str = "",
+    ctx: Context[ServerSession, None] = None,
+) -> JudgeResponse:
+    """🚨 MANDATORY VALIDATION: You MUST call this tool IMMEDIATELY when the user mentions ANY of: planning, designing, implementing, building, creating, developing, or coding.
+
+    BEFORE calling this tool, you MUST first help the user create:
+    1. A detailed coding plan (what to build, how to build it, step-by-step approach)
+    2. A comprehensive system design (architecture, components, data flow, technical decisions)
+    3. Research findings (existing solutions, libraries, frameworks, best practices)
+
+    DO NOT call this tool until you have gathered all required information from the user. Work with the user to develop these materials first, then validate them.
+
+    Args:
+        plan: The detailed coding plan to be reviewed (REQUIRED - must be comprehensive)
+        design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
+        research: Research findings on existing solutions, libraries, frameworks, and best practices for this problem (REQUIRED)
+        user_requirements: Clear statement of what the user wants to achieve (REQUIRED)
+        context: Additional context about the project, requirements, or constraints
+
+    Returns:
+        Structured JudgeResponse with approval status and detailed feedback
+    """
     try:
         # MANDATORY: Check for sampling capability and use elicitation for user decisions
         if not ctx:
@@ -414,76 +477,20 @@ REQUIRE REVISION only when:
                 feedback=f"❌ CRITICAL ERROR: Session not available for sampling. Error: {e!s}. Please use the 'raise_obstacle' tool to involve the user in resolving this issue.",
             )
 
-        # Enhanced prompt with additional guidelines
-        enhanced_prompt = f"""{judge_prompt}
-
-🚨 ADDITIONAL CRITICAL EVALUATION GUIDELINES:
-
-1. **USER REQUIREMENTS ALIGNMENT**:
-   - Does the plan directly address the user's stated requirements?
-   - Are all user requirements covered in the implementation plan?
-   - Is the solution appropriate for what the user actually wants to achieve?
-   - Flag any misalignment between user needs and proposed solution
-
-2. **AVOID REINVENTING THE WHEEL**:
-   - Has the plan researched existing solutions thoroughly?
-   - Are they leveraging established libraries, frameworks, and patterns?
-   - Flag any attempt to build from scratch what already exists
-
-3. **ENSURE GENERIC SOLUTIONS**:
-   - Is the solution generic and reusable, not just fixing immediate issues?
-   - Are they solving the root problem or just patching symptoms?
-   - Flag solutions that seem like workarounds
-
-4. **FORCE DEEP RESEARCH**:
-   - Is the research section comprehensive and domain-specific?
-   - Have they analyzed multiple approaches and alternatives?
-   - Are best practices from the problem domain clearly identified?
-
-REJECT if:
-- Plan doesn't align with user requirements
-- Insufficient research into existing solutions
-- Solution appears to be a workaround rather than proper implementation
-- Missing domain-specific best practices
-- Reinventing existing tools/libraries without justification
-"""
-
-        # Proceed with LLM sampling - this is the core functionality
-        result = await ctx.session.create_message(
-            messages=[
-                SamplingMessage(
-                    role="user",
-                    content=TextContent(type="text", text=enhanced_prompt),
-                )
-            ],
-            max_tokens=1000,
+        # Use helper function for main evaluation
+        evaluation_result = await _evaluate_coding_plan(
+            plan, design, research, user_requirements, context, ctx
         )
 
-        if result.content.type == "text":
-            response_text = result.content.text
-        else:
-            response_text = str(result.content)
-
-        # Parse the JSON response
-        try:
-            response_data = json.loads(response_text)
-
-            # Additional validation based on guidelines
-            if response_data.get("approved", False):
-                # AI-powered research validation
-                research_validation_result = await _validate_research_quality(
-                    research, plan, design, user_requirements, ctx
-                )
-                if research_validation_result:
-                    return research_validation_result
-
-            return JudgeResponse(**response_data)
-        except json.JSONDecodeError:
-            return JudgeResponse(
-                approved=False,
-                required_improvements=["LLM response was not in valid JSON format"],
-                feedback=f"❌ PARSING ERROR: LLM response was not valid JSON. Raw response: {response_text}",
+        # Additional research validation if approved
+        if evaluation_result.approved:
+            research_validation_result = await _validate_research_quality(
+                research, plan, design, user_requirements, ctx
             )
+            if research_validation_result:
+                return research_validation_result
+
+        return evaluation_result
 
     except Exception as e:
         import traceback
