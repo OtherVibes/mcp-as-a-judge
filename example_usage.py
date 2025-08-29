@@ -90,17 +90,17 @@ print(f"Plan: {example_plan}")
 print(f"Design: {example_design}")
 print(f"Research: {example_research}")
 print(f"Context: {example_context}")
-print("\n" + "="*50 + "\n")
+print("\n" + "=" * 50 + "\n")
 
 # Example 2: Using judge_code_change
 example_code_change = """
 @app.post("/auth/login")
 async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == credentials.email).first()
-    
+
     if not user or not verify_password(credentials.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -116,28 +116,33 @@ def create_access_token(data: dict):
 """
 
 example_file_path = "app/auth/routes.py"
-example_change_description = "Implement login endpoint with JWT token generation and password verification"
+example_change_description = (
+    "Implement login endpoint with JWT token generation and password verification"
+)
 
 print("Example call to judge_code_change:")
 print(f"File: {example_file_path}")
 print(f"Description: {example_change_description}")
 print(f"Code changes:\n{example_code_change}")
-print("\n" + "="*50 + "\n")
+print("\n" + "=" * 50 + "\n")
 
 print("Note: These tools would be called automatically by MCP clients")
 print("when the mandatory descriptions trigger their usage.")
-print("\n" + "="*50 + "\n")
+print("\n" + "=" * 50 + "\n")
 
 print("Example structured responses:")
 print("\nApproved response:")
-print("""{
+print(
+    """{
     "approved": true,
     "required_improvements": [],
     "feedback": "The coding plan follows all SWE best practices. Good use of established patterns, proper security considerations, and comprehensive testing strategy."
-}""")
+}"""
+)
 
 print("\nNeeds revision response:")
-print("""{
+print(
+    """{
     "approved": false,
     "required_improvements": [
         "Add input validation for email format",
@@ -146,4 +151,5 @@ print("""{
         "Include integration tests for auth flow"
     ],
     "feedback": "The implementation has several security and quality issues that need to be addressed before approval."
-}""")
+}"""
+)

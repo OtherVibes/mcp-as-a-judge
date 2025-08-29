@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mcp-as-a-judge:
@@ -18,7 +18,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder  # Use builder stage for development
+      target: builder # Use builder stage for development
     container_name: mcp-as-a-judge-dev
     environment:
       - LOG_LEVEL=DEBUG
@@ -34,7 +34,3 @@ services:
     tty: true
     profiles:
       - development
-
-
-
-

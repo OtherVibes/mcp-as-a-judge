@@ -9,6 +9,7 @@ MCP as a Judge aims to revolutionize software development by preventing bad codi
 ## 🚀 **Getting Started**
 
 ### **Prerequisites**
+
 - Python 3.12.10+ (latest secure version)
 - uv (recommended) or pip
 - Git
@@ -17,12 +18,14 @@ MCP as a Judge aims to revolutionize software development by preventing bad codi
 ### **Development Setup**
 
 1. **Fork and clone the repository:**
+
 ```bash
 git clone https://github.com/hepivax/mcp-as-a-judge.git
 cd mcp-as-a-judge
 ```
 
 2. **Set up development environment:**
+
 ```bash
 # Install uv if you don't have it
 pip install uv
@@ -34,11 +37,13 @@ uv pip install -e ".[dev]"
 ```
 
 3. **Install pre-commit hooks:**
+
 ```bash
 pre-commit install
 ```
 
 4. **Verify setup:**
+
 ```bash
 # Run tests
 uv run pytest
@@ -52,18 +57,21 @@ uv run mypy src
 ## 📝 **Development Guidelines**
 
 ### **Code Style**
+
 - Follow PEP 8 and use Black for formatting
 - Use type hints for all function parameters and return values
 - Write comprehensive docstrings for all public functions and classes
 - Keep line length to 88 characters (Black default)
 
 ### **Testing**
+
 - Write tests for all new functionality
 - Maintain test coverage above 80%
 - Use descriptive test names that explain what is being tested
 - Include both unit tests and integration tests
 
 ### **Documentation**
+
 - Update README.md for user-facing changes
 - Add docstrings to all new functions and classes
 - Update type hints and model schemas
@@ -72,24 +80,28 @@ uv run mypy src
 ## 🔧 **Types of Contributions**
 
 ### **🐛 Bug Fixes**
+
 - Check existing issues before creating new ones
 - Include steps to reproduce the bug
 - Add tests that verify the fix
 - Update documentation if needed
 
 ### **✨ New Features**
+
 - Discuss major features in an issue first
 - Ensure features align with project vision
 - Include comprehensive tests
 - Update documentation and examples
 
 ### **📚 Documentation**
+
 - Fix typos and improve clarity
 - Add examples and use cases
 - Improve setup instructions
 - Translate documentation (if applicable)
 
 ### **🧪 Testing**
+
 - Add missing test coverage
 - Improve test quality and reliability
 - Add integration tests
@@ -98,6 +110,7 @@ uv run mypy src
 ## 🔄 **Development Workflow**
 
 ### **1. Create a Branch**
+
 ```bash
 git checkout -b feature/your-feature-name
 # or
@@ -105,12 +118,14 @@ git checkout -b fix/bug-description
 ```
 
 ### **2. Make Changes**
+
 - Write code following the style guidelines
 - Add tests for your changes
 - Update documentation as needed
 - Run tests locally to ensure everything works
 
 ### **3. Quality Checks**
+
 ```bash
 # Format code
 uv run black src tests
@@ -129,12 +144,14 @@ uv run pytest --cov=src/mcp_as_a_judge
 ```
 
 ### **4. Commit Changes**
+
 ```bash
 git add .
 git commit -m "feat: add user requirements alignment to judge tools"
 ```
 
 **Commit Message Format:**
+
 - `feat:` for new features
 - `fix:` for bug fixes
 - `docs:` for documentation changes
@@ -144,11 +161,13 @@ git commit -m "feat: add user requirements alignment to judge tools"
 - `chore:` for maintenance tasks
 
 ### **5. Push and Create PR**
+
 ```bash
 git push origin your-branch-name
 ```
 
 Then create a Pull Request on GitHub with:
+
 - Clear description of changes
 - Link to related issues
 - Screenshots/examples if applicable
@@ -157,6 +176,7 @@ Then create a Pull Request on GitHub with:
 ## 🧪 **Testing Guidelines**
 
 ### **Running Tests**
+
 ```bash
 # Run all tests
 uv run pytest
@@ -172,6 +192,7 @@ uv run pytest -m "not slow"
 ```
 
 ### **Writing Tests**
+
 - Use descriptive test names: `test_judge_coding_plan_with_user_requirements`
 - Test both success and failure cases
 - Mock external dependencies
@@ -194,17 +215,20 @@ Before submitting a PR, ensure:
 ## 🚨 **Important Guidelines**
 
 ### **User Requirements Focus**
+
 - All judge tools must consider user requirements alignment
 - New features should enhance user-driven decision making
 - Avoid hidden fallbacks - always involve users in critical decisions
 
 ### **Quality Standards**
+
 - Maintain high code quality standards
 - Ensure comprehensive error handling
 - Follow software engineering best practices
 - Write maintainable, readable code
 
 ### **Backward Compatibility**
+
 - Avoid breaking changes when possible
 - Deprecate features before removing them
 - Provide migration guides for breaking changes
@@ -228,6 +252,7 @@ Before submitting a PR, ensure:
 ## 🎉 **Recognition**
 
 Contributors will be recognized in:
+
 - README.md contributors section
 - Release notes for significant contributions
 - GitHub contributor graphs

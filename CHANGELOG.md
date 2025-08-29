@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial release infrastructure with CI/CD pipelines
 - Comprehensive GitHub Actions workflows for testing, building, and releasing
 - Semantic versioning with automated releases
@@ -17,18 +18,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dependabot configuration for automated dependency updates
 
 ### Changed
+
 - Updated project configuration for better packaging and CI/CD integration
 - Modernized tooling configuration (ruff, mypy, pytest)
 
 ### Fixed
+
 - N/A
 
 ### Removed
+
 - N/A
 
 ## [0.1.0] - TBD
 
 ### Added
+
 - Initial release of MCP as a Judge
 - Core MCP server functionality
 - AI-powered code evaluation tools

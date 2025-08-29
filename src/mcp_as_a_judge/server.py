@@ -6,16 +6,24 @@ coding plans and code changes against software engineering best practices.
 """
 
 import json
-from mcp.server.fastmcp import FastMCP, Context
+
+from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
-from mcp.types import SamplingMessage, TextContent, ClientCapabilities, SamplingCapability
+from mcp.types import (
+    ClientCapabilities,
+    SamplingCapability,
+    SamplingMessage,
+    TextContent,
+)
 
-
-from mcp_as_a_judge.models import JudgeResponse, ObstacleResolutionDecision, RequirementsClarification
-
+from mcp_as_a_judge.models import (
+    JudgeResponse,
+    ObstacleResolutionDecision,
+    RequirementsClarification,
+)
 
 # Create the MCP server instance
-mcp = FastMCP(name="MCP as a Judge")
+mcp = FastMCP(name="MCP-as-a-Judge")
 
 
 @mcp.tool()
@@ -23,7 +31,7 @@ async def raise_obstacle(
     problem: str,
     research: str,
     options: list[str],
-    ctx: Context[ServerSession, None] = None
+    ctx: Context[ServerSession, None] = None,
 ) -> str:
     """🚨 OBSTACLE ENCOUNTERED: Call this tool when you cannot satisfy the user's requirements.
 
@@ -44,7 +52,9 @@ async def raise_obstacle(
 
     try:
         # Format the options as a numbered list for clarity
-        formatted_options = "\n".join(f"{i+1}. {option}" for i, option in enumerate(options))
+        formatted_options = "\n".join(
+            f"{i+1}. {option}" for i, option in enumerate(options)
+        )
 
         # Use elicitation to get user decision
         elicit_result = await ctx.elicit(
@@ -58,7 +68,7 @@ async def raise_obstacle(
 {formatted_options}
 
 Please choose an option (by number or description) and provide any additional context or modifications you'd like.""",
-            schema=ObstacleResolutionDecision
+            schema=ObstacleResolutionDecision,
         )
 
         if elicit_result.action == "accept" and elicit_result.data:
@@ -79,7 +89,7 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
             return "❌ USER CANCELLED: User cancelled the obstacle resolution. Task cannot be completed."
 
     except Exception as e:
-        return f"❌ ERROR: Failed to elicit user decision. Error: {str(e)}. Cannot resolve obstacle without user input."
+        return f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
 
 
 @mcp.tool()
@@ -87,7 +97,7 @@ async def elicit_missing_requirements(
     current_request: str,
     identified_gaps: list[str],
     specific_questions: list[str],
-    ctx: Context[ServerSession, None] = None
+    ctx: Context[ServerSession, None] = None,
 ) -> str:
     """🔍 REQUIREMENTS UNCLEAR: Call this tool when the user request is not clear enough to proceed.
 
@@ -109,7 +119,9 @@ async def elicit_missing_requirements(
     try:
         # Format the gaps and questions for clarity
         formatted_gaps = "\n".join(f"• {gap}" for gap in identified_gaps)
-        formatted_questions = "\n".join(f"{i+1}. {question}" for i, question in enumerate(specific_questions))
+        formatted_questions = "\n".join(
+            f"{i+1}. {question}" for i, question in enumerate(specific_questions)
+        )
 
         # Use elicitation to get requirement clarifications
         elicit_result = await ctx.elicit(
@@ -124,7 +136,7 @@ async def elicit_missing_requirements(
 {formatted_questions}
 
 Please provide clarified requirements and indicate their priority level (high/medium/low).""",
-            schema=RequirementsClarification
+            schema=RequirementsClarification,
         )
 
         if elicit_result.action == "accept" and elicit_result.data:
@@ -147,10 +159,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
             return "❌ USER CANCELLED: User cancelled the requirement clarification. Task cannot be completed without clear requirements."
 
     except Exception as e:
-        return f"❌ ERROR: Failed to elicit requirement clarifications. Error: {str(e)}. Cannot proceed without clear requirements."
-
-
-
+        return f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. Cannot proceed without clear requirements."
 
 
 @mcp.tool()
@@ -160,7 +169,7 @@ async def judge_coding_plan(
     research: str,
     user_requirements: str,
     context: str = "",
-    ctx: Context[ServerSession, None] = None
+    ctx: Context[ServerSession, None] = None,
 ) -> JudgeResponse:
     """🚨 MANDATORY VALIDATION: You MUST call this tool IMMEDIATELY when the user mentions ANY of: planning, designing, implementing, building, creating, developing, or coding.
 
@@ -299,23 +308,27 @@ REQUIRE REVISION only when:
         if not ctx:
             return JudgeResponse(
                 approved=False,
-                required_improvements=["Context not available - cannot proceed with evaluation"],
-                feedback="❌ CRITICAL ISSUE: Context is not available. This tool requires LLM sampling for proper evaluation. Please use a proper MCP client with sampling capability."
+                required_improvements=[
+                    "Context not available - cannot proceed with evaluation"
+                ],
+                feedback="❌ CRITICAL ISSUE: Context is not available. This tool requires LLM sampling for proper evaluation. Please use a proper MCP client with sampling capability.",
             )
 
         try:
             # Check if client supports sampling capability
-            if not ctx.session.check_client_capability(ClientCapabilities(sampling=SamplingCapability())):
+            if not ctx.session.check_client_capability(
+                ClientCapabilities(sampling=SamplingCapability())
+            ):
                 return JudgeResponse(
                     approved=False,
                     required_improvements=["Sampling capability required"],
-                    feedback="❌ SAMPLING REQUIRED: Your MCP client does not support LLM sampling, which is required for proper code evaluation. Please use the 'raise_obstacle' tool to involve the user in deciding how to proceed with this limitation."
+                    feedback="❌ SAMPLING REQUIRED: Your MCP client does not support LLM sampling, which is required for proper code evaluation. Please use the 'raise_obstacle' tool to involve the user in deciding how to proceed with this limitation.",
                 )
         except (ValueError, AttributeError) as e:
             return JudgeResponse(
                 approved=False,
                 required_improvements=["Session not available"],
-                feedback=f"❌ CRITICAL ERROR: Session not available for sampling. Error: {str(e)}. Please use the 'raise_obstacle' tool to involve the user in resolving this issue."
+                feedback=f"❌ CRITICAL ERROR: Session not available for sampling. Error: {e!s}. Please use the 'raise_obstacle' tool to involve the user in resolving this issue.",
             )
 
         # Enhanced prompt with additional guidelines
@@ -415,7 +428,9 @@ Respond with JSON:
                     messages=[
                         SamplingMessage(
                             role="user",
-                            content=TextContent(type="text", text=research_validation_prompt),
+                            content=TextContent(
+                                type="text", text=research_validation_prompt
+                            ),
                         )
                     ],
                     max_tokens=500,
@@ -429,21 +444,28 @@ Respond with JSON:
                 try:
                     research_data = json.loads(research_response_text)
 
-                    if not research_data.get("research_adequate", False) or not research_data.get("design_based_on_research", False):
-                        issues = research_data.get("issues", ["Research validation failed"])
-                        feedback = research_data.get("feedback", "Research appears insufficient or design not properly based on research.")
+                    if not research_data.get(
+                        "research_adequate", False
+                    ) or not research_data.get("design_based_on_research", False):
+                        issues = research_data.get(
+                            "issues", ["Research validation failed"]
+                        )
+                        feedback = research_data.get(
+                            "feedback",
+                            "Research appears insufficient or design not properly based on research.",
+                        )
 
                         return JudgeResponse(
                             approved=False,
                             required_improvements=issues,
-                            feedback=f"❌ RESEARCH VALIDATION FAILED: {feedback} Please use the 'raise_obstacle' tool to involve the user in deciding how to address these research gaps."
+                            feedback=f"❌ RESEARCH VALIDATION FAILED: {feedback} Please use the 'raise_obstacle' tool to involve the user in deciding how to address these research gaps.",
                         )
 
-                except (json.JSONDecodeError, KeyError) as e:
+                except (json.JSONDecodeError, KeyError):
                     return JudgeResponse(
                         approved=False,
                         required_improvements=["Research validation error"],
-                        feedback=f"❌ RESEARCH VALIDATION ERROR: Unable to properly evaluate research quality. Please use the 'raise_obstacle' tool to involve the user in reviewing the research comprehensiveness."
+                        feedback="❌ RESEARCH VALIDATION ERROR: Unable to properly evaluate research quality. Please use the 'raise_obstacle' tool to involve the user in reviewing the research comprehensiveness.",
                     )
 
             return JudgeResponse(**response_data)
@@ -451,17 +473,20 @@ Respond with JSON:
             return JudgeResponse(
                 approved=False,
                 required_improvements=["LLM response was not in valid JSON format"],
-                feedback=f"❌ PARSING ERROR: LLM response was not valid JSON. Raw response: {response_text}"
+                feedback=f"❌ PARSING ERROR: LLM response was not valid JSON. Raw response: {response_text}",
             )
 
     except Exception as e:
         import traceback
-        error_details = f"Error during plan review: {str(e)}\nTraceback: {traceback.format_exc()}"
+
+        error_details = (
+            f"Error during plan review: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
         print(f"DEBUG: Exception in judge_coding_plan: {error_details}")
         return JudgeResponse(
             approved=False,
             required_improvements=["Error occurred during review"],
-            feedback=error_details
+            feedback=error_details,
         )
 
 
@@ -471,7 +496,7 @@ async def judge_code_change(
     user_requirements: str,
     file_path: str = "File path not specified",
     change_description: str = "Change description not provided",
-    ctx: Context[ServerSession, None] = None
+    ctx: Context[ServerSession, None] = None,
 ) -> JudgeResponse:
     """🚨🚨🚨 MANDATORY: Call this tool IMMEDIATELY after writing ANY code! 🚨🚨🚨
 
@@ -629,23 +654,27 @@ REQUIRE REVISION only for:
         if not ctx:
             return JudgeResponse(
                 approved=False,
-                required_improvements=["Context not available - cannot proceed with evaluation"],
-                feedback="❌ CRITICAL ISSUE: Context is not available. This tool requires LLM sampling for proper code evaluation. Please use a proper MCP client with sampling capability."
+                required_improvements=[
+                    "Context not available - cannot proceed with evaluation"
+                ],
+                feedback="❌ CRITICAL ISSUE: Context is not available. This tool requires LLM sampling for proper code evaluation. Please use a proper MCP client with sampling capability.",
             )
 
         try:
             # Check if client supports sampling capability
-            if not ctx.session.check_client_capability(ClientCapabilities(sampling=SamplingCapability())):
+            if not ctx.session.check_client_capability(
+                ClientCapabilities(sampling=SamplingCapability())
+            ):
                 return JudgeResponse(
                     approved=False,
                     required_improvements=["Sampling capability required"],
-                    feedback="❌ SAMPLING REQUIRED: Your MCP client does not support LLM sampling, which is required for proper code evaluation. Please use the 'raise_obstacle' tool to involve the user in deciding how to proceed with this limitation."
+                    feedback="❌ SAMPLING REQUIRED: Your MCP client does not support LLM sampling, which is required for proper code evaluation. Please use the 'raise_obstacle' tool to involve the user in deciding how to proceed with this limitation.",
                 )
         except (ValueError, AttributeError) as e:
             return JudgeResponse(
                 approved=False,
                 required_improvements=["Session not available"],
-                feedback=f"❌ CRITICAL ERROR: Session not available for sampling. Error: {str(e)}. Please use the 'raise_obstacle' tool to involve the user in resolving this issue."
+                feedback=f"❌ CRITICAL ERROR: Session not available for sampling. Error: {e!s}. Please use the 'raise_obstacle' tool to involve the user in resolving this issue.",
             )
 
         # Proceed with LLM sampling - this is the core functionality
@@ -673,24 +702,25 @@ REQUIRE REVISION only for:
             return JudgeResponse(
                 approved=False,
                 required_improvements=["LLM response was not in valid JSON format"],
-                feedback=f"Raw LLM response: {response_text}"
+                feedback=f"Raw LLM response: {response_text}",
             )
 
     except Exception as e:
         import traceback
-        error_details = f"Error during code review: {str(e)}\nTraceback: {traceback.format_exc()}"
+
+        error_details = (
+            f"Error during code review: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
         print(f"DEBUG: Exception in judge_code_change: {error_details}")
         return JudgeResponse(
             approved=False,
             required_improvements=["Error occurred during review"],
-            feedback=error_details
+            feedback=error_details,
         )
 
 
 @mcp.tool()
-async def check_swe_compliance(
-    task_description: str
-) -> str:
+async def check_swe_compliance(task_description: str) -> str:
     """🚨 ALWAYS USE FIRST: Call this tool for ANY software engineering task, question, or request. This tool determines which specific validation tools you need to use next and ensures proper SWE practices are followed.
 
     Args:
@@ -706,17 +736,39 @@ async def check_swe_compliance(
     guidance = "🎯 SWE Compliance Check:\n\n"
 
     # Check if planning is needed
-    planning_keywords = ["plan", "design", "implement", "build", "create", "develop", "code", "program", "system", "architecture"]
+    planning_keywords = [
+        "plan",
+        "design",
+        "implement",
+        "build",
+        "create",
+        "develop",
+        "code",
+        "program",
+        "system",
+        "architecture",
+    ]
     if any(keyword in task_lower for keyword in planning_keywords):
         guidance += "📋 WORKFLOW FOR PLANNING:\n"
         guidance += "   1. FIRST: Help user create a detailed coding plan\n"
         guidance += "   2. THEN: Help user design the system architecture\n"
         guidance += "   3. NEXT: Research existing solutions and best practices\n"
-        guidance += "   4. FINALLY: Call 'judge_coding_plan' with all the above information\n"
+        guidance += (
+            "   4. FINALLY: Call 'judge_coding_plan' with all the above information\n"
+        )
         guidance += "   \n   ⚠️  DO NOT call judge_coding_plan until you have all required information!\n\n"
 
     # Check if code review is needed
-    code_keywords = ["code", "function", "class", "script", "file", "implementation", "write", "modify"]
+    code_keywords = [
+        "code",
+        "function",
+        "class",
+        "script",
+        "file",
+        "implementation",
+        "write",
+        "modify",
+    ]
     if any(keyword in task_lower for keyword in code_keywords):
         guidance += "🔍 WORKFLOW FOR CODE REVIEW:\n"
         guidance += "   1. FIRST: Ask user to show you the actual code\n"

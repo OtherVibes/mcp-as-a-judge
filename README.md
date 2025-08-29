@@ -20,6 +20,7 @@
 ## ⚖️ **Main Purpose: Improve Developer-AI Interface**
 
 **The core mission is to enhance the interface between developers and AI coding assistants** by:
+
 - 🛡️ **Preventing AI from making poor decisions** through intelligent evaluation
 - 🤝 **Involving humans in critical choices** instead of AI making assumptions
 - 🔍 **Enforcing research and best practices** before implementation
@@ -28,13 +29,15 @@
 ## 🚀 **This MCP Will Change Many Developers' Lives!**
 
 ### **What It Prevents:**
+
 - ❌ Reinventing the wheel instead of using existing solutions
-- ❌ Building workarounds instead of proper implementations  
+- ❌ Building workarounds instead of proper implementations
 - ❌ Insufficient research leading to poor architectural decisions
 - ❌ Misalignment between code and user requirements
 - ❌ Deployment of problematic code without proper review
 
 ### **What It Enforces:**
+
 - ✅ **Deep research** of existing solutions and best practices
 - ✅ **Generic, reusable solutions** instead of quick fixes
 - ✅ **User requirements alignment** in all implementations
@@ -45,18 +48,21 @@
 ## 🛠️ **Features**
 
 ### **🔍 Intelligent Code Evaluation**
+
 - **LLM-powered analysis** using MCP [sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling) capability
 - **Software engineering best practices** enforcement
 - **Security vulnerability detection**
 - **Performance and maintainability assessment**
 
 ### **📋 Comprehensive Planning Review**
+
 - **Architecture validation** against industry standards
 - **Research depth analysis** to prevent reinventing solutions
 - **Requirements alignment** verification
 - **Implementation approach evaluation**
 
 ### **🤝 User-Driven Decision Making**
+
 - **Obstacle resolution** through user involvement via MCP [elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation)
 - **Requirements clarification** when requests are unclear
 - **No hidden fallbacks** - transparent decision making
@@ -73,6 +79,7 @@
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
+
 - Python 3.12+ (latest secure version)
 - MCP-compatible client that supports:
   - **[Sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling)** - Required for AI-powered code evaluation
@@ -84,6 +91,7 @@
 ### **Installation**
 
 #### **Method 1: Using uv (Recommended)**
+
 ```bash
 # Install uv if you don't have it
 pip install uv
@@ -98,12 +106,14 @@ mcp-as-a-judge
 #### **Method 2: Using Docker (Recommended for Production)**
 
 **Quick Start with Docker:**
+
 ```bash
 # Pull and run the latest image
 docker run -it --name mcp-as-a-judge ghcr.io/hepivax/mcp-as-a-judge:latest
 ```
 
 **Build from Source:**
+
 ```bash
 # Clone the repository
 git clone https://github.com/hepivax/mcp-as-a-judge.git
@@ -121,6 +131,7 @@ docker run -it \
 ```
 
 **Using Docker Compose:**
+
 ```bash
 # For production (uses pre-built image from GitHub Container Registry)
 docker-compose --profile production up -d
@@ -132,6 +143,7 @@ docker-compose --profile development up
 ```
 
 #### **Method 3: Using pip (Alternative)**
+
 ```bash
 # Install from PyPI
 pip install mcp-as-a-judge
@@ -141,6 +153,7 @@ mcp-as-a-judge
 ```
 
 #### **Method 4: From Source (Development)**
+
 ```bash
 # Clone the repository for development
 git clone https://github.com/hepivax/mcp-as-a-judge.git
@@ -158,6 +171,7 @@ uv run mcp-as-a-judge
 #### **MCP Client Configuration**
 
 **For Claude Desktop / Cursor (SSE Transport):**
+
 ```json
 {
   "mcpServers": {
@@ -170,6 +184,7 @@ uv run mcp-as-a-judge
 ```
 
 **For Stdio Transport (Development):**
+
 ```json
 {
   "mcpServers": {
@@ -185,6 +200,7 @@ uv run mcp-as-a-judge
 ```
 
 **For Docker with SSE Transport:**
+
 ```json
 {
   "mcpServers": {
@@ -199,6 +215,7 @@ uv run mcp-as-a-judge
 #### **Environment Variables**
 
 **Available Environment Variables:**
+
 ```bash
 # Transport Configuration
 TRANSPORT=sse              # Options: "stdio" or "sse"
@@ -223,6 +240,7 @@ CORS_ORIGINS=*            # CORS allowed origins
 ```
 
 **Docker Environment File (.env):**
+
 ```bash
 # Copy .env.example to .env and customize
 cp .env.example .env
@@ -237,16 +255,19 @@ DEBUG=false
 ## 📖 **How It Works**
 
 ### **1. Mandatory Workflow Enforcement**
+
 ```
 User Request → check_swe_compliance → Guided Planning → judge_coding_plan → Implementation → judge_code_change
 ```
 
 ### **2. Obstacle Handling**
+
 ```
 Agent Hits Blocker → raise_obstacle → User Decision → Continue with User Choice
 ```
 
 ### **3. Requirements Clarification**
+
 ```
 Unclear Request → elicit_missing_requirements → User Clarification → Proceed with Clear Requirements
 ```
@@ -254,6 +275,7 @@ Unclear Request → elicit_missing_requirements → User Clarification → Proce
 ## 🎯 **Example Usage**
 
 ### **Planning Evaluation**
+
 ```python
 # Agent calls this when user wants to implement something
 await judge_coding_plan(
@@ -266,6 +288,7 @@ await judge_coding_plan(
 ```
 
 ### **Obstacle Resolution**
+
 ```python
 # Agent calls this when hitting blockers
 await raise_obstacle(
@@ -283,6 +306,7 @@ await raise_obstacle(
 ## 🐳 **Docker Usage Examples**
 
 ### **Development with Docker**
+
 ```bash
 # Start development environment with hot reload
 docker-compose --profile development up
@@ -295,6 +319,7 @@ docker-compose down
 ```
 
 ### **Production Deployment**
+
 ```bash
 # Start production environment
 docker-compose --profile production up -d
@@ -314,6 +339,7 @@ docker-compose down
 ```
 
 ### **Docker Health Checks**
+
 ```bash
 # Check container health
 docker inspect --format='{{.State.Health.Status}}' mcp-as-a-judge
@@ -323,6 +349,7 @@ docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' mcp-as-a
 ```
 
 ### **Docker Networking**
+
 ```bash
 # Run with custom network
 docker network create mcp-network
@@ -344,6 +371,7 @@ docker run -d \
 ## 🔧 **Development**
 
 ### **Project Structure**
+
 ```
 mcp-as-a-judge/
 ├── src/mcp_as_a_judge/
@@ -359,6 +387,7 @@ mcp-as-a-judge/
 ```
 
 ### **Running Tests**
+
 ```bash
 # Run all tests
 uv run pytest
@@ -378,6 +407,7 @@ docker run --rm \
 ```
 
 ### **Code Quality**
+
 ```bash
 # Format code
 uv run black src tests
@@ -395,12 +425,14 @@ make quality
 ## 🌟 **Why This Changes Everything**
 
 ### **Before MCP as a Judge:**
+
 - Developers build quick fixes and workarounds
 - Insufficient research leads to reinventing existing solutions
 - Code doesn't align with actual user requirements
 - Bad practices slip through without review
 
 ### **After MCP as a Judge:**
+
 - ✅ **Forced deep research** prevents reinventing the wheel
 - ✅ **User involvement** ensures requirements alignment
 - ✅ **No hidden fallbacks** - transparent decision making
@@ -410,6 +442,7 @@ make quality
 ## 📦 **Installation**
 
 ### **From PyPI (Recommended)**
+
 ```bash
 # Install with uv (recommended)
 uv add mcp-as-a-judge
@@ -419,6 +452,7 @@ pip install mcp-as-a-judge
 ```
 
 ### **From Docker**
+
 ```bash
 # Pull the latest image from GitHub Container Registry
 docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
@@ -431,6 +465,7 @@ docker-compose --profile production up -d
 ```
 
 ### **From Source (Development)**
+
 ```bash
 git clone https://github.com/hepivax/mcp-as-a-judge.git
 cd mcp-as-a-judge
@@ -442,6 +477,7 @@ uv sync --all-extras --dev
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### **Development Setup**
+
 ```bash
 # Clone the repository
 git clone https://github.com/hepivax/mcp-as-a-judge.git

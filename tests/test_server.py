@@ -2,7 +2,6 @@
 Test the MCP server functionality.
 """
 
-import pytest
 from mcp_as_a_judge import mcp
 
 
@@ -12,7 +11,7 @@ def test_server_initialization():
     assert mcp.name == "MCP as a Judge"
 
     # Check that the server has the expected attributes
-    assert hasattr(mcp, 'name')
+    assert hasattr(mcp, "name")
 
 
 def test_server_tools_registered():
@@ -27,5 +26,6 @@ def test_server_tools_registered():
 def test_server_import():
     """Test that the server can be imported without errors."""
     from mcp_as_a_judge import mcp as imported_mcp
+
     assert imported_mcp is not None
     assert imported_mcp.name == "MCP as a Judge"
