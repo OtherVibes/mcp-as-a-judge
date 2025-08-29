@@ -473,33 +473,41 @@ async def judge_code_change(
     change_description: str = "Change description not provided",
     ctx: Context[ServerSession, None] = None
 ) -> JudgeResponse:
-    """🚨 MANDATORY CODE REVIEW: You MUST call this tool BEFORE making ANY changes to files.
+    """🚨 MANDATORY CODE REVIEW: You MUST call this tool BEFORE making ANY file operations involving code.
 
     This tool must be called BEFORE:
-    - Writing new code to a file
-    - Modifying existing code in a file
-    - Creating new files with code
-    - Making any code changes whatsoever
+    - Creating ANY new files (even empty files that will contain code)
+    - Adding ANY new code to existing files
+    - Modifying ANY existing code in files
+    - Writing ANY code content to files
+    - Making ANY file changes that involve code
+
+    This includes:
+    - New Python files (.py)
+    - New configuration files with code logic
+    - New scripts, modules, or any executable content
+    - Modifications to existing source files
+    - Adding functions, classes, or any code constructs
 
     BEFORE calling this tool, ensure you have:
     1. The actual code to be written/changed (complete code, not just descriptions)
     2. The file path or location where this code will be placed
     3. A clear description of what the code accomplishes
 
-    DO NOT make file changes until this tool approves the code.
+    DO NOT create files or make file changes until this tool approves the code.
 
     Args:
-        code_change: The actual code changes (diff, new code, or modified code) - REQUIRED
+        code_change: The actual code content (new file content, code modifications, or additions) - REQUIRED
         user_requirements: Clear statement of what the user wants this code to achieve - REQUIRED
-        file_path: Path to the file being changed (provide best guess if not specified)
-        change_description: Description of what the change accomplishes (provide summary if not given)
+        file_path: Path to the file being created/modified (provide best guess if not specified)
+        change_description: Description of what the code accomplishes (provide summary if not given)
 
     Returns:
         Structured JudgeResponse with approval status and detailed feedback
     """
 
     # Construct the prompt for the LLM judge
-    judge_prompt = f"""You are an expert software engineering judge. Review the following code changes and provide feedback.
+    judge_prompt = f"""You are an expert software engineering judge. Review the following code content and provide feedback.
 
 USER REQUIREMENTS:
 {user_requirements}
@@ -509,10 +517,10 @@ FILE PATH: {file_path}
 CHANGE DESCRIPTION:
 {change_description}
 
-CODE CHANGES:
+CODE CONTENT (new file or modifications):
 {code_change}
 
-Please evaluate these code changes against the following comprehensive criteria:
+Please evaluate this code content against the following comprehensive criteria:
 
 1. **User Requirements Alignment**:
    - Does the code directly address the user's stated requirements?
