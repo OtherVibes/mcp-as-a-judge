@@ -226,21 +226,26 @@ Respond with JSON:
     try:
         research_data = json.loads(research_response_text)
 
-        if not research_data.get("research_adequate", False) or not research_data.get("design_based_on_research", False):
+        if not research_data.get("research_adequate", False) or not research_data.get(
+            "design_based_on_research", False
+        ):
             issues = research_data.get("issues", ["Research validation failed"])
-            feedback = research_data.get("feedback", "Research appears insufficient or design not properly based on research.")
+            feedback = research_data.get(
+                "feedback",
+                "Research appears insufficient or design not properly based on research.",
+            )
 
             return JudgeResponse(
                 approved=False,
                 required_improvements=issues,
-                feedback=f"❌ RESEARCH VALIDATION FAILED: {feedback} Please use the 'raise_obstacle' tool to involve the user in deciding how to address these research gaps."
+                feedback=f"❌ RESEARCH VALIDATION FAILED: {feedback} Please use the 'raise_obstacle' tool to involve the user in deciding how to address these research gaps.",
             )
 
     except (json.JSONDecodeError, KeyError):
         return JudgeResponse(
             approved=False,
             required_improvements=["Research validation error"],
-            feedback="❌ RESEARCH VALIDATION ERROR: Unable to properly evaluate research quality. Please use the 'raise_obstacle' tool to involve the user in reviewing the research comprehensiveness."
+            feedback="❌ RESEARCH VALIDATION ERROR: Unable to properly evaluate research quality. Please use the 'raise_obstacle' tool to involve the user in reviewing the research comprehensiveness.",
         )
 
     return None
