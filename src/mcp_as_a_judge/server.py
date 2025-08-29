@@ -242,12 +242,8 @@ Please evaluate this submission against the following SWE best practices:
    - Are coding standards and documentation practices defined?
    - Is the design easy to understand and modify?
 
-You must respond with a JSON object in this exact format:
-{{
-    "approved": true/false,
-    "required_improvements": ["improvement 1", "improvement 2", ...],
-    "feedback": "Detailed explanation of your decision"
-}}
+You must respond with a JSON object that matches this schema:
+{JudgeResponse.model_json_schema()}
 
 EVALUATION GUIDELINES:
 - APPROVE if the submission demonstrates reasonable effort and covers the main aspects, even if not perfect
@@ -449,14 +445,20 @@ async def judge_code_change(
     change_description: str = "Change description not provided",
     ctx: Context[ServerSession, None] = None
 ) -> JudgeResponse:
-    """🚨 MANDATORY CODE REVIEW: You MUST call this tool IMMEDIATELY when the user shows, writes, modifies, creates, or discusses ANY code.
+    """🚨 MANDATORY CODE REVIEW: You MUST call this tool BEFORE making ANY changes to files.
+
+    This tool must be called BEFORE:
+    - Writing new code to a file
+    - Modifying existing code in a file
+    - Creating new files with code
+    - Making any code changes whatsoever
 
     BEFORE calling this tool, ensure you have:
-    1. The actual code to be reviewed (complete code, not just descriptions)
+    1. The actual code to be written/changed (complete code, not just descriptions)
     2. The file path or location where this code will be placed
     3. A clear description of what the code accomplishes
 
-    If the user hasn't provided code yet, ask them to show you the code first, then call this tool to validate it.
+    DO NOT make file changes until this tool approves the code.
 
     Args:
         code_change: The actual code changes (diff, new code, or modified code) - REQUIRED
@@ -523,12 +525,8 @@ Please evaluate these code changes against the following criteria:
    - Is it properly documented?
    - Does it follow the existing codebase patterns?
 
-You must respond with a JSON object in this exact format:
-{{
-    "approved": true/false,
-    "required_improvements": ["improvement 1", "improvement 2", ...],
-    "feedback": "Detailed explanation of your decision"
-}}
+You must respond with a JSON object that matches this schema:
+{JudgeResponse.model_json_schema()}
 
 EVALUATION GUIDELINES:
 - APPROVE if the code follows basic best practices and doesn't have critical issues
