@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""
-Test that the judge_coding_plan function properly validates design and research parameters.
-"""
+"""Test that the judge_coding_plan function properly validates design and research parameters."""
 
 import inspect
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 from mcp_as_a_judge.server import judge_coding_plan
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-def test_judge_coding_plan_signature():
+
+def test_judge_coding_plan_signature() -> None:
     """Test that judge_coding_plan has the required design and research parameters."""
     print("Testing judge_coding_plan function signature...")
 
@@ -53,7 +51,7 @@ def test_judge_coding_plan_signature():
     assert True  # All checks passed
 
 
-def test_function_docstring():
+def test_function_docstring() -> None:
     """Test that the function docstring mentions design and research."""
     print("Testing function docstring...")
 

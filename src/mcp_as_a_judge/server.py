@@ -46,7 +46,6 @@ async def raise_obstacle(
     Returns:
         User's decision and any additional context for proceeding
     """
-
     if not ctx:
         return "❌ ERROR: Context not available for user interaction. Cannot resolve obstacle without user input."
 
@@ -112,7 +111,6 @@ async def elicit_missing_requirements(
     Returns:
         Clarified requirements and additional context from the user
     """
-
     if not ctx:
         return "❌ ERROR: Context not available for user interaction. Cannot elicit requirements without user input."
 
@@ -162,6 +160,92 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
         return f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. Cannot proceed without clear requirements."
 
 
+async def _validate_research_quality(
+    research: str,
+    plan: str,
+    design: str,
+    user_requirements: str,
+    ctx: Context[ServerSession, None],
+) -> JudgeResponse | None:
+    """Validate research quality using AI evaluation.
+
+    Returns:
+        JudgeResponse if research is insufficient, None if research is adequate
+    """
+    research_validation_prompt = f"""
+You are evaluating the comprehensiveness of research for a software development task.
+
+USER REQUIREMENTS: {user_requirements}
+PLAN: {plan}
+DESIGN: {design}
+RESEARCH PROVIDED: {research}
+
+Evaluate if the research is comprehensive enough and if the design is properly based on the research. Consider:
+
+1. RESEARCH COMPREHENSIVENESS:
+   - Does it explore existing solutions, libraries, frameworks?
+   - Are alternatives and best practices considered?
+   - Is there analysis of trade-offs and comparisons?
+   - Does it identify potential pitfalls or challenges?
+
+2. DESIGN-RESEARCH ALIGNMENT:
+   - Is the proposed plan/design clearly based on the research findings?
+   - Does it leverage existing solutions where appropriate?
+   - Are research insights properly incorporated into the approach?
+   - Does it avoid reinventing the wheel unnecessarily?
+
+3. RESEARCH QUALITY:
+   - Is the research specific and actionable?
+   - Does it demonstrate understanding of the problem domain?
+   - Are sources and references appropriate?
+
+Respond with JSON:
+{{
+    "research_adequate": boolean,
+    "design_based_on_research": boolean,
+    "issues": ["list of specific issues if any"],
+    "feedback": "detailed feedback on research quality and design alignment"
+}}
+"""
+
+    research_result = await ctx.session.create_message(
+        messages=[
+            SamplingMessage(
+                role="user",
+                content=TextContent(type="text", text=research_validation_prompt),
+            )
+        ],
+        max_tokens=500,
+    )
+
+    if research_result.content.type == "text":
+        research_response_text = research_result.content.text
+    else:
+        research_response_text = str(research_result.content)
+
+    try:
+        research_data = json.loads(research_response_text)
+
+        if not research_data.get("research_adequate", False) or not research_data.get("design_based_on_research", False):
+            issues = research_data.get("issues", ["Research validation failed"])
+            feedback = research_data.get("feedback", "Research appears insufficient or design not properly based on research.")
+
+            return JudgeResponse(
+                approved=False,
+                required_improvements=issues,
+                feedback=f"❌ RESEARCH VALIDATION FAILED: {feedback} Please use the 'raise_obstacle' tool to involve the user in deciding how to address these research gaps."
+            )
+
+    except (json.JSONDecodeError, KeyError):
+        return JudgeResponse(
+            approved=False,
+            required_improvements=["Research validation error"],
+            feedback="❌ RESEARCH VALIDATION ERROR: Unable to properly evaluate research quality. Please use the 'raise_obstacle' tool to involve the user in reviewing the research comprehensiveness."
+        )
+
+    return None
+
+
 @mcp.tool()
 async def judge_coding_plan(
     plan: str,
@@ -190,7 +274,6 @@ async def judge_coding_plan(
     Returns:
         Structured JudgeResponse with approval status and detailed feedback
     """
-
     # Construct the prompt for the LLM judge
     judge_prompt = f"""You are an expert software engineering judge. Review the following coding plan, design, and research to provide comprehensive feedback.
 
@@ -388,85 +471,11 @@ REJECT if:
             # Additional validation based on guidelines
             if response_data.get("approved", False):
                 # AI-powered research validation
-                research_validation_prompt = f"""
-You are evaluating the comprehensiveness of research for a software development task.
-
-USER REQUIREMENTS: {user_requirements}
-PLAN: {plan}
-DESIGN: {design}
-RESEARCH PROVIDED: {research}
-
-Evaluate if the research is comprehensive enough and if the design is properly based on the research. Consider:
-
-1. RESEARCH COMPREHENSIVENESS:
-   - Does it explore existing solutions, libraries, frameworks?
-   - Are alternatives and best practices considered?
-   - Is there analysis of trade-offs and comparisons?
-   - Does it identify potential pitfalls or challenges?
-
-2. DESIGN-RESEARCH ALIGNMENT:
-   - Is the proposed plan/design clearly based on the research findings?
-   - Does it leverage existing solutions where appropriate?
-   - Are research insights properly incorporated into the approach?
-   - Does it avoid reinventing the wheel unnecessarily?
-
-3. RESEARCH QUALITY:
-   - Is the research specific and actionable?
-   - Does it demonstrate understanding of the problem domain?
-   - Are sources and references appropriate?
-
-Respond with JSON:
-{{
-    "research_adequate": boolean,
-    "design_based_on_research": boolean,
-    "issues": ["list of specific issues if any"],
-    "feedback": "detailed feedback on research quality and design alignment"
-}}
-"""
-
-                research_result = await ctx.session.create_message(
-                    messages=[
-                        SamplingMessage(
-                            role="user",
-                            content=TextContent(
-                                type="text", text=research_validation_prompt
-                            ),
-                        )
-                    ],
-                    max_tokens=500,
+                research_validation_result = await _validate_research_quality(
+                    research, plan, design, user_requirements, ctx
                 )
-
-                if research_result.content.type == "text":
-                    research_response_text = research_result.content.text
-                else:
-                    research_response_text = str(research_result.content)
-
-                try:
-                    research_data = json.loads(research_response_text)
-
-                    if not research_data.get(
-                        "research_adequate", False
-                    ) or not research_data.get("design_based_on_research", False):
-                        issues = research_data.get(
-                            "issues", ["Research validation failed"]
-                        )
-                        feedback = research_data.get(
-                            "feedback",
-                            "Research appears insufficient or design not properly based on research.",
-                        )
-
-                        return JudgeResponse(
-                            approved=False,
-                            required_improvements=issues,
-                            feedback=f"❌ RESEARCH VALIDATION FAILED: {feedback} Please use the 'raise_obstacle' tool to involve the user in deciding how to address these research gaps.",
-                        )
-
-                except (json.JSONDecodeError, KeyError):
-                    return JudgeResponse(
-                        approved=False,
-                        required_improvements=["Research validation error"],
-                        feedback="❌ RESEARCH VALIDATION ERROR: Unable to properly evaluate research quality. Please use the 'raise_obstacle' tool to involve the user in reviewing the research comprehensiveness.",
-                    )
+                if research_validation_result:
+                    return research_validation_result
 
             return JudgeResponse(**response_data)
         except json.JSONDecodeError:
@@ -498,7 +507,7 @@ async def judge_code_change(
     change_description: str = "Change description not provided",
     ctx: Context[ServerSession, None] = None,
 ) -> JudgeResponse:
-    """🚨🚨🚨 MANDATORY: Call this tool IMMEDIATELY after writing ANY code! 🚨🚨🚨
+    """🚨🚨🚨 MANDATORY: Call this tool IMMEDIATELY after writing ANY code! 🚨🚨🚨.
 
     ⚠️  CRITICAL REQUIREMENT: This tool MUST be called as the very next action after ANY file creation or modification tool call.
 
@@ -546,7 +555,6 @@ async def judge_code_change(
     Returns:
         Structured JudgeResponse with approval status and detailed feedback
     """
-
     # Construct the prompt for the LLM judge
     judge_prompt = f"""You are an expert software engineering judge. Review the following code content and provide feedback.
 
@@ -729,7 +737,6 @@ async def check_swe_compliance(task_description: str) -> str:
     Returns:
         Guidance on which tools to use and SWE best practices to follow
     """
-
     # Analyze the task and provide guidance
     task_lower = task_description.lower()
 

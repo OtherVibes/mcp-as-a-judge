@@ -144,6 +144,7 @@ class MockServerSession:
     """Mock server session for testing."""
 
     def __init__(self, has_sampling: bool = True):
+        """Initialize mock server session."""
         self.has_sampling = has_sampling
 
     async def create_message(self, **kwargs):
@@ -158,6 +159,7 @@ class MockContext:
     """Mock context for testing."""
 
     def __init__(self, has_sampling: bool = True):
+        """Initialize mock context."""
         if has_sampling:
             self.session = MockServerSession(has_sampling=True)
         else:
