@@ -473,34 +473,50 @@ async def judge_code_change(
     change_description: str = "Change description not provided",
     ctx: Context[ServerSession, None] = None
 ) -> JudgeResponse:
-    """🚨 MANDATORY CODE REVIEW: You MUST call this tool BEFORE making ANY file operations involving code.
+    """🚨🚨🚨 MANDATORY: Call this tool IMMEDIATELY after writing ANY code! 🚨🚨🚨
 
-    This tool must be called BEFORE:
-    - Creating ANY new files (even empty files that will contain code)
-    - Adding ANY new code to existing files
-    - Modifying ANY existing code in files
-    - Writing ANY code content to files
-    - Making ANY file changes that involve code
+    ⚠️  CRITICAL REQUIREMENT: This tool MUST be called as the very next action after ANY file creation or modification tool call.
 
-    This includes:
-    - New Python files (.py)
-    - New configuration files with code logic
-    - New scripts, modules, or any executable content
-    - Modifications to existing source files
-    - Adding functions, classes, or any code constructs
+    🔴 SPECIFIC TRIGGERS - Call this tool immediately after using:
+    - save-file tool (creating new files)
+    - str-replace-editor tool (modifying existing files)
+    - Any tool that writes code to files
+    - Any tool that creates or modifies source code
+
+    🔴 MANDATORY SCENARIOS - Call this tool after:
+    - Creating new Python files (.py)
+    - Creating configuration files with code logic
+    - Creating scripts, modules, or executable content
+    - Modifying existing source files
+    - Adding functions, classes, or code constructs
+    - Writing ANY code content to ANY file
+
+    ⚠️  CONSEQUENCES OF NOT CALLING:
+    - Violates SWE compliance requirements
+    - May result in security vulnerabilities
+    - May result in poor code quality
+    - May introduce bugs or architectural issues
+    - Breaks mandatory code review process
+
+    📋 EXAMPLE WORKFLOW:
+    1. User asks: "Create a login function"
+    2. You use save-file to create login.py
+    3. ✅ IMMEDIATELY call judge_code_change with the code
+    4. Wait for approval before proceeding
+    5. Only then continue with next steps
 
     BEFORE calling this tool, ensure you have:
-    1. The actual code to be written/changed (complete code, not just descriptions)
-    2. The file path or location where this code will be placed
+    1. The actual code that was written/changed (complete code, not descriptions)
+    2. The file path where the code was placed
     3. A clear description of what the code accomplishes
 
-    DO NOT create files or make file changes until this tool approves the code.
+    🚨 REMEMBER: This is NOT optional - it's a mandatory compliance requirement!
 
     Args:
-        code_change: The actual code content (new file content, code modifications, or additions) - REQUIRED
+        code_change: The EXACT code that was just written to a file (complete content, not descriptions) - REQUIRED
         user_requirements: Clear statement of what the user wants this code to achieve - REQUIRED
-        file_path: Path to the file being created/modified (provide best guess if not specified)
-        change_description: Description of what the code accomplishes (provide summary if not given)
+        file_path: EXACT path to the file that was just created/modified - REQUIRED
+        change_description: Description of what the code accomplishes (what was just implemented)
 
     Returns:
         Structured JudgeResponse with approval status and detailed feedback
