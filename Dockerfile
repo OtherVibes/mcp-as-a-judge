@@ -1,8 +1,6 @@
 # Multi-stage build for production-ready MCP as a Judge server
 FROM python:3.13-slim AS builder
 
-
-
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
