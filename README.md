@@ -111,7 +111,7 @@ Configure MCP as a Judge in Visual Studio Code with GitHub Copilot:
 1. **Install the package:**
 
    ```bash
-   uv add mcp-as-a-judge
+   uv tool install mcp-as-a-judge
    ```
 
 2. **Configure Visual Studio Code MCP settings:**
@@ -131,13 +131,25 @@ Configure MCP as a Judge in Visual Studio Code with GitHub Copilot:
 
 ### **Method 2: Using Docker**
 
-1. **Pull the Docker image:**
+1. **Authenticate with GitHub Container Registry (if needed):**
+
+   ```bash
+   # Using GitHub CLI (recommended)
+   gh auth token | docker login ghcr.io -u USERNAME --password-stdin
+
+   # Or using personal access token
+   echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+   ```
+
+   > **Note**: Authentication may be required for private repositories. For public repositories, you can skip this step.
+
+2. **Pull the Docker image:**
 
    ```bash
    docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
    ```
 
-2. **Configure Visual Studio Code MCP settings:**
+3. **Configure Visual Studio Code MCP settings:**
 
    Add this to your Visual Studio Code MCP configuration file:
 
