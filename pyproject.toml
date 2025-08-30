@@ -1,6 +1,6 @@
 [project]
 name = "mcp-as-a-judge"
-version = "0.1.4"
+version = "0.1.5"
 description = "MCP as a Judge: Prevent bad coding practices with AI-powered evaluation and user-driven decision making"
 readme = "README.md"
 license = { text = "MIT" }

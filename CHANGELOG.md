@@ -1,3 +1,9 @@
+## [0.1.5](https://github.com/hepivax/mcp-as-a-judge/compare/v0.1.4...v0.1.5) (2025-08-30)
+
+### 🐛 Bug Fixes
+
+* test conventional commit format ([e19e40e](https://github.com/hepivax/mcp-as-a-judge/commit/e19e40ede5b848f939a41391d06b54fcdeb680b1))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
