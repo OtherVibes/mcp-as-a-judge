@@ -123,7 +123,7 @@ Configure MCP as a Judge in Visual Studio Code with GitHub Copilot:
      "servers": {
        "mcp-as-a-judge": {
          "command": "uv",
-         "args": ["run", "mcp-as-a-judge"]
+         "args": ["tool", "run", "mcp-as-a-judge"]
        }
      }
    }
