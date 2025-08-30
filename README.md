@@ -5,12 +5,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
-[![Docker](https://img.shields.io/badge/docker-supported-blue.svg)](https://www.docker.com/)
 
 [![CI](https://github.com/hepivax/mcp-as-a-judge/workflows/CI/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/ci.yml)
 [![Release](https://github.com/hepivax/mcp-as-a-judge/workflows/Release/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/release.yml)
 [![PyPI version](https://badge.fury.io/py/mcp-as-a-judge.svg)](https://badge.fury.io/py/mcp-as-a-judge)
-[![Docker Image](https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker)](https://github.com/hepivax/mcp-as-a-judge/pkgs/container/mcp-as-a-judge)
+
 [![codecov](https://codecov.io/gh/hepivax/mcp-as-a-judge/branch/main/graph/badge.svg)](https://codecov.io/gh/hepivax/mcp-as-a-judge)
 
 **MCP as a Judge** is a revolutionary Model Context Protocol (MCP) server that **transforms the developer-AI collaboration experience**. It acts as an intelligent gatekeeper for software development, preventing bad coding practices by using AI-powered evaluation and involving users in critical decisions when requirements are unclear or obstacles arise.
@@ -62,7 +61,7 @@
 
 ### **⚖️ Five Powerful Judge Tools**
 
-1. **`check_swe_compliance`** - Workflow guidance and best practices
+1. **`get_workflow_guidance`** - Smart workflow analysis and tool recommendation
 2. **`judge_coding_plan`** - Comprehensive plan evaluation with requirements alignment
 3. **`judge_code_change`** - Code review with security and quality checks
 4. **`raise_obstacle`** - User involvement when blockers arise
@@ -110,46 +109,7 @@ uv add mcp-as-a-judge
 mcp-as-a-judge
 ```
 
-#### **Method 2: Using Docker (Recommended for Production)**
-
-**Quick Start with Docker:**
-
-```bash
-# Pull and run the latest image
-docker run -it --name mcp-as-a-judge ghcr.io/hepivax/mcp-as-a-judge:latest
-```
-
-**Build from Source:**
-
-```bash
-# Clone the repository
-git clone https://github.com/hepivax/mcp-as-a-judge.git
-cd mcp-as-a-judge
-
-# Build the Docker image
-docker build -t mcp-as-a-judge:latest .
-
-# Run with custom configuration
-docker run -it \
-  --name mcp-as-a-judge \
-  -e LOG_LEVEL=INFO \
-  --restart unless-stopped \
-  mcp-as-a-judge:latest
-```
-
-**Using Docker Compose:**
-
-```bash
-# For production (uses pre-built image from GitHub Container Registry)
-docker-compose --profile production up -d
-
-# For development (builds from source)
-git clone https://github.com/hepivax/mcp-as-a-judge.git
-cd mcp-as-a-judge
-docker-compose --profile development up
-```
-
-#### **Method 3: Using pip (Alternative)**
+#### **Method 2: Using pip (Alternative)**
 
 ```bash
 # Install from PyPI
@@ -159,7 +119,7 @@ pip install mcp-as-a-judge
 mcp-as-a-judge
 ```
 
-#### **Method 4: From Source (Development)**
+#### **Method 3: From Source (Development)**
 
 ```bash
 # Clone the repository for development
@@ -175,9 +135,7 @@ uv run mcp-as-a-judge
 
 ## 🔧 **VS Code Configuration**
 
-Configure MCP as a Judge in VS Code with GitHub Copilot using one of these methods:
-
-### **Option 1: Using uv (Recommended)**
+Configure MCP as a Judge in VS Code with GitHub Copilot:
 
 1. **Install the package:**
 
@@ -195,29 +153,6 @@ Configure MCP as a Judge in VS Code with GitHub Copilot using one of these metho
        "mcp-as-a-judge": {
          "command": "uv",
          "args": ["run", "mcp-as-a-judge"]
-       }
-     }
-   }
-   ```
-
-### **Option 2: Using Docker**
-
-1. **Pull the Docker image:**
-
-   ```bash
-   docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
-   ```
-
-2. **Configure VS Code MCP settings:**
-
-   Add this to your VS Code MCP configuration file:
-
-   ```json
-   {
-     "servers": {
-       "mcp-as-a-judge": {
-         "command": "docker",
-         "args": ["run", "--rm", "-i", "ghcr.io/hepivax/mcp-as-a-judge:latest"]
        }
      }
    }
@@ -262,31 +197,21 @@ CORS_ENABLED=false        # Enable CORS (production: false)
 CORS_ORIGINS=*            # CORS allowed origins
 ```
 
-**Docker Environment File (.env):**
-
-```bash
-# Copy .env.example to .env and customize
-cp .env.example .env
-
-# Example .env file:
-TRANSPORT=sse
-PORT=8050
-LOG_LEVEL=INFO
-DEBUG=false
-```
-
 ## 📖 **How It Works**
 
 Once MCP as a Judge is configured in VS Code with GitHub Copilot, it automatically guides your AI assistant through a structured software engineering workflow. The system operates transparently in the background, ensuring every development task follows best practices.
 
 ### **🔄 Automatic Workflow Enforcement**
 
-**1. Initial Task Analysis**
-- When you make any development request, the AI assistant automatically calls `check_swe_compliance`
-- This tool analyzes your request and provides specific guidance on which validation steps are required
-- No manual intervention needed - the workflow starts automatically
+**1. Intelligent Workflow Guidance**
+
+- When you make any development request, the AI assistant automatically calls `get_workflow_guidance`
+- This tool uses AI analysis to determine which validation steps are required for your specific task
+- Provides smart recommendations on which tools to use next and in what order
+- No manual intervention needed - the workflow starts automatically with intelligent guidance
 
 **2. Planning & Design Phase**
+
 - For any implementation task, the AI assistant must first help you create:
   - **Detailed coding plan** - Step-by-step implementation approach
   - **System design** - Architecture, components, and technical decisions
@@ -295,6 +220,7 @@ Once MCP as a Judge is configured in VS Code with GitHub Copilot, it automatical
 - **AI-powered evaluation** checks for design quality, security, research thoroughness, and requirements alignment
 
 **3. Code Implementation Review**
+
 - After any code is written or modified, `judge_code_change` is automatically triggered
 - **Mandatory code review** happens immediately after file creation/modification
 - Uses MCP Sampling to evaluate code quality, security vulnerabilities, and best practices
@@ -303,11 +229,13 @@ Once MCP as a Judge is configured in VS Code with GitHub Copilot, it automatical
 ### **🤝 User Involvement When Needed**
 
 **Obstacle Resolution**
+
 - When the AI assistant encounters blockers or conflicting requirements, `raise_obstacle` automatically engages you
 - Uses MCP Elicitation to present options and get your decision
 - No hidden fallbacks - you're always involved in critical decisions
 
 **Requirements Clarification**
+
 - If your request lacks sufficient detail, `elicit_missing_requirements` automatically asks for clarification
 - Uses MCP Elicitation to gather specific missing information
 - Ensures implementation matches your actual needs

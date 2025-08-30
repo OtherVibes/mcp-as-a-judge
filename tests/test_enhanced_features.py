@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from mcp_as_a_judge.models import JudgeResponse
+from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
 from mcp_as_a_judge.server import (
-    check_swe_compliance,
     elicit_missing_requirements,
+    get_workflow_guidance,
     judge_code_change,
     judge_coding_plan,
     raise_obstacle,
@@ -156,29 +156,35 @@ class TestObstacleResolution:
         assert "Cannot resolve obstacle without user input" in result
 
 
-class TestComplianceCheck:
-    """Test the check_swe_compliance tool."""
+class TestWorkflowGuidance:
+    """Test the get_workflow_guidance tool."""
 
     @pytest.mark.asyncio
-    async def test_compliance_check_basic(self):
-        """Test basic compliance check functionality."""
-        result = await check_swe_compliance(
-            task_description="Build a web API using FastAPI framework"
+    async def test_workflow_guidance_basic(self, mock_context_with_sampling):
+        """Test basic workflow guidance functionality."""
+        result = await get_workflow_guidance(
+            task_description="Build a web API using FastAPI framework",
+            ctx=mock_context_with_sampling,
         )
 
-        assert isinstance(result, str)
-        assert "SWE Compliance Check" in result
-        assert "WORKFLOW FOR PLANNING" in result
+        assert isinstance(result, WorkflowGuidance)
+        assert result.next_tool in ["judge_coding_plan", "judge_code_change", "raise_obstacle", "elicit_missing_requirements"]
+        assert isinstance(result.reasoning, str)
+        assert isinstance(result.preparation_needed, list)
+        assert isinstance(result.guidance, str)
 
     @pytest.mark.asyncio
-    async def test_compliance_check_with_context(self):
-        """Test compliance check with additional context."""
-        result = await check_swe_compliance(
-            task_description="Build a secure authentication system using JWT tokens with bcrypt hashing for an e-commerce platform requiring PCI compliance"
+    async def test_workflow_guidance_with_context(self, mock_context_with_sampling):
+        """Test workflow guidance with additional context."""
+        result = await get_workflow_guidance(
+            task_description="Create authentication system with JWT tokens",
+            context="E-commerce platform with high security requirements",
+            ctx=mock_context_with_sampling,
         )
 
-        assert isinstance(result, str)
-        assert len(result) > 100  # Should provide substantial guidance
+        assert isinstance(result, WorkflowGuidance)
+        assert len(result.guidance) > 50  # Should provide substantial guidance
+        assert result.next_tool in ["judge_coding_plan", "judge_code_change", "raise_obstacle", "elicit_missing_requirements"]
 
 
 class TestIntegrationScenarios:
@@ -188,12 +194,14 @@ class TestIntegrationScenarios:
     async def test_complete_workflow_with_requirements(
         self, mock_context_with_sampling
     ):
-        """Test complete workflow from compliance check to code evaluation."""
-        # Step 1: Check compliance
-        compliance_result = await check_swe_compliance(
-            task_description="Build Slack integration using MCP server"
+        """Test complete workflow from guidance to code evaluation."""
+        # Step 1: Get workflow guidance
+        guidance_result = await get_workflow_guidance(
+            task_description="Build Slack integration using MCP server",
+            ctx=mock_context_with_sampling,
         )
-        assert "SWE Compliance Check" in compliance_result
+        assert isinstance(guidance_result, WorkflowGuidance)
+        assert guidance_result.next_tool in ["judge_coding_plan", "judge_code_change", "raise_obstacle", "elicit_missing_requirements"]
 
         # Step 2: Judge plan with requirements
         plan_result = await judge_coding_plan(
@@ -225,10 +233,10 @@ class TestIntegrationScenarios:
             ctx=mock_context_without_sampling,
         )
 
-        # Should get error response suggesting to use raise_obstacle
+        # Should get warning response but still approve for development environment
         assert isinstance(plan_result, JudgeResponse)
-        assert not plan_result.approved
-        assert "raise_obstacle" in plan_result.feedback
+        assert plan_result.approved  # Now approves with warning instead of failing
+        assert "⚠️" in plan_result.feedback  # Should contain warning symbol
 
         # Then raise obstacle
         obstacle_result = await raise_obstacle(

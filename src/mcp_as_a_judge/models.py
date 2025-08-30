@@ -5,7 +5,7 @@ This module contains all Pydantic models used for data validation,
 serialization, and API contracts.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 
 class JudgeResponse(BaseModel):
@@ -61,25 +61,47 @@ class RequirementsClarification(BaseModel):
     )
 
 
-class ComplianceCheckResult(BaseModel):
-    """Result model for SWE compliance checks.
+class WorkflowGuidance(BaseModel):
+    """Schema for workflow guidance responses.
 
-    Used by the check_swe_compliance tool to provide
-    structured guidance on software engineering best practices.
+    Used by the get_workflow_guidance tool to provide
+    structured guidance on which tools to use next.
     """
 
-    compliance_status: str = Field(
-        description="Overall compliance status: 'compliant', 'needs_improvement', 'non_compliant'"
+    next_tool: str = Field(
+        description="The specific MCP tool that should be called next: 'judge_coding_plan', 'judge_code_change', 'raise_obstacle', or 'elicit_missing_requirements'"
     )
-    recommendations: list[str] = Field(
-        default_factory=list, description="Specific recommendations for improvement"
+    reasoning: str = Field(
+        description="Clear explanation of why this tool should be used next"
     )
-    next_steps: list[str] = Field(
+    preparation_needed: list[str] = Field(
         default_factory=list,
-        description="Recommended next steps in the development workflow",
+        description="List of things that need to be prepared before calling the recommended tool",
     )
     guidance: str = Field(
-        description="Detailed guidance on software engineering best practices"
+        description="Detailed step-by-step guidance for the AI assistant"
+    )
+
+
+class ResearchValidationResponse(BaseModel):
+    """Schema for research validation responses.
+
+    Used by the _validate_research_quality function to parse
+    LLM responses about research quality and design alignment.
+    """
+
+    research_adequate: bool = Field(
+        description="Whether the research is comprehensive enough"
+    )
+    design_based_on_research: bool = Field(
+        description="Whether the design is properly based on research"
+    )
+    issues: list[str] = Field(
+        default_factory=list,
+        description="List of specific issues if any"
+    )
+    feedback: str = Field(
+        description="Detailed feedback on research quality and design alignment"
     )
 
 

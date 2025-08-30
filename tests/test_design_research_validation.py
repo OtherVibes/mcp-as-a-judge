@@ -64,9 +64,7 @@ def test_function_docstring() -> None:
     print("✓ Docstring mentions design and research parameters")
 
     # Check that it still has the mandatory description
-    assert (
-        "MANDATORY VALIDATION" in docstring
-    ), "Should have mandatory usage description"
+    assert "MANDATORY" in docstring, "Should have mandatory usage description"
     print("✓ Mandatory usage description is present")
 
     print("✓ All docstring tests passed!")
