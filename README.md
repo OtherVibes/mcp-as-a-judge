@@ -1,5 +1,9 @@
 # ⚖️ MCP as a Judge
 
+<div align="left">
+  <img src="assets/mcp-as-a-judge.png" alt="MCP as a Judge Logo" width="80">
+</div>
+
 > **Prevent bad coding practices with AI-powered evaluation and user-driven decision making**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
