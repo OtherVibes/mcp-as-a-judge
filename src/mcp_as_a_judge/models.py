@@ -5,6 +5,8 @@ This module contains all Pydantic models used for data validation,
 serialization, and API contracts.
 """
 
+from typing import List
+
 from pydantic import BaseModel, Field
 
 
@@ -137,6 +139,10 @@ class JudgeCodingPlanUserVars(BaseModel):
     research: str = Field(
         description="Research findings and analysis"
     )
+    research_urls: List[str] = Field(
+        default_factory=list,
+        description="URLs from MANDATORY online research - minimum 3 URLs required"
+    )
 
 
 class JudgeCodeChangeSystemVars(BaseModel):
@@ -186,6 +192,10 @@ class ResearchValidationUserVars(BaseModel):
     )
     research: str = Field(
         description="Research findings to be validated"
+    )
+    research_urls: List[str] = Field(
+        default_factory=list,
+        description="URLs from MANDATORY online research - minimum 3 URLs required"
     )
 
 

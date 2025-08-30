@@ -119,11 +119,13 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - Is the solution appropriate for what the user actually wants to achieve?
 - Flag any misalignment between user needs and proposed solution
 
-### 2. Avoid Reinventing the Wheel
+### 2. Avoid Reinventing the Wheel - CRITICAL PRIORITY
 
-- Has the plan researched existing solutions thoroughly?
-- Are they leveraging established libraries, frameworks, and patterns?
-- Flag any attempt to build from scratch what already exists
+- **CURRENT REPO ANALYSIS**: Has the plan analyzed existing code and capabilities in the current repository?
+- **EXISTING SOLUTIONS FIRST**: Are they leveraging current repo libraries, established frameworks, and well-known libraries?
+- **STRONGLY PREFER**: Existing solutions (current repo > well-known libraries > in-house development)
+- **FLAG IMMEDIATELY**: Any attempt to build from scratch what already exists
+- **RESEARCH QUALITY**: Is research based on current repo state + user requirements + online investigation?
 
 ### 3. Ensure Generic Solutions
 
@@ -131,11 +133,17 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - Are they solving the root problem or just patching symptoms?
 - Flag solutions that seem like workarounds
 
-### 4. Force Deep Research
+### 4. Force Deep Research - MANDATORY VALIDATION
 
-- Is the research section comprehensive and domain-specific?
-- Have they analyzed multiple approaches and alternatives?
-- Are best practices from the problem domain clearly identified?
+- **CURRENT REPO FIRST**: Has research analyzed existing codebase, current libraries, and established patterns?
+- **RESEARCH FOUNDATION**: Is research based on current repo state + user requirements + online investigation?
+- **EXISTING SOLUTIONS PRIORITY**: Does research prioritize current repo capabilities and well-known libraries?
+- **COMPREHENSIVE ANALYSIS**: Have they analyzed multiple approaches and alternatives from existing solutions?
+- **DOMAIN EXPERTISE**: Are best practices from the problem domain clearly identified?
+- **🌐 MANDATORY: Online Research URLs** - Are research URLs provided? Online research is MANDATORY.
+- **REJECT IF MISSING**: No URLs provided means no online research was performed - REJECT immediately
+- **URL QUALITY**: Do URLs show research into current repo analysis, implementation approaches, and existing libraries?
+- **REJECT IMMEDIATELY**: Missing URLs, insufficient online research, or failure to investigate existing solutions
 
 ## Response Requirements
 

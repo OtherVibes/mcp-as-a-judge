@@ -19,7 +19,7 @@ def test_judge_coding_plan_signature() -> None:
     params = list(sig.parameters.keys())
 
     # Check that all required parameters are present
-    required_params = ["plan", "design", "research"]
+    required_params = ["plan", "design", "research", "research_urls"]
     for param in required_params:
         assert param in params, f"Missing required parameter: {param}"
         print(f"✓ Parameter '{param}' is present")
@@ -33,6 +33,10 @@ def test_judge_coding_plan_signature() -> None:
     )
     assert sig.parameters["research"].default == inspect.Parameter.empty, (
         "research should be required"
+    )
+    # research_urls is optional for backward compatibility but strongly encouraged
+    assert sig.parameters["research_urls"].default is None, (
+        "research_urls should have None default for backward compatibility"
     )
     print("✓ plan, design, and research are all required parameters")
 
