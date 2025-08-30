@@ -1,7 +1,7 @@
 # ⚖️ MCP as a Judge
 
 <div align="left">
-  <img src="assets/mcp-as-a-judge.png" alt="MCP as a Judge Logo" width="80">
+  <img src="assets/mcp-as-a-judge.png" alt="MCP as a Judge Logo" width="200">
 </div>
 
 > **Prevent bad coding practices with AI-powered evaluation and user-driven decision making**
