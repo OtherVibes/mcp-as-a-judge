@@ -3,6 +3,12 @@
 from pathlib import Path
 from typing import Any, cast
 
+try:
+    from importlib.resources import files
+except ImportError:
+    # Python < 3.9 fallback
+    from importlib_resources import files  # type: ignore[import-untyped]
+
 from jinja2 import Environment, FileSystemLoader, Template
 from mcp.types import SamplingMessage, TextContent
 from pydantic import BaseModel
@@ -19,7 +25,9 @@ class PromptLoader:
                         Defaults to src/prompts relative to this file.
         """
         if prompts_dir is None:
-            prompts_dir = self._find_prompts_directory()
+            # Use importlib.resources to get the prompts directory from the package
+            prompts_resource = files("mcp_as_a_judge") / "prompts"
+            prompts_dir = Path(str(prompts_resource))
 
         self.prompts_dir = prompts_dir
         self.env = Environment(
@@ -27,34 +35,6 @@ class PromptLoader:
             trim_blocks=True,
             lstrip_blocks=True,
             autoescape=False,  # nosec B701 - Safe for prompt templates (not HTML)  # noqa: S701
-        )
-
-    def _find_prompts_directory(self) -> Path:
-        """Find the prompts directory in development or installed package.
-
-        Returns:
-            Path to the prompts directory
-
-        Raises:
-            FileNotFoundError: If prompts directory cannot be found
-        """
-        current_dir = Path(__file__).parent
-
-        # Try package-relative location first (installed package)
-        package_prompts_dir = current_dir / "prompts"
-        if package_prompts_dir.exists():
-            return package_prompts_dir
-
-        # Try development location (src/prompts relative to this file)
-        dev_prompts_dir = current_dir.parent / "prompts"
-        if dev_prompts_dir.exists():
-            return dev_prompts_dir
-
-        raise FileNotFoundError(
-            f"Could not find prompts directory. Tried:\n"
-            f"- Package location: {package_prompts_dir}\n"
-            f"- Development location: {dev_prompts_dir}\n"
-            f"Please ensure the package is properly installed or run from the development directory."
         )
 
     def load_template(self, template_name: str) -> Template:
