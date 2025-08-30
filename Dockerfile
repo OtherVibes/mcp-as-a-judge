@@ -2,8 +2,7 @@
 FROM python:3.13-slim AS builder
 
 # Set build arguments
-ARG PORT=8050
-ARG TRANSPORT=sse
+ARG VERSION=latest
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -37,15 +36,12 @@ RUN .venv/bin/uv pip install -e .
 FROM python:3.13-slim AS production
 
 # Set build arguments
-ARG PORT=8050
-ARG TRANSPORT=sse
+ARG VERSION=latest
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/app/.venv/bin:$PATH" \
-    PORT=${PORT} \
-    TRANSPORT=${TRANSPORT}
+    PATH="/app/.venv/bin:$PATH"
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y \
@@ -72,12 +68,9 @@ RUN chown -R mcpuser:mcpuser /app
 # Switch to non-root user
 USER mcpuser
 
-# Expose port
-EXPOSE ${PORT}
-
-# Health check
+# Health check for MCP server (check if process is running)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+    CMD pgrep -f "mcp-as-a-judge" || exit 1
 
 # Default command
 CMD ["mcp-as-a-judge"]
@@ -85,7 +78,7 @@ CMD ["mcp-as-a-judge"]
 # Labels for metadata
 LABEL org.opencontainers.image.title="MCP as a Judge" \
       org.opencontainers.image.description="AI-powered code evaluation and software engineering best practices enforcement" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.authors="Zvi Fried" \
       org.opencontainers.image.source="https://github.com/hepivax/mcp-as-a-judge" \
       org.opencontainers.image.licenses="MIT"

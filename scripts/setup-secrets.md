@@ -9,6 +9,7 @@ This document guides you through setting up the necessary secrets for automated 
 **Purpose**: Allows GitHub Actions to publish packages to PyPI automatically.
 
 **Steps**:
+
 1. Go to [PyPI Account Settings](https://pypi.org/manage/account/)
 2. Scroll down to "API tokens" section
 3. Click "Add API token"
@@ -18,6 +19,7 @@ This document guides you through setting up the necessary secrets for automated 
 7. **IMPORTANT**: Copy the token immediately (it won't be shown again)
 
 **Adding to GitHub**:
+
 1. Go to your GitHub repository
 2. Click "Settings" tab
 3. Click "Secrets and variables" → "Actions"
@@ -31,6 +33,7 @@ This document guides you through setting up the necessary secrets for automated 
 **Purpose**: Upload test coverage reports to Codecov.
 
 **Steps**:
+
 1. Go to [Codecov](https://codecov.io/)
 2. Sign in with GitHub
 3. Add your repository
@@ -68,17 +71,20 @@ After adding the secrets:
 ## Troubleshooting
 
 ### PyPI Publishing Fails
+
 - Verify the token is correctly set in GitHub secrets
 - Ensure the token has the right permissions
 - Check that the package name is available on PyPI
 
 ### Coverage Upload Fails
+
 - Codecov token is optional - the workflow will continue without it
 - Ensure the token matches your repository
 
 ## Next Steps
 
 Once secrets are configured:
+
 1. Push your changes to trigger CI
 2. Create a release tag to trigger publishing
 3. Monitor the Actions tab for workflow status

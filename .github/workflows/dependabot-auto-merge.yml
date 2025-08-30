@@ -18,7 +18,7 @@ jobs:
         uses: dependabot/fetch-metadata@v2
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-          
+
       - name: Auto-merge Dependabot PRs for patch and minor updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
         run: gh pr merge --auto --merge "$PR_URL"

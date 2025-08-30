@@ -5,12 +5,11 @@ This module provides pytest fixtures and configuration for testing
 the MCP server functionality.
 """
 
-import pytest
 import asyncio
-from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
-from mcp_as_a_judge.server import mcp
+import pytest
+
 from mcp_as_a_judge.models import JudgeResponse
 
 
@@ -36,7 +35,7 @@ def sample_judge_response():
     return JudgeResponse(
         approved=True,
         required_improvements=[],
-        feedback="The plan follows all software engineering best practices."
+        feedback="The plan follows all software engineering best practices.",
     )
 
 
@@ -48,9 +47,9 @@ def sample_rejected_response():
         required_improvements=[
             "Add comprehensive error handling",
             "Implement input validation",
-            "Add unit tests"
+            "Add unit tests",
         ],
-        feedback="The plan needs several improvements before approval."
+        feedback="The plan needs several improvements before approval.",
     )
 
 
@@ -62,7 +61,7 @@ def sample_coding_plan():
         "design": "Use FastAPI with SQLAlchemy ORM, PostgreSQL database, JWT authentication",
         "research": "Analyzed FastAPI docs, SQLAlchemy patterns, JWT best practices",
         "user_requirements": "Build a secure user management system with registration and login",
-        "context": "Building a web application backend"
+        "context": "Building a web application backend",
     }
 
 
@@ -75,7 +74,7 @@ def create_user(user_data: dict) -> User:
     # Validate input
     if not user_data.get('email'):
         raise ValueError("Email is required")
-    
+
     # Create user
     user = User(**user_data)
     db.session.add(user)
@@ -84,7 +83,7 @@ def create_user(user_data: dict) -> User:
 """,
         "user_requirements": "Create a function to safely create new users with validation",
         "file_path": "app/models/user.py",
-        "change_description": "Add user creation function with input validation"
+        "change_description": "Add user creation function with input validation",
     }
 
 
@@ -98,8 +97,8 @@ def sample_obstacle():
             "Configure Cursor to support sampling",
             "Use Claude Desktop instead",
             "Mock the sampling for testing",
-            "Cancel the evaluation"
-        ]
+            "Cancel the evaluation",
+        ],
     }
 
 
@@ -111,13 +110,13 @@ def sample_missing_requirements():
         "identified_gaps": [
             "What specific Slack functionality is needed?",
             "What type of integration (bot, app, webhook)?",
-            "What are the authentication requirements?"
+            "What are the authentication requirements?",
         ],
         "specific_questions": [
             "Do you want to send messages TO Slack or receive messages FROM Slack?",
             "Should this be a bot that responds to commands?",
-            "What user permissions are required?"
-        ]
+            "What user permissions are required?",
+        ],
     }
 
 
@@ -145,6 +144,7 @@ class MockServerSession:
     """Mock server session for testing."""
 
     def __init__(self, has_sampling: bool = True):
+        """Initialize mock server session."""
         self.has_sampling = has_sampling
 
     async def create_message(self, **kwargs):
@@ -152,15 +152,14 @@ class MockServerSession:
         if not self.has_sampling:
             raise RuntimeError("Context is not available outside of a request")
 
-        return MagicMock(
-            content=[MagicMock(text="Mocked LLM evaluation response")]
-        )
+        return MagicMock(content=[MagicMock(text="Mocked LLM evaluation response")])
 
 
 class MockContext:
     """Mock context for testing."""
 
     def __init__(self, has_sampling: bool = True):
+        """Initialize mock context."""
         if has_sampling:
             self.session = MockServerSession(has_sampling=True)
         else:
