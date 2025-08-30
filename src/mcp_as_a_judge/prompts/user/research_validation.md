@@ -23,7 +23,9 @@ Please validate the research quality for this development task:
 {% if research_urls %}
 The following URLs were visited during MANDATORY online research:
 
-{{ research_urls }}
+{% for url in research_urls %}
+- {{ url }}
+{% endfor %}
 
 URLs should demonstrate:
 - Current repository analysis

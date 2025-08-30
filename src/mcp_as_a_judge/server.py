@@ -9,6 +9,8 @@ coding plans and code changes against software engineering best practices.
 
 import json
 
+from typing import List
+
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import (
     ClientCapabilities,
@@ -434,31 +436,46 @@ async def judge_coding_plan(
     user_requirements: str,
     ctx: Context,
     context: str = "",
-    research_urls: str = "",
+    research_urls: List[str] = None,
 ) -> JudgeResponse:
     """🚨 MANDATORY: AI programming assistant MUST call this tool whenever you start to work on a coding task.
 
-    BEFORE calling this tool, help the user create:
-    1. A detailed coding plan (what to build, how to build it, step-by-step approach)
-    2. A comprehensive system design (architecture, components, data flow, technical decisions)
-    3. 🔍 MANDATORY RESEARCH REQUIREMENTS:
-       - Analyze CURRENT REPOSITORY state (existing code, libraries, patterns)
-       - PERFORM ONLINE RESEARCH on existing solutions (current repo capabilities, well-known libraries)
-       - STRONGLY PREFER existing solutions over in-house development
-       - Base plan on: current repo + user requirements + MANDATORY online research
-    4. 🌐 MANDATORY: Provide URLs from your online research (AI assistant MUST perform online research and provide URLs)
+    BEFORE calling this tool, AI programming assistant MUST collaborate with the user to:
+    1. Analyze the user requirements
+    2. Peform an ONLINE research on what is the best way to implement user requirements, focusing on existing well-known libraries
+    3. Analyze the repository code to check what is the best way to implement the solution with minimum changes
+    4. Create a system design that matches the user requirements
+    5. Create implementation plan
 
     Args:
         plan: The detailed coding plan to be reviewed (REQUIRED)
         design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
         research: Research findings on existing solutions, libraries, frameworks, and best practices (REQUIRED)
-        research_urls: 🌐 URLs from MANDATORY online research - AI assistant MUST perform online research and provide all URLs visited (List of URLs as comma-separated string)
+        research_urls: 🌐 URLs from MANDATORY online research - AI assistant MUST provide at least 3 URLs from research (List of URL strings)
         user_requirements: Clear statement of what the user wants to achieve (REQUIRED)
         context: Additional context about the project, requirements, or constraints
 
     Returns:
         Structured JudgeResponse with approval status and detailed feedback
     """
+    # Handle default value for research_urls
+    if research_urls is None:
+        research_urls = []
+
+    # Validate research URLs requirement
+    if len(research_urls) < 3:
+        return JudgeResponse(
+            approved=False,
+            required_improvements=[
+                f"Insufficient research URLs: {len(research_urls)} provided, minimum 3 required",
+                "AI assistant MUST perform online research and provide at least 3 URLs",
+                "Research should focus on existing well-known libraries and best practices"
+            ],
+            feedback=f"❌ RESEARCH VALIDATION FAILED: Only {len(research_urls)} URLs provided. "
+                    f"MANDATORY requirement: AI assistant must provide at least 3 URLs from online research "
+                    f"focusing on existing solutions and well-known libraries."
+        )
+
     try:
         # Check for sampling capability and use elicitation for user decisions
 
