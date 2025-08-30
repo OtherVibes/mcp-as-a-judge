@@ -26,7 +26,7 @@ class PromptLoader:
             loader=FileSystemLoader(str(prompts_dir)),
             trim_blocks=True,
             lstrip_blocks=True,
-            autoescape=False,  # Disable autoescape for prompt templates (not HTML)  # noqa: S701,B701
+            autoescape=False,  # nosec B701 - Safe for prompt templates (not HTML)  # noqa: S701
         )
 
     def load_template(self, template_name: str) -> Template:
