@@ -1,3 +1,9 @@
+## [0.1.6](https://github.com/hepivax/mcp-as-a-judge/compare/v0.1.5...v0.1.6) (2025-08-30)
+
+### 🐛 Bug Fixes
+
+* add PyPI publication to semantic-release ([bf47cdf](https://github.com/hepivax/mcp-as-a-judge/commit/bf47cdf66b177839f3b1bb0137b6b4a0973e98e7))
+
 ## [0.1.5](https://github.com/hepivax/mcp-as-a-judge/compare/v0.1.4...v0.1.5) (2025-08-30)
 
 ### 🐛 Bug Fixes
