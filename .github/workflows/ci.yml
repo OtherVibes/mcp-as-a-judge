@@ -10,7 +10,36 @@ env:
   PYTHON_VERSION: "3.13"
 
 jobs:
-  test:
+  # Parallel job 1: Code Quality (linting, formatting, type checking)
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: uv sync --all-extras --dev
+
+    - name: Run linting
+      run: |
+        uv run ruff check src tests
+        uv run ruff format --check src tests
+
+    - name: Run type checking
+      run: uv run mypy src
+
+  # Parallel job 2: Tests
+  tests:
     name: Test Suite
     runs-on: ubuntu-latest
     strategy:
@@ -30,17 +59,7 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: |
-        uv sync --all-extras --dev
-
-    - name: Run linting
-      run: |
-        uv run ruff check src tests
-        uv run ruff format --check src tests
-
-    - name: Run type checking
-      run: |
-        uv run mypy src
+      run: uv sync --all-extras --dev
 
     - name: Run tests
       run: |
@@ -56,6 +75,7 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # Parallel job 3: Security Scanning
   security:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -63,6 +83,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v5
+      with:
+        fetch-depth: 0  # Full history for gitleaks
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -75,17 +97,33 @@ jobs:
     - name: Install dependencies
       run: uv sync --all-extras --dev
 
-
-
     - name: Run bandit security linter
       run: |
         uv add --dev bandit
         uv run bandit -r src/
 
+  # Parallel job 4: Secret Scanning with Gitleaks
+  gitleaks:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0  # Full history for gitleaks
+
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  # Build job - depends on all parallel jobs
   build:
     name: Build Package
     runs-on: ubuntu-latest
-    needs: [test, security]
+    needs: [code-quality, tests, security, gitleaks]
 
     steps:
     - name: Checkout code
@@ -118,10 +156,11 @@ jobs:
         path: dist/
         retention-days: 7
 
+  # Docker job - depends on all parallel jobs
   docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: [test, security]
+    needs: [code-quality, tests, security, gitleaks]
 
     steps:
     - name: Checkout code
