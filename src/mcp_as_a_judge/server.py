@@ -255,7 +255,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
 
 async def _validate_research_quality(
     research: str,
-    research_urls: str,
+    research_urls: list[str],
     plan: str,
     design: str,
     user_requirements: str,
@@ -372,7 +372,7 @@ async def _evaluate_coding_plan(
     plan: str,
     design: str,
     research: str,
-    research_urls: str,
+    research_urls: list[str],
     user_requirements: str,
     context: str,
     ctx: Context,

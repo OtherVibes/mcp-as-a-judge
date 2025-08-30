@@ -7,7 +7,7 @@ try:
     from importlib.resources import files
 except ImportError:
     # Python < 3.9 fallback
-    from importlib_resources import files  # type: ignore[import-untyped]
+    from importlib_resources import files  # type: ignore[import-not-found,no-redef]
 
 from jinja2 import Environment, FileSystemLoader, Template
 from mcp.types import SamplingMessage, TextContent
