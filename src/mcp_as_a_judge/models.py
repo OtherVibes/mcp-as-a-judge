@@ -138,7 +138,8 @@ class JudgeCodingPlanUserVars(BaseModel):
         description="Research findings and analysis"
     )
     research_urls: str = Field(
-        description="URLs visited during research for validation"
+        default="",
+        description="URLs from MANDATORY online research - comma-separated list of URLs visited during research"
     )
 
 
@@ -191,7 +192,8 @@ class ResearchValidationUserVars(BaseModel):
         description="Research findings to be validated"
     )
     research_urls: str = Field(
-        description="URLs visited during research for validation"
+        default="",
+        description="URLs from MANDATORY online research - comma-separated list of URLs visited during research"
     )
 
 

@@ -431,24 +431,28 @@ async def judge_coding_plan(
     plan: str,
     design: str,
     research: str,
-    research_urls: str,
     user_requirements: str,
     ctx: Context,
     context: str = "",
+    research_urls: str = "",
 ) -> JudgeResponse:
     """🚨 MANDATORY: AI programming assistant MUST call this tool whenever you start to work on a coding task.
 
     BEFORE calling this tool, help the user create:
     1. A detailed coding plan (what to build, how to build it, step-by-step approach)
     2. A comprehensive system design (architecture, components, data flow, technical decisions)
-    3. Research findings (existing solutions, libraries, frameworks, best practices)
-    4. 🌐 REQUIRED: URLs visited during research (AI assistant MUST provide all URLs researched)
+    3. 🔍 MANDATORY RESEARCH REQUIREMENTS:
+       - Analyze CURRENT REPOSITORY state (existing code, libraries, patterns)
+       - PERFORM ONLINE RESEARCH on existing solutions (current repo capabilities, well-known libraries)
+       - STRONGLY PREFER existing solutions over in-house development
+       - Base plan on: current repo + user requirements + MANDATORY online research
+    4. 🌐 MANDATORY: Provide URLs from your online research (AI assistant MUST perform online research and provide URLs)
 
     Args:
         plan: The detailed coding plan to be reviewed (REQUIRED)
         design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
         research: Research findings on existing solutions, libraries, frameworks, and best practices (REQUIRED)
-        research_urls: 🌐 URLs visited during research - AI assistant MUST provide all URLs researched for validation (REQUIRED)
+        research_urls: 🌐 URLs from MANDATORY online research - AI assistant MUST perform online research and provide all URLs visited (List of URLs as comma-separated string)
         user_requirements: Clear statement of what the user wants to achieve (REQUIRED)
         context: Additional context about the project, requirements, or constraints
 

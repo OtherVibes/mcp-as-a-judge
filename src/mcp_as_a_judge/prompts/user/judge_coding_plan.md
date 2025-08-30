@@ -18,10 +18,27 @@ Please evaluate the following coding plan:
 
 ## Research
 
+**Research must be based on: Current Repository + User Requirements + MANDATORY Online Investigation**
+
 {{ research }}
 
 ## Research URLs
 
-The following URLs were visited during research (REQUIRED for validation):
+{% if research_urls %}
+The following URLs were visited during MANDATORY online research:
 
 {{ research_urls }}
+
+URLs should demonstrate:
+- Current repository analysis
+- Investigation of existing solutions (current repo capabilities, well-known libraries)
+- Preference for existing solutions over in-house development
+{% else %}
+🚨 **CRITICAL: NO RESEARCH URLS PROVIDED** - Online research is MANDATORY.
+AI assistant MUST perform online research and provide URLs demonstrating:
+- Current repository analysis
+- Investigation of existing solutions (current repo capabilities, well-known libraries)
+- Preference for existing solutions over in-house development
+
+**This submission should be REJECTED for lack of required online research.**
+{% endif %}
