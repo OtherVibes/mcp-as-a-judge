@@ -214,3 +214,14 @@ class TestPromptLoader:
         # Verify it has the expected field
         assert hasattr(system_vars, 'response_schema')
         assert ResearchValidationSystemVars.model_fields['response_schema'].description == "JSON schema for the expected response format"
+
+    def test_find_prompts_directory_development(self) -> None:
+        """Test that _find_prompts_directory works in development mode."""
+        loader = PromptLoader()
+        prompts_dir = loader._find_prompts_directory()
+
+        # Should find the development prompts directory
+        assert prompts_dir.exists()
+        assert (prompts_dir / "system").exists()
+        assert (prompts_dir / "user").exists()
+        assert (prompts_dir / "system" / "judge_coding_plan.md").exists()

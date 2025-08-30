@@ -1,5 +1,6 @@
 """Prompt loader utility for loading and rendering Jinja2 templates."""
 
+import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -19,9 +20,7 @@ class PromptLoader:
                         Defaults to src/prompts relative to this file.
         """
         if prompts_dir is None:
-            # Default to src/prompts directory
-            current_dir = Path(__file__).parent
-            prompts_dir = current_dir.parent / "prompts"
+            prompts_dir = self._find_prompts_directory()
 
         self.prompts_dir = prompts_dir
         self.env = Environment(
@@ -29,6 +28,62 @@ class PromptLoader:
             trim_blocks=True,
             lstrip_blocks=True,
             autoescape=False,  # nosec B701 - Safe for prompt templates (not HTML)  # noqa: S701
+        )
+
+    def _find_prompts_directory(self) -> Path:
+        """Find the prompts directory in development or installed package.
+
+        Returns:
+            Path to the prompts directory
+
+        Raises:
+            FileNotFoundError: If prompts directory cannot be found
+        """
+        # Try development location first (src/prompts relative to this file)
+        current_dir = Path(__file__).parent
+        dev_prompts_dir = current_dir.parent / "prompts"
+
+        if dev_prompts_dir.exists():
+            return dev_prompts_dir
+
+        # Try installed package location (shared data)
+        # When installed via pip/uv, shared data goes to site-packages/
+        try:
+            import mcp_as_a_judge
+            package_dir = Path(mcp_as_a_judge.__file__).parent.parent
+            installed_prompts_dir = package_dir / "prompts"
+
+            if installed_prompts_dir.exists():
+                return installed_prompts_dir
+        except (ImportError, AttributeError):
+            pass
+
+        # Try alternative installed locations
+        possible_locations = [
+            # Standard site-packages location
+            Path(sys.prefix) / "share" / "mcp-as-a-judge" / "prompts",
+            # Local user installation
+            Path.home() / ".local" / "share" / "mcp-as-a-judge" / "prompts",
+            # UV tool installation
+            Path.home() / ".local" / "share" / "uv" / "tools" / "mcp-as-a-judge" / "prompts",
+        ]
+
+        for location in possible_locations:
+            if location.exists():
+                return location
+
+        # Last resort: look for prompts directory anywhere in the Python path
+        for path_str in sys.path:
+            path = Path(path_str)
+            prompts_path = path / "prompts"
+            if prompts_path.exists() and (prompts_path / "system").exists():
+                return prompts_path
+
+        raise FileNotFoundError(
+            f"Could not find prompts directory. Tried:\n"
+            f"- Development: {dev_prompts_dir}\n"
+            f"- Installed locations: {possible_locations}\n"
+            f"Please ensure the package is properly installed or run from the development directory."
         )
 
     def load_template(self, template_name: str) -> Template:
