@@ -25,7 +25,7 @@
 - 🔍 **Enforcing research and best practices** before implementation
 - ⚖️ **Creating a collaborative AI-human workflow** for better software quality
 
-## 😌 **Vibe Coding doesn't have to be frustrating**
+## **Vibe Coding doesn't have to be frustrating**
 
 ### **What It Enforces:**
 
@@ -59,33 +59,35 @@
 - **No hidden fallbacks** - transparent decision making
 - **Interactive problem solving** with real-time user input
 
-### **⚖️ Five Powerful Judge Tools**
+### **🛠️ List of Tools**
 
-1. **`get_workflow_guidance`** - Smart workflow analysis and tool recommendation
-2. **`judge_coding_plan`** - Comprehensive plan evaluation with requirements alignment
-3. **`judge_code_change`** - Code review with security and quality checks
-4. **`raise_obstacle`** - User involvement when blockers arise
-5. **`elicit_missing_requirements`** - Clarification of unclear requests
+| Tool Name | Description |
+|-----------|-------------|
+| **`get_workflow_guidance`** | Smart workflow analysis and tool recommendation |
+| **`judge_coding_plan`** | Comprehensive plan evaluation with requirements alignment |
+| **`judge_code_change`** | Code review with security and quality checks |
+| **`raise_obstacle`** | User involvement when blockers arise |
+| **`elicit_missing_requirements`** | Clarification of unclear requests |
 
 ## 🚀 **Quick Start**
 
 ### **Requirements & Recommendations**
 
-#### **⚠️ Critical Requirements**
+#### **MCP Client Prerequisites**
 
 MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** features for its core functionality:
 
 - **[MCP Sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling)** - Required for AI-powered code evaluation and judgment
 - **[MCP Elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation)** - Required for interactive user decision prompts
 
-#### **🔧 Supported AI Assistants**
+#### **Supported AI Assistants**
 
-Currently, **GitHub Copilot in VS Code** is the only AI assistant that fully supports these MCP features. Other coding assistants and other versions of GitHub Copilot are not supported at this time.
+| AI Assistant | Platform | MCP Support | Status | Notes |
+|---------------|----------|-------------|---------|-------|
+| **GitHub Copilot** | Visual Studio Code | ✅ Full | **Recommended** | Complete MCP integration with tool calling |
 
-#### **📋 Technical Prerequisites**
+**✅ Recommended Setup:** GitHub Copilot in Visual Studio Code for the best MCP as a Judge experience.
 
-- Python 3.12+ (latest secure version)
-- GitHub Copilot with MCP support enabled
 
 #### **💡 Recommendations**
 
@@ -133,9 +135,9 @@ uv sync --all-extras --dev
 uv run mcp-as-a-judge
 ```
 
-## 🔧 **VS Code Configuration**
+## 🔧 **Visual Studio Code Configuration**
 
-Configure MCP as a Judge in VS Code with GitHub Copilot:
+Configure MCP as a Judge in Visual Studio Code with GitHub Copilot:
 
 1. **Install the package:**
 
@@ -143,9 +145,9 @@ Configure MCP as a Judge in VS Code with GitHub Copilot:
    uv add mcp-as-a-judge
    ```
 
-2. **Configure VS Code MCP settings:**
+2. **Configure Visual Studio Code MCP settings:**
 
-   Add this to your VS Code MCP configuration file:
+   Add this to your Visual Studio Code MCP configuration file:
 
    ```json
    {
@@ -158,48 +160,10 @@ Configure MCP as a Judge in VS Code with GitHub Copilot:
    }
    ```
 
-### **📍 VS Code MCP Configuration Location**
-
-The MCP configuration file is typically located at:
-
-- **Windows**: `%APPDATA%\Code\User\globalStorage\github.copilot-chat\mcp.json`
-- **macOS**: `~/Library/Application Support/Code/User/globalStorage/github.copilot-chat/mcp.json`
-- **Linux**: `~/.config/Code/User/globalStorage/github.copilot-chat/mcp.json`
-
-### **🔄 Restart VS Code**
-
-After adding the configuration, restart VS Code to load the MCP server.
-
-#### **Environment Variables**
-
-**Available Environment Variables:**
-
-```bash
-# Transport Configuration
-TRANSPORT=sse              # Options: "stdio" or "sse"
-HOST=0.0.0.0              # Server host (SSE only)
-PORT=8050                 # Server port (SSE only)
-
-# Logging
-LOG_LEVEL=INFO            # Options: DEBUG, INFO, WARNING, ERROR
-LOG_FORMAT=json           # Options: json, text
-
-# Development
-DEBUG=false               # Enable debug mode
-DEVELOPMENT_MODE=false    # Enable development features
-
-# Performance
-MAX_CONCURRENT_REQUESTS=10  # Maximum concurrent requests
-REQUEST_TIMEOUT=30          # Request timeout in seconds
-
-# Security
-CORS_ENABLED=false        # Enable CORS (production: false)
-CORS_ORIGINS=*            # CORS allowed origins
-```
 
 ## 📖 **How It Works**
 
-Once MCP as a Judge is configured in VS Code with GitHub Copilot, it automatically guides your AI assistant through a structured software engineering workflow. The system operates transparently in the background, ensuring every development task follows best practices.
+Once MCP as a Judge is configured in Visual Studio Code with GitHub Copilot, it automatically guides your AI assistant through a structured software engineering workflow. The system operates transparently in the background, ensuring every development task follows best practices.
 
 ### **🔄 Automatic Workflow Enforcement**
 
