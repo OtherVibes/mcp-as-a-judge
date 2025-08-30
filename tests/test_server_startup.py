@@ -19,9 +19,9 @@ async def test_server_startup() -> None:
 
     try:
         # Test that the server has the expected name
-        assert (
-            mcp.name == "MCP as a Judge"
-        ), f"Expected 'MCP as a Judge', got '{mcp.name}'"
+        assert mcp.name == "MCP as a Judge", (
+            f"Expected 'MCP as a Judge', got '{mcp.name}'"
+        )
         print(f"✓ Server name is correct: {mcp.name}")
 
         # Test that the server is a FastMCP instance

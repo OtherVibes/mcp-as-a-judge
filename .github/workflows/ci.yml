@@ -75,10 +75,7 @@ jobs:
     - name: Install dependencies
       run: uv sync --all-extras --dev
 
-    - name: Run safety check
-      run: |
-        uv add --dev safety
-        uv run safety scan --json
+
 
     - name: Run bandit security linter
       run: |

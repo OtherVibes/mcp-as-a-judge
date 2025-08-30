@@ -25,15 +25,15 @@ def test_judge_coding_plan_signature() -> None:
         print(f"✓ Parameter '{param}' is present")
 
     # Check that design and research are required (no default value)
-    assert (
-        sig.parameters["plan"].default == inspect.Parameter.empty
-    ), "plan should be required"
-    assert (
-        sig.parameters["design"].default == inspect.Parameter.empty
-    ), "design should be required"
-    assert (
-        sig.parameters["research"].default == inspect.Parameter.empty
-    ), "research should be required"
+    assert sig.parameters["plan"].default == inspect.Parameter.empty, (
+        "plan should be required"
+    )
+    assert sig.parameters["design"].default == inspect.Parameter.empty, (
+        "design should be required"
+    )
+    assert sig.parameters["research"].default == inspect.Parameter.empty, (
+        "research should be required"
+    )
     print("✓ plan, design, and research are all required parameters")
 
     # Check that context is optional
@@ -42,9 +42,9 @@ def test_judge_coding_plan_signature() -> None:
 
     # Check return type annotation
     return_annotation = sig.return_annotation
-    assert (
-        return_annotation.__name__ == "JudgeResponse"
-    ), f"Expected JudgeResponse return type, got {return_annotation}"
+    assert return_annotation.__name__ == "JudgeResponse", (
+        f"Expected JudgeResponse return type, got {return_annotation}"
+    )
     print("✓ Return type is JudgeResponse")
 
     print("✓ All signature tests passed!")

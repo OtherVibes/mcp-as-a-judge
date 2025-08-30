@@ -168,7 +168,12 @@ class TestWorkflowGuidance:
         )
 
         assert isinstance(result, WorkflowGuidance)
-        assert result.next_tool in ["judge_coding_plan", "judge_code_change", "raise_obstacle", "elicit_missing_requirements"]
+        assert result.next_tool in [
+            "judge_coding_plan",
+            "judge_code_change",
+            "raise_obstacle",
+            "elicit_missing_requirements",
+        ]
         assert isinstance(result.reasoning, str)
         assert isinstance(result.preparation_needed, list)
         assert isinstance(result.guidance, str)
@@ -184,7 +189,12 @@ class TestWorkflowGuidance:
 
         assert isinstance(result, WorkflowGuidance)
         assert len(result.guidance) > 50  # Should provide substantial guidance
-        assert result.next_tool in ["judge_coding_plan", "judge_code_change", "raise_obstacle", "elicit_missing_requirements"]
+        assert result.next_tool in [
+            "judge_coding_plan",
+            "judge_code_change",
+            "raise_obstacle",
+            "elicit_missing_requirements",
+        ]
 
 
 class TestIntegrationScenarios:
@@ -201,7 +211,12 @@ class TestIntegrationScenarios:
             ctx=mock_context_with_sampling,
         )
         assert isinstance(guidance_result, WorkflowGuidance)
-        assert guidance_result.next_tool in ["judge_coding_plan", "judge_code_change", "raise_obstacle", "elicit_missing_requirements"]
+        assert guidance_result.next_tool in [
+            "judge_coding_plan",
+            "judge_code_change",
+            "raise_obstacle",
+            "elicit_missing_requirements",
+        ]
 
         # Step 2: Judge plan with requirements
         plan_result = await judge_coding_plan(

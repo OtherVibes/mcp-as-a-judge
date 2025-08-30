@@ -45,14 +45,14 @@ def _extract_json_from_response(response_text: str) -> str:
         ValueError: If no JSON object is found in the response
     """
     # Find the first opening brace and last closing brace
-    first_brace = response_text.find('{')
-    last_brace = response_text.rfind('}')
+    first_brace = response_text.find("{")
+    last_brace = response_text.rfind("}")
 
     if first_brace == -1 or last_brace == -1 or first_brace >= last_brace:
         raise ValueError(f"No valid JSON object found in response: {response_text}")
 
     # Extract the JSON content
-    json_content = response_text[first_brace:last_brace + 1]
+    json_content = response_text[first_brace : last_brace + 1]
     return json_content
 
 
@@ -114,14 +114,22 @@ async def get_workflow_guidance(
                 return WorkflowGuidance(
                     next_tool="judge_coding_plan",
                     reasoning="Sampling capability not available - providing default guidance",
-                    preparation_needed=["Create detailed plan", "Design system architecture", "Research solutions"],
+                    preparation_needed=[
+                        "Create detailed plan",
+                        "Design system architecture",
+                        "Research solutions",
+                    ],
                     guidance="⚠️ LLM sampling not available. Default recommendation: Start with planning workflow by calling judge_coding_plan after creating plan, design, and research.",
                 )
         except (ValueError, AttributeError) as e:
             return WorkflowGuidance(
                 next_tool="judge_coding_plan",
                 reasoning="Session not available - providing default guidance",
-                preparation_needed=["Create detailed plan", "Design system architecture", "Research solutions"],
+                preparation_needed=[
+                    "Create detailed plan",
+                    "Design system architecture",
+                    "Research solutions",
+                ],
                 guidance=f"⚠️ Session error: {e!s}. Default recommendation: Start with planning workflow by calling judge_coding_plan after creating plan, design, and research.",
             )
 
@@ -131,9 +139,7 @@ async def get_workflow_guidance(
     except Exception as e:
         import traceback
 
-        error_details = (
-            f"Error during workflow guidance: {e!s}\nTraceback: {traceback.format_exc()}"
-        )
+        error_details = f"Error during workflow guidance: {e!s}\nTraceback: {traceback.format_exc()}"
         print(f"DEBUG: Exception in get_workflow_guidance: {error_details}")
         return WorkflowGuidance(
             next_tool="raise_obstacle",
@@ -166,7 +172,7 @@ async def raise_obstacle(
     try:
         # Format the options as a numbered list for clarity
         formatted_options = "\n".join(
-            f"{i+1}. {option}" for i, option in enumerate(options)
+            f"{i + 1}. {option}" for i, option in enumerate(options)
         )
 
         # Use elicitation to get user decision
@@ -229,7 +235,7 @@ async def elicit_missing_requirements(
         # Format the gaps and questions for clarity
         formatted_gaps = "\n".join(f"• {gap}" for gap in identified_gaps)
         formatted_questions = "\n".join(
-            f"{i+1}. {question}" for i, question in enumerate(specific_questions)
+            f"{i + 1}. {question}" for i, question in enumerate(specific_questions)
         )
 
         # Use elicitation to get requirement clarifications
@@ -305,9 +311,14 @@ async def _validate_research_quality(
 
     try:
         json_content = _extract_json_from_response(research_response_text)
-        research_validation = ResearchValidationResponse.model_validate_json(json_content)
+        research_validation = ResearchValidationResponse.model_validate_json(
+            json_content
+        )
 
-        if not research_validation.research_adequate or not research_validation.design_based_on_research:
+        if (
+            not research_validation.research_adequate
+            or not research_validation.design_based_on_research
+        ):
             return JudgeResponse(
                 approved=False,
                 required_improvements=research_validation.issues,

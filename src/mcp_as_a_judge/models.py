@@ -97,8 +97,7 @@ class ResearchValidationResponse(BaseModel):
         description="Whether the design is properly based on research"
     )
     issues: list[str] = Field(
-        default_factory=list,
-        description="List of specific issues if any"
+        default_factory=list, description="List of specific issues if any"
     )
     feedback: str = Field(
         description="Detailed feedback on research quality and design alignment"
