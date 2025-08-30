@@ -19,3 +19,9 @@ Please evaluate the following coding plan:
 ## Research
 
 {{ research }}
+
+## Research URLs
+
+The following URLs were visited during research (REQUIRED for validation):
+
+{{ research_urls }}

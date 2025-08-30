@@ -260,6 +260,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
 
 async def _validate_research_quality(
     research: str,
+    research_urls: str,
     plan: str,
     design: str,
     user_requirements: str,
@@ -279,6 +280,7 @@ async def _validate_research_quality(
         plan=plan,
         design=design,
         research=research,
+        research_urls=research_urls,
     )
     messages = create_separate_messages(
         "system/research_validation.md",
@@ -375,6 +377,7 @@ async def _evaluate_coding_plan(
     plan: str,
     design: str,
     research: str,
+    research_urls: str,
     user_requirements: str,
     context: str,
     ctx: Context,
@@ -393,6 +396,7 @@ async def _evaluate_coding_plan(
         plan=plan,
         design=design,
         research=research,
+        research_urls=research_urls,
         context=context,
     )
     messages = create_separate_messages(
@@ -427,6 +431,7 @@ async def judge_coding_plan(
     plan: str,
     design: str,
     research: str,
+    research_urls: str,
     user_requirements: str,
     ctx: Context,
     context: str = "",
@@ -437,11 +442,13 @@ async def judge_coding_plan(
     1. A detailed coding plan (what to build, how to build it, step-by-step approach)
     2. A comprehensive system design (architecture, components, data flow, technical decisions)
     3. Research findings (existing solutions, libraries, frameworks, best practices)
+    4. 🌐 REQUIRED: URLs visited during research (AI assistant MUST provide all URLs researched)
 
     Args:
         plan: The detailed coding plan to be reviewed (REQUIRED)
         design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
         research: Research findings on existing solutions, libraries, frameworks, and best practices (REQUIRED)
+        research_urls: 🌐 URLs visited during research - AI assistant MUST provide all URLs researched for validation (REQUIRED)
         user_requirements: Clear statement of what the user wants to achieve (REQUIRED)
         context: Additional context about the project, requirements, or constraints
 
@@ -470,13 +477,13 @@ async def judge_coding_plan(
 
         # Use helper function for main evaluation
         evaluation_result = await _evaluate_coding_plan(
-            plan, design, research, user_requirements, context, ctx
+            plan, design, research, research_urls, user_requirements, context, ctx
         )
 
         # Additional research validation if approved
         if evaluation_result.approved:
             research_validation_result = await _validate_research_quality(
-                research, plan, design, user_requirements, ctx
+                research, research_urls, plan, design, user_requirements, ctx
             )
             if research_validation_result:
                 return research_validation_result

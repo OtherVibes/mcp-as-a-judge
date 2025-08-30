@@ -136,6 +136,9 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - Is the research section comprehensive and domain-specific?
 - Have they analyzed multiple approaches and alternatives?
 - Are best practices from the problem domain clearly identified?
+- **🌐 CRITICAL: URL Validation** - Are research URLs provided and do they demonstrate actual online research?
+- Do the URLs show research into implementation approaches, best practices, and existing libraries?
+- Flag if URLs are missing, insufficient, or don't support the research claims
 
 ## Response Requirements
 

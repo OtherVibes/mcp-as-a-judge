@@ -52,6 +52,7 @@ class TestPromptLoader:
             plan="Create Python calculator",
             design="Use functions for operations",
             research="Researched Python math",
+            research_urls="https://docs.python.org/3/library/math.html",
             context="Educational project",
         )
 
@@ -165,6 +166,7 @@ class TestPromptLoader:
             plan="Create Python calculator",
             design="Use functions for operations",
             research="Researched Python math",
+            research_urls="https://docs.python.org/3/library/math.html",
         )
 
         messages = create_separate_messages(

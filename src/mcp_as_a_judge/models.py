@@ -137,6 +137,9 @@ class JudgeCodingPlanUserVars(BaseModel):
     research: str = Field(
         description="Research findings and analysis"
     )
+    research_urls: str = Field(
+        description="URLs visited during research for validation"
+    )
 
 
 class JudgeCodeChangeSystemVars(BaseModel):
@@ -186,6 +189,9 @@ class ResearchValidationUserVars(BaseModel):
     )
     research: str = Field(
         description="Research findings to be validated"
+    )
+    research_urls: str = Field(
+        description="URLs visited during research for validation"
     )
 
 

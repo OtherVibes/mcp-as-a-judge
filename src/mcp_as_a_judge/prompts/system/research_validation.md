@@ -32,6 +32,10 @@ Evaluate if the research is comprehensive enough and if the design is properly b
 - Is the research specific and actionable?
 - Does it demonstrate understanding of the problem domain?
 - Are sources and references appropriate?
+- **🌐 URL Validation**: Are research URLs provided and relevant?
+- Do the URLs demonstrate actual online research into implementation approaches?
+- Do the URLs show research into best practices and existing libraries?
+- Flag if URLs are missing, insufficient, or don't support the research findings
 
 ## Response Requirements
 
