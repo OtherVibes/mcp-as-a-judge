@@ -9,8 +9,6 @@ coding plans and code changes against software engineering best practices.
 
 import json
 
-from typing import List
-
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import (
     ClientCapabilities,
@@ -436,7 +434,7 @@ async def judge_coding_plan(
     user_requirements: str,
     ctx: Context,
     context: str = "",
-    research_urls: List[str] = None,
+    research_urls: list[str] | None = None,
 ) -> JudgeResponse:
     """🚨 MANDATORY: AI programming assistant MUST call this tool whenever you start to work on a coding task.
 
