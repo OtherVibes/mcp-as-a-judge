@@ -58,7 +58,7 @@
       "@semantic-release/exec",
       {
         "prepareCmd": "uv version ${nextRelease.version} && uv build --no-sources",
-        "publishCmd": "uv publish --token ${PYPI_API_TOKEN}"
+        "publishCmd": "uv publish --token ${PYPI_TOKEN}"
       }
     ],
     [
