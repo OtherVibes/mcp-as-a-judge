@@ -111,6 +111,7 @@ ElicitationResponse = str
 
 # Prompt variable models for type safety and validation
 
+
 class JudgeCodingPlanSystemVars(BaseModel):
     """Variables for judge_coding_plan system prompt."""
 
@@ -125,21 +126,13 @@ class JudgeCodingPlanUserVars(BaseModel):
     user_requirements: str = Field(
         description="The user's requirements for the coding task"
     )
-    context: str = Field(
-        description="Additional context about the task"
-    )
-    plan: str = Field(
-        description="The coding plan to be evaluated"
-    )
-    design: str = Field(
-        description="The design documentation"
-    )
-    research: str = Field(
-        description="Research findings and analysis"
-    )
+    context: str = Field(description="Additional context about the task")
+    plan: str = Field(description="The coding plan to be evaluated")
+    design: str = Field(description="The design documentation")
+    research: str = Field(description="Research findings and analysis")
     research_urls: list[str] = Field(
         default_factory=list,
-        description="URLs from MANDATORY online research - minimum 3 URLs required"
+        description="URLs from MANDATORY online research - minimum 3 URLs required",
     )
 
 
@@ -157,15 +150,9 @@ class JudgeCodeChangeUserVars(BaseModel):
     user_requirements: str = Field(
         description="The user's requirements for the code change"
     )
-    file_path: str = Field(
-        description="Path to the file being changed"
-    )
-    change_description: str = Field(
-        description="Description of what the change does"
-    )
-    code_change: str = Field(
-        description="The actual code content being reviewed"
-    )
+    file_path: str = Field(description="Path to the file being changed")
+    change_description: str = Field(description="Description of what the change does")
+    code_change: str = Field(description="The actual code content being reviewed")
 
 
 class ResearchValidationSystemVars(BaseModel):
@@ -179,21 +166,13 @@ class ResearchValidationSystemVars(BaseModel):
 class ResearchValidationUserVars(BaseModel):
     """Variables for research_validation user prompt."""
 
-    user_requirements: str = Field(
-        description="The user's requirements for the task"
-    )
-    plan: str = Field(
-        description="The proposed plan"
-    )
-    design: str = Field(
-        description="The design documentation"
-    )
-    research: str = Field(
-        description="Research findings to be validated"
-    )
+    user_requirements: str = Field(description="The user's requirements for the task")
+    plan: str = Field(description="The proposed plan")
+    design: str = Field(description="The design documentation")
+    research: str = Field(description="Research findings to be validated")
     research_urls: list[str] = Field(
         default_factory=list,
-        description="URLs from MANDATORY online research - minimum 3 URLs required"
+        description="URLs from MANDATORY online research - minimum 3 URLs required",
     )
 
 
@@ -208,9 +187,5 @@ class WorkflowGuidanceSystemVars(BaseModel):
 class WorkflowGuidanceUserVars(BaseModel):
     """Variables for get_workflow_guidance user prompt."""
 
-    task_description: str = Field(
-        description="Description of the development task"
-    )
-    context: str = Field(
-        description="Additional context about the task"
-    )
+    task_description: str = Field(description="Description of the development task")
+    context: str = Field(description="Additional context about the task")

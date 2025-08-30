@@ -52,7 +52,11 @@ class TestPromptLoader:
             plan="Create Python calculator",
             design="Use functions for operations",
             research="Researched Python math",
-            research_urls=["https://docs.python.org/3/library/math.html", "https://numpy.org/doc/", "https://scipy.org/"],
+            research_urls=[
+                "https://docs.python.org/3/library/math.html",
+                "https://numpy.org/doc/",
+                "https://scipy.org/",
+            ],
             context="Educational project",
         )
 
@@ -157,16 +161,18 @@ class TestPromptLoader:
 
     def test_create_separate_messages(self) -> None:
         """Test the create_separate_messages function."""
-        system_vars = JudgeCodingPlanSystemVars(
-            response_schema='{"type": "object"}'
-        )
+        system_vars = JudgeCodingPlanSystemVars(response_schema='{"type": "object"}')
         user_vars = JudgeCodingPlanUserVars(
             user_requirements="Build a calculator",
             context="Educational project",
             plan="Create Python calculator",
             design="Use functions for operations",
             research="Researched Python math",
-            research_urls=["https://docs.python.org/3/library/math.html", "https://numpy.org/doc/", "https://scipy.org/"],
+            research_urls=[
+                "https://docs.python.org/3/library/math.html",
+                "https://numpy.org/doc/",
+                "https://scipy.org/",
+            ],
         )
 
         messages = create_separate_messages(
@@ -203,19 +209,23 @@ class TestPromptLoader:
 
         assert "Research Quality Validation" in prompt
         assert "expert at evaluating" in prompt
-        assert '{"type": "object", "properties": {"research_adequate": {"type": "boolean"}}}' in prompt
+        assert (
+            '{"type": "object", "properties": {"research_adequate": {"type": "boolean"}}}'
+            in prompt
+        )
         assert "You must respond with a JSON object that matches this schema:" in prompt
 
     def test_research_validation_system_vars_not_empty(self) -> None:
         """Test that ResearchValidationSystemVars is no longer empty."""
-        system_vars = ResearchValidationSystemVars(
-            response_schema='{"type": "object"}'
-        )
+        system_vars = ResearchValidationSystemVars(response_schema='{"type": "object"}')
         assert system_vars.response_schema == '{"type": "object"}'
 
         # Verify it has the expected field
-        assert hasattr(system_vars, 'response_schema')
-        assert ResearchValidationSystemVars.model_fields['response_schema'].description == "JSON schema for the expected response format"
+        assert hasattr(system_vars, "response_schema")
+        assert (
+            ResearchValidationSystemVars.model_fields["response_schema"].description
+            == "JSON schema for the expected response format"
+        )
 
     def test_prompts_directory_access(self) -> None:
         """Test that prompts directory is accessible via importlib.resources."""

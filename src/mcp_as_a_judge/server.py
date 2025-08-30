@@ -5,8 +5,6 @@ This module contains the main MCP server with judge tools for validating
 coding plans and code changes against software engineering best practices.
 """
 
-
-
 import json
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -62,9 +60,6 @@ def _extract_json_from_response(response_text: str) -> str:
     # Extract the JSON content
     json_content = response_text[first_brace : last_brace + 1]
     return json_content
-
-
-
 
 
 @mcp.tool()  # type: ignore[misc,unused-ignore]
@@ -467,11 +462,11 @@ async def judge_coding_plan(
             required_improvements=[
                 f"Insufficient research URLs: {len(research_urls)} provided, minimum 3 required",
                 "AI assistant MUST perform online research and provide at least 3 URLs",
-                "Research should focus on existing well-known libraries and best practices"
+                "Research should focus on existing well-known libraries and best practices",
             ],
             feedback=f"❌ RESEARCH VALIDATION FAILED: Only {len(research_urls)} URLs provided. "
-                    f"MANDATORY requirement: AI assistant must provide at least 3 URLs from online research "
-                    f"focusing on existing solutions and well-known libraries."
+            f"MANDATORY requirement: AI assistant must provide at least 3 URLs from online research "
+            f"focusing on existing solutions and well-known libraries.",
         )
 
     try:
