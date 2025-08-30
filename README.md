@@ -8,9 +8,9 @@
 
 [![CI](https://github.com/hepivax/mcp-as-a-judge/workflows/CI/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/ci.yml)
 [![Release](https://github.com/hepivax/mcp-as-a-judge/workflows/Release/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/release.yml)
-[![PyPI version](https://badge.fury.io/py/mcp-as-a-judge.svg)](https://badge.fury.io/py/mcp-as-a-judge)
+[![PyPI version](https://img.shields.io/pypi/v/mcp-as-a-judge.svg)](https://pypi.org/project/mcp-as-a-judge/)
 
-[![codecov](https://codecov.io/gh/hepivax/mcp-as-a-judge/branch/main/graph/badge.svg)](https://codecov.io/gh/hepivax/mcp-as-a-judge)
+
 
 **MCP as a Judge** is a revolutionary Model Context Protocol (MCP) server that **transforms the developer-AI collaboration experience**. It acts as an intelligent gatekeeper for software development, preventing bad coding practices by using AI-powered evaluation and involving users in critical decisions when requirements are unclear or obstacles arise.
 

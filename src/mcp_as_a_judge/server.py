@@ -7,8 +7,6 @@ coding plans and code changes against software engineering best practices.
 
 from typing import Any
 
-from pydantic import ValidationError
-
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import (
     ClientCapabilities,
@@ -16,6 +14,7 @@ from mcp.types import (
     SamplingMessage,
     TextContent,
 )
+from pydantic import ValidationError
 
 from mcp_as_a_judge.models import (
     JudgeResponse,
@@ -318,7 +317,7 @@ async def _validate_research_quality(
     except (ValidationError, ValueError) as e:
         raise ValueError(
             f"Failed to parse research validation response: {e}. Raw response: {research_response_text}"
-        )
+        ) from e
 
     return None
 
@@ -354,7 +353,7 @@ async def _evaluate_workflow_guidance(
         except (ValidationError, ValueError) as e:
             raise ValueError(
                 f"Failed to parse workflow guidance response: {e}. Raw response: {response_text}"
-            )
+            ) from e
 
     except Exception as e:
         print(f"DEBUG: Workflow guidance evaluation error: {e}")
@@ -409,7 +408,7 @@ async def _evaluate_coding_plan(
     except (ValidationError, ValueError) as e:
         raise ValueError(
             f"Failed to parse coding plan evaluation response: {e}. Raw response: {response_text}"
-        )
+        ) from e
 
 
 @mcp.tool()  # type: ignore[misc,unused-ignore]
@@ -555,7 +554,7 @@ async def judge_code_change(
         except (ValidationError, ValueError) as e:
             raise ValueError(
                 f"Failed to parse code change evaluation response: {e}. Raw response: {response_text}"
-            )
+            ) from e
 
     except Exception as e:
         import traceback

@@ -5,7 +5,7 @@ This module contains all Pydantic models used for data validation,
 serialization, and API contracts.
 """
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 
 class JudgeResponse(BaseModel):
