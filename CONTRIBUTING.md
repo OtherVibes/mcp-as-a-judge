@@ -10,7 +10,7 @@ MCP as a Judge aims to revolutionize software development by preventing bad codi
 
 ### **Prerequisites**
 
-- Python 3.12.10+ (latest secure version)
+- Python 3.13.5+ (latest secure version)
 - uv (recommended) or pip
 - Git
 - A compatible MCP client for testing

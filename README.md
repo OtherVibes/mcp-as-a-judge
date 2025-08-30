@@ -3,7 +3,7 @@
 > **Prevent bad coding practices with AI-powered evaluation and user-driven decision making**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
 
 [![CI](https://github.com/hepivax/mcp-as-a-judge/workflows/CI/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/ci.yml)
@@ -80,6 +80,10 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 - **[MCP Sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling)** - Required for AI-powered code evaluation and judgment
 - **[MCP Elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation)** - Required for interactive user decision prompts
 
+#### **System Prerequisites**
+
+- **Python 3.13+** - Required for running the MCP server
+
 #### **Supported AI Assistants**
 
 | AI Assistant | Platform | MCP Support | Status | Notes |
@@ -96,48 +100,13 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 > **Note**: MCP servers communicate via stdio (standard input/output), not HTTP ports. No network configuration is needed.
 
-### **Installation**
 
-#### **Method 1: Using uv (Recommended)**
-
-```bash
-# Install uv if you don't have it
-pip install uv
-
-# Install from PyPI
-uv add mcp-as-a-judge
-
-# Run the server
-mcp-as-a-judge
-```
-
-#### **Method 2: Using pip (Alternative)**
-
-```bash
-# Install from PyPI
-pip install mcp-as-a-judge
-
-# Run the server
-mcp-as-a-judge
-```
-
-#### **Method 3: From Source (Development)**
-
-```bash
-# Clone the repository for development
-git clone https://github.com/hepivax/mcp-as-a-judge.git
-cd mcp-as-a-judge
-
-# Install with uv
-uv sync --all-extras --dev
-
-# Run the server
-uv run mcp-as-a-judge
-```
 
 ## 🔧 **Visual Studio Code Configuration**
 
 Configure MCP as a Judge in Visual Studio Code with GitHub Copilot:
+
+### **Method 1: Using uv (Recommended)**
 
 1. **Install the package:**
 
@@ -155,6 +124,29 @@ Configure MCP as a Judge in Visual Studio Code with GitHub Copilot:
        "mcp-as-a-judge": {
          "command": "uv",
          "args": ["run", "mcp-as-a-judge"]
+       }
+     }
+   }
+   ```
+
+### **Method 2: Using Docker**
+
+1. **Pull the Docker image:**
+
+   ```bash
+   docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
+   ```
+
+2. **Configure Visual Studio Code MCP settings:**
+
+   Add this to your Visual Studio Code MCP configuration file:
+
+   ```json
+   {
+     "servers": {
+       "mcp-as-a-judge": {
+         "command": "docker",
+         "args": ["run", "--rm", "-i", "ghcr.io/hepivax/mcp-as-a-judge:latest"]
        }
      }
    }

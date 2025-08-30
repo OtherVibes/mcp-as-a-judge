@@ -1,5 +1,5 @@
 # Multi-stage build for production-ready MCP as a Judge server
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 
 
@@ -32,7 +32,7 @@ RUN .venv/bin/pip install uv
 RUN .venv/bin/uv pip install -e .
 
 # Production stage
-FROM python:3.12-slim AS production
+FROM python:3.13-slim AS production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
