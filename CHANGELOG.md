@@ -1,3 +1,9 @@
+## [0.1.8](https://github.com/hepivax/mcp-as-a-judge/compare/v0.1.7...v0.1.8) (2025-08-30)
+
+### 🐛 Bug Fixes
+
+* use shell environment variable syntax for PYPI_TOKEN ([1452d4e](https://github.com/hepivax/mcp-as-a-judge/commit/1452d4e712b62f6c6af412cfa77116bca46a6bb7))
+
 ## [0.1.7](https://github.com/hepivax/mcp-as-a-judge/compare/v0.1.6...v0.1.7) (2025-08-30)
 
 ### 🐛 Bug Fixes
