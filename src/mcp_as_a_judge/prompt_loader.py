@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from jinja2 import Environment, FileSystemLoader, Template
+from mcp.types import SamplingMessage, TextContent
+from pydantic import BaseModel
 
 
 class PromptLoader:
@@ -67,3 +69,48 @@ class PromptLoader:
 
 # Global instance for easy access
 prompt_loader = PromptLoader()
+
+
+def create_separate_messages(
+    system_template: str,
+    user_template: str,
+    system_vars: BaseModel,
+    user_vars: BaseModel,
+) -> list[SamplingMessage]:
+    """Create separate system and user messages from templates.
+
+    This function creates properly separated messages with distinct roles:
+    - System template → SamplingMessage with role "assistant" (system instructions)
+    - User template → SamplingMessage with role "user" (user request)
+
+    Args:
+        system_template: Name of the system message template file
+        user_template: Name of the user message template file
+        system_vars: Pydantic model containing variables for system template
+        user_vars: Pydantic model containing variables for user template
+
+    Returns:
+        List of SamplingMessage objects with separate system and user messages
+    """
+    # Render system prompt with system variables
+    system_content = prompt_loader.render_prompt(
+        system_template, **system_vars.model_dump()
+    )
+
+    # Render user prompt with user variables
+    user_content = prompt_loader.render_prompt(
+        user_template, **user_vars.model_dump()
+    )
+
+    return [
+        # System instructions as assistant message
+        SamplingMessage(
+            role="assistant",
+            content=TextContent(type="text", text=system_content),
+        ),
+        # User request as user message
+        SamplingMessage(
+            role="user",
+            content=TextContent(type="text", text=user_content),
+        ),
+    ]

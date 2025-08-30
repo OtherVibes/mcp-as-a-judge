@@ -4,7 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from mcp_as_a_judge.prompt_loader import PromptLoader, prompt_loader
+from mcp_as_a_judge.models import (
+    JudgeCodingPlanSystemVars,
+    JudgeCodingPlanUserVars,
+    ResearchValidationSystemVars,
+)
+from mcp_as_a_judge.prompt_loader import (
+    PromptLoader,
+    create_separate_messages,
+    prompt_loader,
+)
 
 
 class TestPromptLoader:
@@ -144,3 +153,64 @@ class TestPromptLoader:
             research="Global research",
         )
         assert "Global test" in prompt
+
+    def test_create_separate_messages(self) -> None:
+        """Test the create_separate_messages function."""
+        system_vars = JudgeCodingPlanSystemVars(
+            response_schema='{"type": "object"}'
+        )
+        user_vars = JudgeCodingPlanUserVars(
+            user_requirements="Build a calculator",
+            context="Educational project",
+            plan="Create Python calculator",
+            design="Use functions for operations",
+            research="Researched Python math",
+        )
+
+        messages = create_separate_messages(
+            "system/judge_coding_plan.md",
+            "user/judge_coding_plan.md",
+            system_vars,
+            user_vars,
+        )
+
+        # Should return exactly 2 messages
+        assert len(messages) == 2
+
+        # First message should be system (assistant role)
+        system_message = messages[0]
+        assert system_message.role == "assistant"
+        assert system_message.content.type == "text"
+        assert "Software Engineering Judge" in system_message.content.text
+        assert '{"type": "object"}' in system_message.content.text
+
+        # Second message should be user
+        user_message = messages[1]
+        assert user_message.role == "user"
+        assert user_message.content.type == "text"
+        assert "Build a calculator" in user_message.content.text
+        assert "Educational project" in user_message.content.text
+        assert "Create Python calculator" in user_message.content.text
+
+    def test_render_research_validation_system(self) -> None:
+        """Test rendering the research validation system prompt with schema."""
+        prompt = prompt_loader.render_prompt(
+            "system/research_validation.md",
+            response_schema='{"type": "object", "properties": {"research_adequate": {"type": "boolean"}}}',
+        )
+
+        assert "Research Quality Validation" in prompt
+        assert "expert at evaluating" in prompt
+        assert '{"type": "object", "properties": {"research_adequate": {"type": "boolean"}}}' in prompt
+        assert "You must respond with a JSON object that matches this schema:" in prompt
+
+    def test_research_validation_system_vars_not_empty(self) -> None:
+        """Test that ResearchValidationSystemVars is no longer empty."""
+        system_vars = ResearchValidationSystemVars(
+            response_schema='{"type": "object"}'
+        )
+        assert system_vars.response_schema == '{"type": "object"}'
+
+        # Verify it has the expected field
+        assert hasattr(system_vars, 'response_schema')
+        assert ResearchValidationSystemVars.model_fields['response_schema'].description == "JSON schema for the expected response format"

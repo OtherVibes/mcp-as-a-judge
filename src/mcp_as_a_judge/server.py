@@ -5,25 +5,33 @@ This module contains the main MCP server with judge tools for validating
 coding plans and code changes against software engineering best practices.
 """
 
-from typing import Any
+
+
+import json
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import (
     ClientCapabilities,
     SamplingCapability,
-    SamplingMessage,
-    TextContent,
 )
 from pydantic import ValidationError
 
 from mcp_as_a_judge.models import (
+    JudgeCodeChangeSystemVars,
+    JudgeCodeChangeUserVars,
+    JudgeCodingPlanSystemVars,
+    JudgeCodingPlanUserVars,
     JudgeResponse,
     ObstacleResolutionDecision,
     RequirementsClarification,
     ResearchValidationResponse,
+    ResearchValidationSystemVars,
+    ResearchValidationUserVars,
     WorkflowGuidance,
+    WorkflowGuidanceSystemVars,
+    WorkflowGuidanceUserVars,
 )
-from mcp_as_a_judge.prompt_loader import prompt_loader
+from mcp_as_a_judge.prompt_loader import create_separate_messages
 
 # Create the MCP server instance
 mcp = FastMCP(name="MCP-as-a-Judge")
@@ -56,34 +64,7 @@ def _extract_json_from_response(response_text: str) -> str:
     return json_content
 
 
-def _create_messages(
-    system_template: str, user_template: str, **kwargs: Any
-) -> list[SamplingMessage]:
-    """Create combined system and user message from templates.
 
-    Since MCP SamplingMessage only supports 'user' and 'assistant' roles,
-    we combine the system instructions and user request into a single user message.
-
-    Args:
-        system_template: Name of the system message template
-        user_template: Name of the user message template
-        **kwargs: Variables to pass to templates
-
-    Returns:
-        List with single SamplingMessage containing combined content
-    """
-    system_content = prompt_loader.render_prompt(system_template, **kwargs)
-    user_content = prompt_loader.render_prompt(user_template, **kwargs)
-
-    # Combine system instructions and user request
-    combined_content = f"{system_content}\n\n---\n\n{user_content}"
-
-    return [
-        SamplingMessage(
-            role="user",
-            content=TextContent(type="text", text=combined_content),
-        ),
-    ]
 
 
 @mcp.tool()  # type: ignore[misc,unused-ignore]
@@ -290,13 +271,20 @@ async def _validate_research_quality(
         JudgeResponse if research is insufficient, None if research is adequate
     """
     # Create system and user messages for research validation
-    messages = _create_messages(
-        "system/research_validation.md",
-        "user/research_validation.md",
+    system_vars = ResearchValidationSystemVars(
+        response_schema=json.dumps(ResearchValidationResponse.model_json_schema())
+    )
+    user_vars = ResearchValidationUserVars(
         user_requirements=user_requirements,
         plan=plan,
         design=design,
         research=research,
+    )
+    messages = create_separate_messages(
+        "system/research_validation.md",
+        "user/research_validation.md",
+        system_vars,
+        user_vars,
     )
 
     research_result = await ctx.session.create_message(
@@ -339,12 +327,18 @@ async def _evaluate_workflow_guidance(
     """Evaluate workflow guidance using LLM sampling."""
     try:
         # Create system and user messages from templates
-        messages = _create_messages(
-            "system/get_workflow_guidance.md",
-            "user/get_workflow_guidance.md",
+        system_vars = WorkflowGuidanceSystemVars(
+            response_schema=json.dumps(WorkflowGuidance.model_json_schema())
+        )
+        user_vars = WorkflowGuidanceUserVars(
             task_description=task_description,
             context=context,
-            response_schema=WorkflowGuidance.model_json_schema(),
+        )
+        messages = create_separate_messages(
+            "system/get_workflow_guidance.md",
+            "user/get_workflow_guidance.md",
+            system_vars,
+            user_vars,
         )
 
         # Use sampling to get LLM evaluation
@@ -391,15 +385,21 @@ async def _evaluate_coding_plan(
         JudgeResponse with evaluation results
     """
     # Create system and user messages from templates
-    messages = _create_messages(
-        "system/judge_coding_plan.md",
-        "user/judge_coding_plan.md",
+    system_vars = JudgeCodingPlanSystemVars(
+        response_schema=json.dumps(JudgeResponse.model_json_schema())
+    )
+    user_vars = JudgeCodingPlanUserVars(
         user_requirements=user_requirements,
         plan=plan,
         design=design,
         research=research,
         context=context,
-        response_schema=JudgeResponse.model_json_schema(),
+    )
+    messages = create_separate_messages(
+        "system/judge_coding_plan.md",
+        "user/judge_coding_plan.md",
+        system_vars,
+        user_vars,
     )
 
     result = await ctx.session.create_message(
@@ -517,14 +517,20 @@ async def judge_code_change(
         Structured JudgeResponse with approval status and detailed feedback
     """
     # Create system and user messages from templates
-    messages = _create_messages(
-        "system/judge_code_change.md",
-        "user/judge_code_change.md",
+    system_vars = JudgeCodeChangeSystemVars(
+        response_schema=json.dumps(JudgeResponse.model_json_schema())
+    )
+    user_vars = JudgeCodeChangeUserVars(
         user_requirements=user_requirements,
         code_change=code_change,
         file_path=file_path,
         change_description=change_description,
-        response_schema=JudgeResponse.model_json_schema(),
+    )
+    messages = create_separate_messages(
+        "system/judge_code_change.md",
+        "user/judge_code_change.md",
+        system_vars,
+        user_vars,
     )
 
     try:

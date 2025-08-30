@@ -107,3 +107,102 @@ class ResearchValidationResponse(BaseModel):
 # Type aliases for better code readability
 ToolResponse = JudgeResponse
 ElicitationResponse = str
+
+
+# Prompt variable models for type safety and validation
+
+class JudgeCodingPlanSystemVars(BaseModel):
+    """Variables for judge_coding_plan system prompt."""
+
+    response_schema: str = Field(
+        description="JSON schema for the expected response format"
+    )
+
+
+class JudgeCodingPlanUserVars(BaseModel):
+    """Variables for judge_coding_plan user prompt."""
+
+    user_requirements: str = Field(
+        description="The user's requirements for the coding task"
+    )
+    context: str = Field(
+        description="Additional context about the task"
+    )
+    plan: str = Field(
+        description="The coding plan to be evaluated"
+    )
+    design: str = Field(
+        description="The design documentation"
+    )
+    research: str = Field(
+        description="Research findings and analysis"
+    )
+
+
+class JudgeCodeChangeSystemVars(BaseModel):
+    """Variables for judge_code_change system prompt."""
+
+    response_schema: str = Field(
+        description="JSON schema for the expected response format"
+    )
+
+
+class JudgeCodeChangeUserVars(BaseModel):
+    """Variables for judge_code_change user prompt."""
+
+    user_requirements: str = Field(
+        description="The user's requirements for the code change"
+    )
+    file_path: str = Field(
+        description="Path to the file being changed"
+    )
+    change_description: str = Field(
+        description="Description of what the change does"
+    )
+    code_change: str = Field(
+        description="The actual code content being reviewed"
+    )
+
+
+class ResearchValidationSystemVars(BaseModel):
+    """Variables for research_validation system prompt."""
+
+    response_schema: str = Field(
+        description="JSON schema for the expected response format"
+    )
+
+
+class ResearchValidationUserVars(BaseModel):
+    """Variables for research_validation user prompt."""
+
+    user_requirements: str = Field(
+        description="The user's requirements for the task"
+    )
+    plan: str = Field(
+        description="The proposed plan"
+    )
+    design: str = Field(
+        description="The design documentation"
+    )
+    research: str = Field(
+        description="Research findings to be validated"
+    )
+
+
+class WorkflowGuidanceSystemVars(BaseModel):
+    """Variables for get_workflow_guidance system prompt."""
+
+    response_schema: str = Field(
+        description="JSON schema for the expected response format"
+    )
+
+
+class WorkflowGuidanceUserVars(BaseModel):
+    """Variables for get_workflow_guidance user prompt."""
+
+    task_description: str = Field(
+        description="Description of the development task"
+    )
+    context: str = Field(
+        description="Additional context about the task"
+    )

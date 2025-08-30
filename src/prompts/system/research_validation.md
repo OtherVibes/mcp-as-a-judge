@@ -35,13 +35,5 @@ Evaluate if the research is comprehensive enough and if the design is properly b
 
 ## Response Requirements
 
-Respond with JSON in this exact format:
-
-```json
-{
-    "research_adequate": boolean,
-    "design_based_on_research": boolean,
-    "issues": ["list of specific issues if any"],
-    "feedback": "detailed feedback on research quality and design alignment"
-}
-```
+You must respond with a JSON object that matches this schema:
+{{ response_schema }}
