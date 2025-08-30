@@ -104,9 +104,50 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 ## 🔧 **Visual Studio Code Configuration**
 
-Configure MCP as a Judge in Visual Studio Code with GitHub Copilot:
+Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
 
-### **Method 1: Using uv (Recommended)**
+### **Method 1: Using Docker (Recommended)**
+
+1. **Configure Visual Studio Code MCP settings (Recommended - Auto-Update):**
+
+   Add this to your Visual Studio Code MCP configuration file for automatic updates:
+
+   ```json
+   {
+     "servers": {
+       "mcp-as-a-judge": {
+         "command": "docker",
+         "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/hepivax/mcp-as-a-judge:latest"]
+       }
+     }
+   }
+   ```
+
+   The `--pull=always` flag ensures you always get the latest version automatically.
+
+2. **Alternative: Manual update configuration:**
+
+   For manual control over updates, use this configuration:
+
+   ```json
+   {
+     "servers": {
+       "mcp-as-a-judge": {
+         "command": "docker",
+         "args": ["run", "--rm", "-i", "ghcr.io/hepivax/mcp-as-a-judge:latest"]
+       }
+     }
+   }
+   ```
+
+   Then manually update when needed:
+
+   ```bash
+   # Pull the latest version
+   docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
+   ```
+
+### **Method 2: Using uv**
 
 1. **Install the package:**
 
@@ -129,27 +170,11 @@ Configure MCP as a Judge in Visual Studio Code with GitHub Copilot:
    }
    ```
 
-### **Method 2: Using Docker**
-
-1. **Pull the Docker image:**
+3. **To update to the latest version:**
 
    ```bash
-   docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
-   ```
-
-2. **Configure Visual Studio Code MCP settings:**
-
-   Add this to your Visual Studio Code MCP configuration file:
-
-   ```json
-   {
-     "servers": {
-       "mcp-as-a-judge": {
-         "command": "docker",
-         "args": ["run", "--rm", "-i", "ghcr.io/hepivax/mcp-as-a-judge:latest"]
-       }
-     }
-   }
+   # Update MCP as a Judge to the latest version
+   uv tool upgrade mcp-as-a-judge
    ```
 
 
