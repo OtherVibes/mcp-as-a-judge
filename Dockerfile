@@ -1,6 +1,9 @@
 # Multi-stage build for production-ready MCP as a Judge server
 FROM python:3.13-slim AS builder
 
+# Set build arguments
+ARG VERSION=latest
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -31,6 +34,9 @@ RUN .venv/bin/uv pip install -e .
 
 # Production stage
 FROM python:3.13-slim AS production
+
+# Set build arguments
+ARG VERSION=latest
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -72,7 +78,7 @@ CMD ["mcp-as-a-judge"]
 # Labels for metadata
 LABEL org.opencontainers.image.title="MCP as a Judge" \
       org.opencontainers.image.description="AI-powered code evaluation and software engineering best practices enforcement" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.authors="Zvi Fried" \
       org.opencontainers.image.source="https://github.com/hepivax/mcp-as-a-judge" \
       org.opencontainers.image.licenses="MIT"

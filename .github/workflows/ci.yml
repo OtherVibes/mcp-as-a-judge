@@ -139,5 +139,7 @@ jobs:
         context: .
         push: false
         tags: mcp-as-a-judge:test
+        build-args: |
+          VERSION=dev-${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
