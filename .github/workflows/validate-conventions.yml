@@ -1,0 +1,66 @@
+name: Validate Conventions
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches-ignore: [ main ]
+
+jobs:
+  validate-branch-name:
+    name: Validate Branch Name
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
+    
+    steps:
+    - name: Check branch name
+      run: |
+        branch_name="${{ github.head_ref || github.ref_name }}"
+        echo "Checking branch name: $branch_name"
+        
+        # Allow semver prefixes: feat/, fix/, docs/, style/, refactor/, perf/, test/, chore/, ci/, build/
+        if [[ $branch_name =~ ^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)/.+ ]]; then
+          echo "✅ Branch name follows semver convention"
+        else
+          echo "❌ Branch name must start with one of: feat/, fix/, docs/, style/, refactor/, perf/, test/, chore/, ci/, build/"
+          echo "Current branch: $branch_name"
+          exit 1
+        fi
+
+  validate-commit-messages:
+    name: Validate Commit Messages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+        
+    - name: Validate commit messages
+      run: |
+        # Get commits in this PR
+        base_sha="${{ github.event.pull_request.base.sha }}"
+        head_sha="${{ github.event.pull_request.head.sha }}"
+        
+        echo "Validating commits from $base_sha to $head_sha"
+        
+        # Get commit messages
+        commits=$(git rev-list --reverse $base_sha..$head_sha)
+        
+        for commit in $commits; do
+          message=$(git log --format=%s -n 1 $commit)
+          echo "Checking commit: $commit - $message"
+          
+          # Check if commit message follows conventional commits format
+          if [[ $message =~ ^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?: .+ ]]; then
+            echo "✅ Commit message follows conventional commits format"
+          else
+            echo "❌ Commit message must follow conventional commits format:"
+            echo "   type(scope): description"
+            echo "   Where type is one of: feat, fix, docs, style, refactor, perf, test, chore, ci, build"
+            echo "   Current message: $message"
+            exit 1
+          fi
+        done
