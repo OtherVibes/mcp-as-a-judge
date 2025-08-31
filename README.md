@@ -86,7 +86,7 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 #### **System Prerequisites**
 
-- **Python 3.13+** - Required for running the MCP server
+- **Docker Desktop** / **Python 3.13+** - Required for running the MCP server
 
 #### **Supported AI Assistants**
 
@@ -101,8 +101,6 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 - **Large Context Window Models**: 1M+ token size models are strongly preferred for optimal performance
 - Models with larger context windows provide better code analysis and more comprehensive judgments
-
-> **Note**: MCP servers communicate via stdio (standard input/output), not HTTP ports. No network configuration is needed.
 
 
 
