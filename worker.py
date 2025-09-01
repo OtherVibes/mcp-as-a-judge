@@ -1,73 +1,73 @@
 """
 Cloudflare Worker for MCP as a Judge
 
-This worker provides a streamable HTTP API compatible with MCP clients,
-implementing the core functionality of your MCP server without the full MCP library.
+This worker provides a simple HTTP API for AI-powered software engineering validation.
+Designed for maximum compatibility with Cloudflare Workers and Pyodide.
 """
 
 import json
 from workers import WorkerEntrypoint, Response
-from mcp_as_a_judge.models import JudgeResponse
 
 
 class Default(WorkerEntrypoint):
-    """Main worker class that provides MCP-compatible HTTP streaming."""
+    """Main worker class that provides AI validation tools."""
 
     def __init__(self, ctx, env):
         super().__init__(ctx, env)
 
     async def fetch(self, request):
-        """Fetch handler that provides streamable HTTP responses."""
-        url = request.url
-        method = request.method
+        """Fetch handler that provides HTTP responses."""
+        try:
+            url = str(request.url)
+            method = request.method
 
-        # Handle CORS preflight
-        if method == "OPTIONS":
-            return Response("", headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type",
-            })
+            # Handle CORS preflight
+            if method == "OPTIONS":
+                return Response("", headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type",
+                })
 
-        # Basic health check
-        if method == "GET" and url.endswith("/"):
-            return self._create_response({
-                "name": "MCP as a Judge",
-                "version": "1.0.0",
-                "description": "AI-powered software engineering validation tools",
-                "tools": [
-                    "workflow_guidance",
-                    "judge_coding_plan",
-                    "judge_code_change",
-                    "raise_obstacle",
-                    "raise_missing_requirements"
-                ]
-            })
+            # Basic health check
+            if method == "GET":
+                return self._create_response({
+                    "name": "MCP as a Judge",
+                    "version": "1.0.0",
+                    "description": "AI-powered software engineering validation tools",
+                    "status": "running",
+                    "endpoints": [
+                        "/workflow_guidance",
+                        "/judge_coding_plan",
+                        "/judge_code_change",
+                        "/raise_obstacle",
+                        "/raise_missing_requirements"
+                    ]
+                })
 
-        # Handle POST requests for tools
-        if method == "POST":
-            try:
+            # Handle POST requests for tools
+            if method == "POST":
                 body_text = await request.text()
                 body = json.loads(body_text) if body_text else {}
 
-                # Route to different tools
-                if url.endswith("/workflow_guidance"):
-                    return await self._handle_workflow_guidance(body)
-                elif url.endswith("/judge_coding_plan"):
-                    return await self._handle_judge_coding_plan(body)
-                elif url.endswith("/judge_code_change"):
-                    return await self._handle_judge_code_change(body)
-                elif url.endswith("/raise_obstacle"):
-                    return await self._handle_raise_obstacle(body)
-                elif url.endswith("/raise_missing_requirements"):
-                    return await self._handle_raise_missing_requirements(body)
+                # Route to different tools based on URL path
+                if "/workflow_guidance" in url:
+                    return self._handle_workflow_guidance(body)
+                elif "/judge_coding_plan" in url:
+                    return self._handle_judge_coding_plan(body)
+                elif "/judge_code_change" in url:
+                    return self._handle_judge_code_change(body)
+                elif "/raise_obstacle" in url:
+                    return self._handle_raise_obstacle(body)
+                elif "/raise_missing_requirements" in url:
+                    return self._handle_raise_missing_requirements(body)
                 else:
                     return self._create_error_response("Unknown endpoint", 404)
 
-            except Exception as e:
-                return self._create_error_response(str(e), 500)
+            return self._create_error_response("Method not allowed", 405)
 
-        return self._create_error_response("Method not allowed", 405)
+        except Exception as e:
+            return self._create_error_response(f"Server error: {str(e)}", 500)
 
     def _create_response(self, data, status=200):
         """Create a JSON response with CORS headers."""
