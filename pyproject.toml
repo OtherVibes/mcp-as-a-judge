@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "MCP as a Judge deployed on Cloudflare Workers"
 requires-python = ">=3.12"
 dependencies = [
-    # No external dependencies for maximum Pyodide compatibility
+    "mcp[cli]",
+    "pydantic",
+    "jinja2"
 ]
 
 [dependency-groups]
