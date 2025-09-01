@@ -1,0 +1,13 @@
+[project]
+name = "mcp-as-a-judge-worker"
+version = "0.1.0"
+description = "MCP as a Judge deployed on Cloudflare Workers"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp",
+    "pydantic",
+    "jinja2"
+]
+
+[dependency-groups]
+dev = ["workers-py"]

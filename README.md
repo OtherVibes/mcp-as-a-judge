@@ -71,7 +71,7 @@
 | **`judge_coding_plan`** | Comprehensive plan evaluation with requirements alignment |
 | **`judge_code_change`** | Code review with security and quality checks |
 | **`raise_obstacle`** | User involvement when blockers arise |
-| **`elicit_missing_requirements`** | Clarification of unclear requests |
+| **`raise_missing_requirements`** | Clarification of unclear requests |
 
 ## 🚀 **Quick Start**
 
@@ -86,17 +86,7 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 #### **System Prerequisites**
 
-- **Docker Desktop** / **Python 3.13+** - Required for running the MCP server
-
-#### **Supported AI Assistants**
-
-| AI Assistant | Platform | MCP Support | Status | Notes |
-|---------------|----------|-------------|---------|-------|
-| **GitHub Copilot** | Visual Studio Code | ✅ Full | **Recommended** | MCP Sampling and Elicitation are supported |
-| **Claude Code** | - | ❌ Not Yet | Pending | [Sampling Support feature request](https://github.com/anthropics/claude-code/issues/1785)<br>[Elicitation Support feature request](https://github.com/anthropics/claude-code/issues/2799) |
-| **Cursor** | - | ❌ Not Yet | Pending | MCP Sampling and Elicitation are not supported |
-
-**✅ Recommended Setup:** GitHub Copilot in Visual Studio Code for the best MCP as a Judge experience.
+- **Python 3.13+** - Required for running the MCP server
 
 
 #### **💡 Recommendations**
@@ -106,63 +96,70 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 
 
-## 🔧 **Visual Studio Code Configuration**
+## 🔧 **Configuration**
 
-Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
+Configure **MCP as a Judge** with your preferred AI coding assistant:
 
-### **Method 1: Using Docker (Recommended)**
+### **Cursor**
 
-1. **Configure Visual Studio Code MCP settings (Recommended - Auto-Update):**
+1. **Open Cursor Settings:**
+   - Go to `File` → `Preferences` → `Cursor Settings`
+   - Navigate to the `MCP` tab
+   - Click `+ Add` to add a new MCP server
 
-   Add this to your Visual Studio Code MCP configuration file for automatic updates:
-
+2. **Add MCP Server Configuration:**
    ```json
    {
-     "servers": {
+     "mcpServers": {
        "mcp-as-a-judge": {
-         "command": "docker",
-         "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/hepivax/mcp-as-a-judge:latest"]
+         "command": "uv",
+         "args": ["tool", "run", "mcp-as-a-judge"],
+         "env": {}
        }
      }
    }
    ```
 
-   The `--pull=always` flag ensures you always get the latest version automatically.
+3. **Alternative: Edit mcp.json directly:**
+   - Create or edit `.cursor/mcp.json` in your project or home directory
+   - Add the server configuration above
 
-2. **Alternative: Manual update configuration:**
+### **Claude Code**
 
-   For manual control over updates, use this configuration:
+1. **Add MCP Server via CLI (Local):**
+   ```bash
+   claude mcp add mcp-as-a-judge -- uv tool run mcp-as-a-judge
+   ```
 
+2. **Add MCP Server via CLI (Remote - Cloudflare Workers):**
+   ```bash
+   claude mcp add --transport http mcp-as-a-judge https://mcp-as-a-judge.workers.dev/mcp
+   ```
+
+3. **Alternative: Manual Configuration:**
+   - Create or edit `~/.config/claude-code/mcp_servers.json`
    ```json
    {
-     "servers": {
+     "mcpServers": {
        "mcp-as-a-judge": {
-         "command": "docker",
-         "args": ["run", "--rm", "-i", "ghcr.io/hepivax/mcp-as-a-judge:latest"]
+         "command": "uv",
+         "args": ["tool", "run", "mcp-as-a-judge"]
        }
      }
    }
    ```
 
-   Then manually update when needed:
+### **VS Code (GitHub Copilot)**
 
-   ```bash
-   # Pull the latest version
-   docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
-   ```
+1. **Install via Command Palette:**
+   - Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+   - Run `MCP: Add Server`
+   - Choose `Workspace Settings` or `Global`
+   - Enter server details
 
-### **Method 2: Using uv**
-
-1. **Install the package:**
-
-   ```bash
-   uv tool install mcp-as-a-judge
-   ```
-
-2. **Configure Visual Studio Code MCP settings:**
-
-   Add this to your Visual Studio Code MCP configuration file:
-
+2. **Manual Configuration:**
+   - Create `.vscode/mcp.json` in your workspace, or
+   - Edit global config via `MCP: Open User Configuration`
    ```json
    {
      "servers": {
@@ -174,6 +171,15 @@ Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
    }
    ```
 
+### **Installation Prerequisites**
+
+Before configuring, install the MCP server:
+
+```bash
+# Install with uv (recommended)
+uv tool install mcp-as-a-judge
+```
+
 3. **To update to the latest version:**
 
    ```bash
@@ -184,7 +190,7 @@ Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
 
 ## 📖 **How It Works**
 
-Once MCP as a Judge is configured in Visual Studio Code with GitHub Copilot, it automatically guides your AI assistant through a structured software engineering workflow. The system operates transparently in the background, ensuring every development task follows best practices.
+Once MCP as a Judge is configured with your AI coding assistant, it automatically guides the AI through a structured software engineering workflow. The system operates transparently in the background, ensuring every development task follows best practices.
 
 ### **🔄 Automatic Workflow Enforcement**
 
@@ -221,7 +227,7 @@ Once MCP as a Judge is configured in Visual Studio Code with GitHub Copilot, it 
 
 **Requirements Clarification**
 
-- If your request lacks sufficient detail, `elicit_missing_requirements` automatically asks for clarification
+- If your request lacks sufficient detail, `raise_missing_requirements` automatically asks for clarification
 - Uses MCP Elicitation to gather specific missing information
 - Ensures implementation matches your actual needs
 
