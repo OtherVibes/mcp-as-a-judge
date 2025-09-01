@@ -92,9 +92,9 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 | AI Assistant | Platform | MCP Support | Status | Notes |
 |---------------|----------|-------------|---------|-------|
-| **GitHub Copilot** | Visual Studio Code | ✅ Full | **Recommended** | Complete MCP integration with tool calling |
+| **GitHub Copilot** | Visual Studio Code | ✅ Full | **Recommended** | MCP Sampling and Elicitation are supported |
 | **Claude Code** | - | ❌ Not Yet | Pending | [Sampling Support feature request](https://github.com/anthropics/claude-code/issues/1785)<br>[Elicitation Support feature request](https://github.com/anthropics/claude-code/issues/2799) |
-| **Cursor** | - | ❌ Not Yet | Pending | MCP support not yet available |
+| **Cursor** | - | ❌ Not Yet | Pending | MCP Sampling and Elicitation are not supported |
 
 **✅ Recommended Setup:** GitHub Copilot in Visual Studio Code for the best MCP as a Judge experience.
 
