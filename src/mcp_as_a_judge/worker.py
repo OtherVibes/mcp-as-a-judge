@@ -5,7 +5,7 @@ class FastMCPServer(DurableObject):
     def __init__(self, ctx, env):
         self.ctx = ctx
         self.env = env
-        from mcp_as_a_judge import mcp
+        from mcp_as_a_judge.server import mcp
 
         self.app = mcp.streamable_http_app()
 
@@ -15,7 +15,7 @@ class FastMCPServer(DurableObject):
 
 
 
-async def on_fetch(request, env):
+async def fetch(request, env):
     id = env.ns.idFromName("example")
     obj = env.ns.get(id)
     return await obj.call(request)

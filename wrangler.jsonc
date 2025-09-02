@@ -2,5 +2,21 @@
   "name": "mcp-as-a-judge",
   "main": "src/mcp_as_a_judge/worker.py",
   "compatibility_date": "2025-09-02",
-  "compatibility_flags": ["python_workers"] // required while Python Workers are in beta
+  "compatibility_flags": ["python_workers"], // required while Python Workers are in beta
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ns",
+        "class_name": "FastMCPServer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "FastMCPServer"
+      ]
+    }
+  ]
 }
