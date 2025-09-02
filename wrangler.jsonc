@@ -1,6 +1,6 @@
 {
   "name": "mcp-as-a-judge",
-  "main": "src/worker.py",
+  "main": "src/mcp_as_a_judge/worker.py",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["python_workers"] // required while Python Workers are in beta
 }
