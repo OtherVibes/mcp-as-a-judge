@@ -15,7 +15,7 @@ class FastMCPServer(DurableObject):
 
 
 
-async def fetch(request, env):
-    id = env.ns.idFromName("example")
+async def on_fetch(request, env):
+    id = env.ns.idFromName("mcp-as-a-judge")
     obj = env.ns.get(id)
     return await obj.call(request)
