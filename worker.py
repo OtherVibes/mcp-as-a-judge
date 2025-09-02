@@ -16,7 +16,7 @@ class FastMCPServer(DurableObject):
         self.env = env
         
         # Import and initialize the MCP server
-        from src.mcp_as_a_judge.server import mcp
+        from mcp_as_a_judge.server import mcp
         self.app = mcp.streamable_http_app()
 
     async def call(self, request):

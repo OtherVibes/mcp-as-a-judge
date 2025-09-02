@@ -1,6 +1,6 @@
 """Test the MCP server functionality."""
 
-from mcp_as_a_judge import mcp
+from mcp_as_a_judge.server import mcp
 
 
 def test_server_initialization() -> None:

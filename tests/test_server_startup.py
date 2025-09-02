@@ -5,12 +5,8 @@ This test verifies the server initialization without running it indefinitely.
 """
 
 import asyncio
-import os
-import sys
 
 from mcp_as_a_judge.server import mcp
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 async def test_server_startup() -> None:

@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 """Test the response models for MCP as a Judge."""
 
-import os
-import sys
-
 from mcp_as_a_judge.models import JudgeResponse
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 def test_judge_response_model() -> None:

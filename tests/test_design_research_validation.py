@@ -2,12 +2,9 @@
 """Test that the judge_coding_plan function properly validates design and research parameters."""
 
 import inspect
-import os
 import sys
 
 from mcp_as_a_judge.server import judge_coding_plan
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 def test_judge_coding_plan_signature() -> None:
