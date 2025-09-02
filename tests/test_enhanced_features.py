@@ -11,7 +11,7 @@ import pytest
 
 from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
 from mcp_as_a_judge.server import (
-    elicit_missing_requirements,
+    raise_missing_requirements,
     get_workflow_guidance,
     judge_code_change,
     judge_coding_plan,
@@ -20,12 +20,12 @@ from mcp_as_a_judge.server import (
 
 
 class TestElicitMissingRequirements:
-    """Test the elicit_missing_requirements tool."""
+    """Test the raise_missing_requirements tool."""
 
     @pytest.mark.asyncio
     async def test_elicit_with_valid_context(self, mock_context_with_sampling):
         """Test eliciting requirements with valid context."""
-        result = await elicit_missing_requirements(
+        result = await raise_missing_requirements(
             current_request="Build a Slack integration",
             identified_gaps=[
                 "What specific functionality?",
@@ -41,7 +41,7 @@ class TestElicitMissingRequirements:
     @pytest.mark.asyncio
     async def test_elicit_without_context(self, mock_context_without_sampling):
         """Test eliciting requirements without valid context."""
-        result = await elicit_missing_requirements(
+        result = await raise_missing_requirements(
             current_request="Build a Slack integration",
             identified_gaps=["What specific functionality?"],
             specific_questions=["Send or receive messages?"],
@@ -181,7 +181,7 @@ class TestWorkflowGuidance:
             "judge_coding_plan",
             "judge_code_change",
             "raise_obstacle",
-            "elicit_missing_requirements",
+            "raise_missing_requirements",
         ]
         assert isinstance(result.reasoning, str)
         assert isinstance(result.preparation_needed, list)
@@ -202,7 +202,7 @@ class TestWorkflowGuidance:
             "judge_coding_plan",
             "judge_code_change",
             "raise_obstacle",
-            "elicit_missing_requirements",
+            "raise_missing_requirements",
         ]
 
 
@@ -224,7 +224,7 @@ class TestIntegrationScenarios:
             "judge_coding_plan",
             "judge_code_change",
             "raise_obstacle",
-            "elicit_missing_requirements",
+            "raise_missing_requirements",
         ]
 
         # Step 2: Judge plan with requirements
