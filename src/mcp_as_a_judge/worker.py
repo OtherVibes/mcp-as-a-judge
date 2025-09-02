@@ -5,6 +5,8 @@ class FastMCPServer(DurableObject):
     def __init__(self, ctx, env):
         self.ctx = ctx
         self.env = env
+
+        # Import the MCP server
         from mcp_as_a_judge.server import mcp
 
         self.app = mcp.streamable_http_app()
@@ -16,9 +18,9 @@ class FastMCPServer(DurableObject):
 
 
 class Default(WorkerEntrypoint):
-    async def fetch(self, request):
+    async def fetch(self, request, env):
         # Generate a unique ID for the MCP server instance
         # Using a consistent name for the MCP server
-        id = self.env.ns.idFromName("mcp-as-a-judge")
-        obj = self.env.ns.get(id)
+        id = env.ns.idFromName("mcp-as-a-judge")
+        obj = env.ns.get(id)
         return await obj.call(request)
