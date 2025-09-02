@@ -1,4 +1,4 @@
-from workers import DurableObject
+from workers import DurableObject, WorkerEntrypoint
 
 
 class FastMCPServer(DurableObject):
@@ -15,7 +15,10 @@ class FastMCPServer(DurableObject):
 
 
 
-async def on_fetch(request, env):
-    id = env.ns.idFromName("mcp-as-a-judge")
-    obj = env.ns.get(id)
-    return await obj.call(request)
+class Default(WorkerEntrypoint):
+    async def fetch(self, request):
+        # Generate a unique ID for the MCP server instance
+        # Using a consistent name for the MCP server
+        id = self.env.ns.idFromName("mcp-as-a-judge")
+        obj = self.env.ns.get(id)
+        return await obj.call(request)
