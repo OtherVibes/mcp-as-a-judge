@@ -28,10 +28,10 @@ class FastMCPServer(DurableObject):
 class Default(WorkerEntrypoint):
     """Main entry point for the Python Worker."""
     
-    async def fetch(self, request, env):
+    async def fetch(self, request):
         """Handle incoming HTTP requests."""
         # Generate a unique ID for the MCP server instance
         # Using a consistent name for the MCP server
-        id = env.ns.idFromName("mcp-as-a-judge")
-        obj = env.ns.get(id)
+        id = self.env.ns.idFromName("mcp-as-a-judge")
+        obj = self.env.ns.get(id)
         return await obj.call(request)
