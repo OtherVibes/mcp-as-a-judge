@@ -68,7 +68,7 @@
 
 | Tool Name | Description |
 |-----------|-------------|
-| **`get_workflow_guidance`** | Smart workflow analysis and tool recommendation |
+| **`build_workflow`** | Smart workflow analysis and tool recommendation |
 | **`judge_coding_plan`** | Comprehensive plan evaluation with requirements alignment |
 | **`judge_code_change`** | Code review with security and quality checks |
 | **`raise_obstacle`** | User involvement when blockers arise |
@@ -339,7 +339,7 @@ Once MCP as a Judge is configured with your AI coding assistant, it automaticall
 
 **1. Intelligent Workflow Guidance**
 
-- When you make any development request, the AI assistant automatically calls `get_workflow_guidance`
+- When you make any development request, the AI assistant automatically calls `build_workflow`
 - This tool uses AI analysis to determine which validation steps are required for your specific task
 - Provides smart recommendations on which tools to use next and in what order
 - No manual intervention needed - the workflow starts automatically with intelligent guidance

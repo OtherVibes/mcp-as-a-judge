@@ -11,7 +11,7 @@ import pytest
 
 from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
 from mcp_as_a_judge.server import (
-    get_workflow_guidance,
+    build_workflow,
     judge_code_change,
     judge_coding_plan,
     raise_missing_requirements,
@@ -178,12 +178,12 @@ class TestObstacleResolution:
 
 
 class TestWorkflowGuidance:
-    """Test the get_workflow_guidance tool."""
+    """Test the build_workflow tool."""
 
     @pytest.mark.asyncio
     async def test_workflow_guidance_basic(self, mock_context_with_sampling):
         """Test basic workflow guidance functionality."""
-        result = await get_workflow_guidance(
+        result = await build_workflow(
             task_description="Build a web API using FastAPI framework",
             ctx=mock_context_with_sampling,
         )
@@ -202,7 +202,7 @@ class TestWorkflowGuidance:
     @pytest.mark.asyncio
     async def test_workflow_guidance_with_context(self, mock_context_with_sampling):
         """Test workflow guidance with additional context."""
-        result = await get_workflow_guidance(
+        result = await build_workflow(
             task_description="Create authentication system with JWT tokens",
             context="E-commerce platform with high security requirements",
             ctx=mock_context_with_sampling,
@@ -227,7 +227,7 @@ class TestIntegrationScenarios:
     ):
         """Test complete workflow from guidance to code evaluation."""
         # Step 1: Get workflow guidance
-        guidance_result = await get_workflow_guidance(
+        guidance_result = await build_workflow(
             task_description="Build Slack integration using MCP server",
             ctx=mock_context_with_sampling,
         )

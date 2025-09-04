@@ -32,6 +32,9 @@ from mcp_as_a_judge.server_helpers import (
     generate_validation_error_message,
     initialize_llm_configuration,
 )
+from mcp_as_a_judge.tool_description_local_storage_provider import (
+    tool_description_local_storage_provider,
+)
 
 # Create the MCP server instance
 mcp = FastMCP(name="MCP-as-a-Judge")
@@ -43,23 +46,13 @@ initialize_llm_configuration()
 # Helper functions have been moved to server_helpers.py for better organization
 
 
-@mcp.tool()  # type: ignore[misc,unused-ignore]
-async def get_workflow_guidance(
+@mcp.tool(description=tool_description_local_storage_provider.get_description("build_workflow"))  # type: ignore[misc,unused-ignore]
+async def build_workflow(
     task_description: str,
     ctx: Context,
     context: str = "",
 ) -> WorkflowGuidance:
-    """START HERE: AI programming assistant should call this tool first for any development task to get workflow guidance.
-
-    This tool analyzes the development task and tells you exactly which MCP tools to use next and in what order.
-
-    Args:
-        task_description: Description of what the user wants to do
-        context: Additional context about the project, requirements, or constraints
-
-    Returns:
-        Structured guidance on which tools to use next and how to prepare for them
-    """
+    """Workflow guidance tool - description loaded from tool_description_local_storage_provider."""
     # Create system and user messages from templates
     system_vars = WorkflowGuidanceSystemVars(
         response_schema=json.dumps(WorkflowGuidance.model_json_schema())
@@ -69,8 +62,8 @@ async def get_workflow_guidance(
         context=context,
     )
     messages = create_separate_messages(
-        "system/get_workflow_guidance.md",
-        "user/get_workflow_guidance.md",
+        "system/build_workflow.md",
+        "user/build_workflow.md",
         system_vars,
         user_vars,
     )
@@ -87,26 +80,14 @@ async def get_workflow_guidance(
     return WorkflowGuidance.model_validate_json(json_content)
 
 
-@mcp.tool()  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_local_storage_provider.get_description("raise_obstacle"))  # type: ignore[misc,unused-ignore]
 async def raise_obstacle(
     problem: str,
     research: str,
     options: list[str],
     ctx: Context,
 ) -> str:
-    """OBSTACLE ENCOUNTERED: Call this tool when you cannot satisfy the user's requirements.
-
-    This tool helps involve the user in decision-making when the agent encounters blockers,
-    missing information, or conflicting requirements that prevent satisfying the original request.
-
-    Args:
-        problem: Clear description of the obstacle/problem preventing progress
-        research: Research done on this problem (existing solutions, alternatives analyzed)
-        options: List of possible next steps or approaches to resolve the obstacle
-
-    Returns:
-        User's decision and any additional context for proceeding
-    """
+    """Obstacle handling tool - description loaded from tool_description_local_storage_provider."""
     try:
         # Format the options as a numbered list for clarity
         formatted_options = "\n".join(
@@ -173,26 +154,14 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
         return f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
 
 
-@mcp.tool()  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_local_storage_provider.get_description("raise_missing_requirements"))  # type: ignore[misc,unused-ignore]
 async def raise_missing_requirements(
     current_request: str,
     identified_gaps: list[str],
     specific_questions: list[str],
     ctx: Context,
 ) -> str:
-    """🔍 REQUIREMENTS UNCLEAR: Call this tool when the user request is not clear enough to proceed.
-
-    This tool helps gather missing requirements and clarifications from the user when the
-    original request lacks sufficient detail for proper implementation.
-
-    Args:
-        current_request: The current user request as understood
-        identified_gaps: List of specific requirement gaps identified
-        specific_questions: List of specific questions that need answers
-
-    Returns:
-        Clarified requirements and additional context from the user
-    """
+    """Requirements clarification tool - description loaded from tool_description_local_storage_provider."""
     try:
         # Format the gaps and questions for clarity
         formatted_gaps = "\n".join(f"• {gap}" for gap in identified_gaps)
@@ -376,7 +345,7 @@ async def _evaluate_coding_plan(
         ) from e
 
 
-@mcp.tool()  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_local_storage_provider.get_description("judge_coding_plan"))  # type: ignore[misc,unused-ignore]
 async def judge_coding_plan(
     plan: str,
     design: str,
@@ -386,26 +355,7 @@ async def judge_coding_plan(
     context: str = "",
     research_urls: list[str] | None = None,
 ) -> JudgeResponse:
-    """MANDATORY: AI programming assistant MUST call this tool whenever you start to work on a coding task.
-
-    BEFORE calling this tool, AI programming assistant MUST collaborate with the user to:
-    1. Analyze the user requirements
-    2. Peform an ONLINE research on what is the best way to implement user requirements, focusing on existing well-known libraries
-    3. Analyze the repository code to check what is the best way to implement the solution with minimum changes
-    4. Create a system design that matches the user requirements
-    5. Create implementation plan
-
-    Args:
-        plan: The detailed coding plan to be reviewed (REQUIRED)
-        design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
-        research: Research findings on existing solutions, libraries, frameworks, and best practices (REQUIRED)
-        research_urls: 🌐 URLs from MANDATORY online research - AI assistant MUST provide at least 3 URLs from research (List of URL strings)
-        user_requirements: Clear statement of what the user wants to achieve (REQUIRED)
-        context: Additional context about the project, requirements, or constraints
-
-    Returns:
-        Structured JudgeResponse with approval status and detailed feedback
-    """
+    """Coding plan evaluation tool - description loaded from tool_description_local_storage_provider."""
 
 
     # Handle default value for research_urls
@@ -465,7 +415,7 @@ async def judge_coding_plan(
         )
 
 
-@mcp.tool()  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_local_storage_provider.get_description("judge_code_change"))  # type: ignore[misc,unused-ignore]
 async def judge_code_change(
     code_change: str,
     user_requirements: str,
@@ -473,17 +423,7 @@ async def judge_code_change(
     file_path: str = "File path not specified",
     change_description: str = "Change description not provided",
 ) -> JudgeResponse:
-    """MANDATORY: AI programming assistant MUST call this tool after writing or editing a code file.
-
-    Args:
-        code_change: The exact code that was written to a file (REQUIRED)
-        user_requirements: Clear statement of what the user wants this code to achieve (REQUIRED)
-        file_path: Path to the file that was created/modified
-        change_description: Description of what the code accomplishes
-
-    Returns:
-        Structured JudgeResponse with approval status and detailed feedback
-    """
+    """Code change evaluation tool - description loaded from tool_description_local_storage_provider."""
 
 
     # Create system and user messages from templates

@@ -53,7 +53,7 @@ class ObstacleResolutionDecision(BaseModel):
 class WorkflowGuidance(BaseModel):
     """Schema for workflow guidance responses.
 
-    Used by the get_workflow_guidance tool to provide
+    Used by the build_workflow tool to provide
     structured guidance on which tools to use next.
     """
 
@@ -166,7 +166,7 @@ class ResearchValidationUserVars(BaseModel):
 
 
 class WorkflowGuidanceSystemVars(BaseModel):
-    """Variables for get_workflow_guidance system prompt."""
+    """Variables for build_workflow system prompt."""
 
     response_schema: str = Field(
         description="JSON schema for the expected response format"
@@ -174,7 +174,7 @@ class WorkflowGuidanceSystemVars(BaseModel):
 
 
 class WorkflowGuidanceUserVars(BaseModel):
-    """Variables for get_workflow_guidance user prompt."""
+    """Variables for build_workflow user prompt."""
 
     task_description: str = Field(description="Description of the development task")
     context: str = Field(description="Additional context about the task")
