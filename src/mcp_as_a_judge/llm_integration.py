@@ -54,10 +54,6 @@ class LLMConfig(BaseModel):
         default=0.1,
         description="Temperature for LLM responses (0.0-1.0) - Low for coding tasks",
     )
-    top_p: float = Field(
-        default=0.9,
-        description="Top-p nucleus sampling (0.0-1.0) - Optimized for coding tasks",
-    )
 
 
 # API key patterns for vendor detection

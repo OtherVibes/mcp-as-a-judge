@@ -81,6 +81,8 @@ class LLMClient:
             # Fallback to generic API key
             self._litellm.api_key = api_key
 
+
+
     def _get_model_name(self) -> str:
         """Get the full model name with vendor prefix for LiteLLM."""
         if not self.config.model_name:
@@ -120,7 +122,6 @@ class LLMClient:
         messages: list[dict[str, str]],
         max_tokens: int | None = None,
         temperature: float | None = None,
-        top_p: float | None = None,
         **kwargs: Any,
     ) -> str:
         """Generate text using LiteLLM.
@@ -146,7 +147,6 @@ class LLMClient:
         # Use config defaults if not provided
         max_tokens = max_tokens or self.config.max_tokens
         temperature = temperature or self.config.temperature
-        top_p = top_p or getattr(self.config, "top_p", 0.9)
 
         try:
             model_name = self._get_model_name()
@@ -158,7 +158,6 @@ class LLMClient:
                 "api_key": self.config.api_key,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "top_p": top_p,
                 **kwargs,
             }
 

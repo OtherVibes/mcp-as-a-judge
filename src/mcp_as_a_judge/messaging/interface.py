@@ -40,12 +40,6 @@ class MessagingConfig(BaseModel):
         le=1.0,
         description="Temperature for generation (0.0-1.0) - Low for coding tasks",
     )
-    top_p: float = Field(
-        default=0.9,
-        ge=0.0,
-        le=1.0,
-        description="Top-p nucleus sampling (0.0-1.0) - Optimized for coding tasks",
-    )
     timeout: int = Field(default=30, description="Timeout in seconds for requests")
     prefer_sampling: bool = Field(
         default=True,

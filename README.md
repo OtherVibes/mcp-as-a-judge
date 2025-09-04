@@ -211,10 +211,7 @@ All default models are optimized for **coding and reasoning tasks** based on 202
 - Reduces randomness for better debugging and maintenance
 - Optimized for technical accuracy over creativity
 
-**Top-P: 0.9** (Nucleus sampling optimized for coding tasks)
-- Maintains flexibility for multiple valid coding approaches
-- Filters out very low-probability tokens that could break syntax
-- Balances precision with reasonable alternatives
+
 
 ### **🔑 When Do You Need an LLM API Key?**
 

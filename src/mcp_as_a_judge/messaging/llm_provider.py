@@ -32,7 +32,6 @@ class LLMProvider:
         ctx: Context,
         max_tokens: int = 1000,
         temperature: float = 0.1,
-        top_p: float = 0.9,
         prefer_sampling: bool = True,
     ) -> str:
         """Send message using the best available provider.
@@ -56,7 +55,6 @@ class LLMProvider:
         config = MessagingConfig(
             max_tokens=max_tokens,
             temperature=temperature,
-            top_p=top_p,
             prefer_sampling=prefer_sampling,
         )
 
@@ -172,7 +170,6 @@ class LLMProvider:
         provider_type: str,
         max_tokens: int = 1000,
         temperature: float = 0.1,
-        top_p: float = 0.9,
     ) -> str:
         """Send message with explicit provider preference.
 
@@ -209,7 +206,6 @@ class LLMProvider:
         ctx: Context,
         max_tokens: int = 1000,
         temperature: float = 0.1,
-        top_p: float = 0.9,
         prefer_sampling: bool = True,
         allow_any_provider: bool = True,
     ) -> str | None:

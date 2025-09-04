@@ -46,7 +46,6 @@ class TestMessagingConfig:
         config = MessagingConfig()
         assert config.max_tokens == 1000
         assert config.temperature == 0.1
-        assert config.top_p == 0.9
         assert config.timeout == 30
         assert config.prefer_sampling is True
 
@@ -55,13 +54,11 @@ class TestMessagingConfig:
         config = MessagingConfig(
             max_tokens=500,
             temperature=0.5,
-            top_p=0.8,
             timeout=60,
             prefer_sampling=False,
         )
         assert config.max_tokens == 500
         assert config.temperature == 0.5
-        assert config.top_p == 0.8
         assert config.timeout == 60
         assert config.prefer_sampling is False
 

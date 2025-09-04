@@ -69,7 +69,6 @@ class LLMAPIProvider(MessagingProvider):
             messages=llm_messages,
             max_tokens=config.max_tokens,
             temperature=config.temperature,
-            top_p=config.top_p,
         )
 
         return response
@@ -109,5 +108,4 @@ class LLMAPIProvider(MessagingProvider):
             "model_name": getattr(config, "model_name", "unknown"),
             "max_tokens": getattr(config, "max_tokens", 1000),
             "temperature": getattr(config, "temperature", 0.1),
-            "top_p": getattr(config, "top_p", 0.9),
         }
