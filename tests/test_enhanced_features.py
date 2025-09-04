@@ -11,10 +11,10 @@ import pytest
 
 from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
 from mcp_as_a_judge.server import (
-    raise_missing_requirements,
     get_workflow_guidance,
     judge_code_change,
     judge_coding_plan,
+    raise_missing_requirements,
     raise_obstacle,
 )
 
@@ -36,7 +36,12 @@ class TestElicitMissingRequirements:
         )
 
         assert isinstance(result, str)
-        assert "REQUIREMENTS CLARIFIED" in result or "ERROR" in result
+        # With elicitation provider, we expect either success or fallback message
+        assert (
+            "REQUIREMENTS CLARIFIED" in result
+            or "ERROR" in result
+            or "ELICITATION NOT AVAILABLE" in result
+        )
 
     @pytest.mark.asyncio
     async def test_elicit_without_context(self, mock_context_without_sampling):
@@ -48,8 +53,9 @@ class TestElicitMissingRequirements:
             ctx=mock_context_without_sampling,
         )
 
-        assert "ERROR" in result
-        assert "Cannot proceed without clear requirements" in result
+        # With elicitation provider, we expect fallback message when elicitation is not available
+        assert "ELICITATION NOT AVAILABLE" in result
+        assert "Please manually collect this information from the user" in result
 
 
 class TestUserRequirementsAlignment:
@@ -149,7 +155,12 @@ class TestObstacleResolution:
         )
 
         assert isinstance(result, str)
-        assert "OBSTACLE RESOLVED" in result or "ERROR" in result
+        # With elicitation provider, we expect either success or fallback message
+        assert (
+            "OBSTACLE RESOLVED" in result
+            or "ERROR" in result
+            or "ELICITATION NOT AVAILABLE" in result
+        )
 
     @pytest.mark.asyncio
     async def test_raise_obstacle_without_context(self, mock_context_without_sampling):
@@ -161,8 +172,9 @@ class TestObstacleResolution:
             ctx=mock_context_without_sampling,
         )
 
-        assert "ERROR" in result
-        assert "Cannot resolve obstacle without user input" in result
+        # With elicitation provider, we expect fallback message when elicitation is not available
+        assert "ELICITATION NOT AVAILABLE" in result
+        assert "Please manually collect this information from the user" in result
 
 
 class TestWorkflowGuidance:
