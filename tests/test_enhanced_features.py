@@ -53,9 +53,9 @@ class TestElicitMissingRequirements:
             ctx=mock_context_without_sampling,
         )
 
-        # With elicitation provider, we expect fallback message when elicitation is not available
-        assert "ELICITATION NOT AVAILABLE" in result
-        assert "Please manually collect this information from the user" in result
+        # With LLM-only approach, we expect error when no LLM providers are available
+        assert "ERROR: Failed to elicit requirement clarifications" in result
+        assert "No messaging providers available" in result
 
 
 class TestUserRequirementsAlignment:
@@ -172,9 +172,9 @@ class TestObstacleResolution:
             ctx=mock_context_without_sampling,
         )
 
-        # With elicitation provider, we expect fallback message when elicitation is not available
-        assert "ELICITATION NOT AVAILABLE" in result
-        assert "Please manually collect this information from the user" in result
+        # With LLM-only approach, we expect error when no LLM providers are available
+        assert "ERROR: Failed to elicit user decision" in result
+        assert "No messaging providers available" in result
 
 
 class TestWorkflowGuidance:

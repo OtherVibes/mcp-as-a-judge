@@ -183,10 +183,10 @@ For AI assistants without full MCP sampling support (Cursor, Claude Code, Augmen
 
 | Rank | Provider | API Key Format | Default Model | Notes |
 |------|----------|----------------|---------------|-------|
-| **1** | **OpenAI** | `sk-...` | `gpt-5` | Latest frontier model with built-in reasoning |
+| **1** | **OpenAI** | `sk-...` | `gpt-4.1` | Fast and reliable model optimized for speed |
 | **2** | **Anthropic** | `sk-ant-...` | `claude-sonnet-4-20250514` | High-performance with exceptional reasoning |
 | **3** | **Google** | `AIza...` | `gemini-2.5-pro` | Most advanced model with built-in thinking |
-| **4** | **Azure OpenAI** | `[a-f0-9]{32}` | `gpt-5` | Same as OpenAI but via Azure |
+| **4** | **Azure OpenAI** | `[a-f0-9]{32}` | `gpt-4.1` | Same as OpenAI but via Azure |
 | **5** | **AWS Bedrock** | AWS credentials | `anthropic.claude-sonnet-4-20250514-v1:0` | Aligned with Anthropic |
 | **6** | **Vertex AI** | Service Account JSON | `gemini-2.5-pro` | Enterprise Gemini via Google Cloud |
 | **7** | **Groq** | `gsk_...` | `deepseek-r1` | Best reasoning model with speed advantage |
@@ -196,9 +196,10 @@ For AI assistants without full MCP sampling support (Cursor, Claude Code, Augmen
 
 ### **🎯 Model Selection Rationale**
 
-All default models are optimized for **coding and reasoning tasks** based on 2025 research:
+All default models are optimized for **coding and reasoning tasks** with emphasis on speed:
 
-- **🧠 Reasoning-Focused**: GPT-5, Claude Sonnet 4, Gemini 2.5 Pro with built-in thinking
+- **⚡ Speed Optimized**: GPT-4.1 for fast elicitation and real-time interactions
+- **🧠 Reasoning-Focused**: Claude Sonnet 4, Gemini 2.5 Pro with built-in thinking
 - **⚡ Speed + Quality**: DeepSeek R1 on Groq/OpenRouter for fast reasoning
 - **🎨 Multimodal**: Pixtral Large combines Mistral Large 2 with vision capabilities
 - **🚀 Coding-Specialized**: Grok Code Fast 1 designed specifically for agentic coding

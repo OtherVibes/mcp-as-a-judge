@@ -10,6 +10,7 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
+from mcp_as_a_judge.constants import MAX_TOKENS, DEFAULT_TEMPERATURE
 from mcp_as_a_judge.messaging.converters import (
     mcp_messages_to_universal,
     validate_message_conversion,
@@ -30,8 +31,8 @@ class LLMProvider:
         self,
         messages: list[Any],  # MCP format from prompt_loader
         ctx: Context,
-        max_tokens: int = 1000,
-        temperature: float = 0.1,
+        max_tokens: int = MAX_TOKENS,
+        temperature: float = DEFAULT_TEMPERATURE,
         prefer_sampling: bool = True,
     ) -> str:
         """Send message using the best available provider.
@@ -168,8 +169,8 @@ class LLMProvider:
         messages: list[Any],
         ctx: Context,
         provider_type: str,
-        max_tokens: int = 1000,
-        temperature: float = 0.1,
+        max_tokens: int = MAX_TOKENS,
+        temperature: float = DEFAULT_TEMPERATURE,
     ) -> str:
         """Send message with explicit provider preference.
 
@@ -204,8 +205,8 @@ class LLMProvider:
         self,
         messages: list[Any],
         ctx: Context,
-        max_tokens: int = 1000,
-        temperature: float = 0.1,
+        max_tokens: int = MAX_TOKENS,
+        temperature: float = DEFAULT_TEMPERATURE,
         prefer_sampling: bool = True,
         allow_any_provider: bool = True,
     ) -> str | None:

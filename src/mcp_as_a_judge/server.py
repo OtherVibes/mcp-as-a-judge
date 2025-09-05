@@ -32,8 +32,8 @@ from mcp_as_a_judge.server_helpers import (
     generate_validation_error_message,
     initialize_llm_configuration,
 )
-from mcp_as_a_judge.tool_description_local_storage_provider import (
-    tool_description_local_storage_provider,
+from mcp_as_a_judge.tool_description_provider import (
+    tool_description_provider,
 )
 
 # Create the MCP server instance
@@ -46,13 +46,13 @@ initialize_llm_configuration()
 # Helper functions have been moved to server_helpers.py for better organization
 
 
-@mcp.tool(description=tool_description_local_storage_provider.get_description("build_workflow"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_provider.get_description("build_workflow"))  # type: ignore[misc,unused-ignore]
 async def build_workflow(
     task_description: str,
     ctx: Context,
     context: str = "",
 ) -> WorkflowGuidance:
-    """Workflow guidance tool - description loaded from tool_description_local_storage_provider."""
+    """Workflow guidance tool - description loaded from tool_description_provider."""
     # Create system and user messages from templates
     system_vars = WorkflowGuidanceSystemVars(
         response_schema=json.dumps(WorkflowGuidance.model_json_schema())
@@ -127,6 +127,10 @@ Please choose an option (by number or description) and provide any additional co
             # Handle successful elicitation response
             user_response = elicit_result.data
 
+            # Ensure user_response is a dictionary
+            if not isinstance(user_response, dict):
+                user_response = {"user_input": str(user_response)}
+
             # Format the response data for display
             response_summary = []
             for field_name, field_value in user_response.items():
@@ -200,6 +204,10 @@ Please provide clarified requirements and indicate their priority level (high/me
         if elicit_result.success:
             # Handle successful elicitation response
             user_response = elicit_result.data
+
+            # Ensure user_response is a dictionary
+            if not isinstance(user_response, dict):
+                user_response = {"user_input": str(user_response)}
 
             # Format the response data for display
             response_summary = []

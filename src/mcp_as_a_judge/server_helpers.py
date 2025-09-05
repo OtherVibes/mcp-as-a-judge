@@ -10,6 +10,7 @@ import json
 from mcp.server.fastmcp import Context
 from pydantic import BaseModel, Field
 
+from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.llm_client import llm_manager
 from mcp_as_a_judge.llm_integration import load_llm_config_from_env
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
@@ -100,7 +101,7 @@ async def generate_validation_error_message(
 
         # Use sampling to generate descriptive error message
         response_text = await llm_provider.send_message(
-            messages=messages, ctx=ctx, max_tokens=200, prefer_sampling=True
+            messages=messages, ctx=ctx, max_tokens=MAX_TOKENS, prefer_sampling=True
         )
         return response_text.strip()
 
@@ -148,7 +149,7 @@ async def generate_dynamic_elicitation_model(
 
         # Use LLM to generate field definitions
         schema_text = await llm_provider.send_message(
-            messages=messages, ctx=ctx, max_tokens=800, prefer_sampling=True
+            messages=messages, ctx=ctx, max_tokens=MAX_TOKENS, prefer_sampling=True
         )
 
         # Parse the field definitions JSON
@@ -159,8 +160,9 @@ async def generate_dynamic_elicitation_model(
         return create_pydantic_model_from_fields(fields_dict)
 
     except Exception:
-        # Fallback to a generic model if generation fails
-        return create_fallback_elicitation_model()
+        # If dynamic generation fails, re-raise the exception
+        # All fields MUST be resolved by LLM - no static fallback
+        raise
 
 
 def create_pydantic_model_from_fields(fields_dict: dict) -> type[BaseModel]:
@@ -178,8 +180,18 @@ def create_pydantic_model_from_fields(fields_dict: dict) -> type[BaseModel]:
 
     for field_name, field_config in fields_dict.items():
         # Extract configuration from LLM-generated field definition
-        is_required = field_config.get("required", False)
-        description = field_config.get("description", field_name.replace("_", " ").title())
+        # Handle cases where LLM returns boolean instead of dict
+        if isinstance(field_config, dict):
+            is_required = field_config.get("required", False)
+            description = field_config.get("description", field_name.replace("_", " ").title())
+        elif isinstance(field_config, bool):
+            # LLM returned boolean - treat as required flag
+            is_required = field_config
+            description = field_name.replace("_", " ").title()
+        else:
+            # LLM returned something else (string, etc.) - treat as description
+            is_required = False
+            description = str(field_config) if field_config else field_name.replace("_", " ").title()
 
         # All fields are strings (text input) as per MCP elicitation constraints
         # MCP elicitation only supports primitive types, no unions like str | None
@@ -210,19 +222,5 @@ def create_pydantic_model_from_fields(fields_dict: dict) -> type[BaseModel]:
 
 
 
-def create_fallback_elicitation_model() -> type[BaseModel]:
-    """Create a fallback elicitation model when dynamic generation fails.
 
-    Returns:
-        Generic Pydantic BaseModel class for elicitation
-    """
 
-    class FallbackElicitationModel(BaseModel):
-        """Fallback model for elicitation when dynamic generation fails."""
-
-        response: str = Field(description="Your response to the request")
-        additional_context: str | None = Field(
-            default="", description="Any additional context or details"
-        )
-
-    return FallbackElicitationModel

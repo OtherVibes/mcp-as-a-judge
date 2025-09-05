@@ -6,6 +6,7 @@ using the existing llm_client infrastructure. This serves as a fallback when
 MCP sampling is not available.
 """
 
+from mcp_as_a_judge.constants import MAX_TOKENS, DEFAULT_TEMPERATURE
 from mcp_as_a_judge.llm_client import llm_manager
 from mcp_as_a_judge.llm_integration import load_llm_config_from_env
 from mcp_as_a_judge.messaging.converters import messages_to_llm_format
@@ -106,6 +107,6 @@ class LLMAPIProvider(MessagingProvider):
         return {
             "vendor": getattr(config, "vendor", "unknown"),
             "model_name": getattr(config, "model_name", "unknown"),
-            "max_tokens": getattr(config, "max_tokens", 1000),
-            "temperature": getattr(config, "temperature", 0.1),
+            "max_tokens": getattr(config, "max_tokens", MAX_TOKENS),
+            "temperature": getattr(config, "temperature", DEFAULT_TEMPERATURE),
         }

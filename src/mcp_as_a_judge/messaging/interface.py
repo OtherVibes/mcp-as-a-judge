@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from mcp_as_a_judge.constants import MAX_TOKENS, DEFAULT_TEMPERATURE, DEFAULT_TIMEOUT
+
 
 class Message(BaseModel):
     """Universal message format for the messaging layer.
@@ -33,14 +35,14 @@ class MessagingConfig(BaseModel):
     with low temperature (0.1) for deterministic, precise responses.
     """
 
-    max_tokens: int = Field(default=1000, description="Maximum tokens to generate")
+    max_tokens: int = Field(default=MAX_TOKENS, description="Maximum tokens to generate")
     temperature: float = Field(
-        default=0.1,
+        default=DEFAULT_TEMPERATURE,
         ge=0.0,
         le=1.0,
         description="Temperature for generation (0.0-1.0) - Low for coding tasks",
     )
-    timeout: int = Field(default=30, description="Timeout in seconds for requests")
+    timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout in seconds for requests")
     prefer_sampling: bool = Field(
         default=True,
         description="Provider selection: True=prefer MCP sampling (fallback to LLM API), False=force LLM API only"

@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from mcp_as_a_judge.constants import MAX_TOKENS, DEFAULT_TEMPERATURE, DEFAULT_TIMEOUT
 from mcp_as_a_judge.messaging.converters import (
     mcp_messages_to_universal,
     messages_to_llm_format,
@@ -44,9 +45,9 @@ class TestMessagingConfig:
     def test_default_config(self):
         """Test default configuration values."""
         config = MessagingConfig()
-        assert config.max_tokens == 1000
-        assert config.temperature == 0.1
-        assert config.timeout == 30
+        assert config.max_tokens == MAX_TOKENS
+        assert config.temperature == DEFAULT_TEMPERATURE
+        assert config.timeout == DEFAULT_TIMEOUT
         assert config.prefer_sampling is True
 
     def test_custom_config(self):

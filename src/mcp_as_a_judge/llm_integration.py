@@ -12,6 +12,8 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from mcp_as_a_judge.constants import MAX_TOKENS, DEFAULT_TEMPERATURE
+
 
 class LLMVendor(str, Enum):
     """Supported LLM vendors with their API key patterns."""
@@ -48,10 +50,10 @@ class LLMConfig(BaseModel):
         default=None, description="Detected or specified LLM vendor"
     )
     max_tokens: int = Field(
-        default=1000, description="Maximum tokens for LLM responses"
+        default=MAX_TOKENS, description="Maximum tokens for LLM responses"
     )
     temperature: float = Field(
-        default=0.1,
+        default=DEFAULT_TEMPERATURE,
         description="Temperature for LLM responses (0.0-1.0) - Low for coding tasks",
     )
 
@@ -76,19 +78,19 @@ API_KEY_PATTERNS = {
     LLMVendor.MISTRAL: re.compile(r"^[a-f0-9]{64}$|^mistral-[a-zA-Z0-9]{32,}"),
 }
 
-# Default models per vendor - Latest reasoning models (2025)
+# Default models per vendor - Optimized for speed and performance
 DEFAULT_MODELS = {
-    LLMVendor.OPENAI: "gpt-5",  # Latest frontier model with built-in reasoning
+    LLMVendor.OPENAI: "gpt-4.1",  # Fast and reliable model optimized for speed
     LLMVendor.ANTHROPIC: "claude-sonnet-4-20250514",  # High-performance with exceptional reasoning
     LLMVendor.GOOGLE: "gemini-2.5-pro",  # Most advanced model with built-in thinking
-    LLMVendor.AZURE: "gpt-5",  # Same as OpenAI but via Azure
+    LLMVendor.AZURE: "gpt-4.1",  # Same as OpenAI but via Azure
     LLMVendor.AWS_BEDROCK: "anthropic.claude-sonnet-4-20250514-v1:0",  # Aligned with Anthropic
     LLMVendor.VERTEX_AI: "gemini-2.5-pro",  # Enterprise Gemini via Google Cloud
     LLMVendor.GROQ: "deepseek-r1",  # Best reasoning model with speed advantage
     LLMVendor.OPENROUTER: "deepseek/deepseek-r1",  # Best reasoning model available
     LLMVendor.MISTRAL: "pixtral-large",  # Most advanced model (124B params) built on Mistral Large 2
     LLMVendor.XAI: "grok-code-fast-1",  # Latest coding-focused model with reasoning (Aug 2025)
-    LLMVendor.UNKNOWN: "gpt-5",  # Fallback to latest reasoning model
+    LLMVendor.UNKNOWN: "gpt-4.1",  # Fallback to fast and reliable model
 }
 
 
