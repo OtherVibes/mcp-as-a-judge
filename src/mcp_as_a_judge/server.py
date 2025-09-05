@@ -129,7 +129,7 @@ Please choose an option (by number or description) and provide any additional co
 
             # Ensure user_response is a dictionary
             if not isinstance(user_response, dict):
-                user_response = {"user_input": str(user_response)}
+                user_response = {"user_input": str(user_response)}  # type: ignore[unreachable]
 
             # Format the response data for display
             response_summary = []
@@ -209,7 +209,7 @@ Please provide clarified requirements and indicate their priority level (high/me
 
             # Ensure user_response is a dictionary
             if not isinstance(user_response, dict):
-                user_response = {"user_input": str(user_response)}
+                user_response = {"user_input": str(user_response)}  # type: ignore[unreachable]
 
             # Format the response data for display
             response_summary = []

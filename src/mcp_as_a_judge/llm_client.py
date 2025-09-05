@@ -33,7 +33,7 @@ class LLMClient:
     def _initialize_litellm(self) -> None:
         """Initialize LiteLLM with lazy loading."""
         try:
-            self._litellm = litellm  # type: ignore[assignment]
+            self._litellm = litellm
 
             # Set API key based on vendor
             if self.config.api_key:

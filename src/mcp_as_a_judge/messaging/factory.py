@@ -73,7 +73,7 @@ class MessagingProviderFactory:
             True if sampling is available, False otherwise
         """
         if ctx is None:
-            return False
+            return False  # type: ignore[unreachable]
 
         sampling_provider = MCPSamplingProvider(ctx)
         return sampling_provider.is_available()

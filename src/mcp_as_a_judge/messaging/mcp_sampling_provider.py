@@ -103,7 +103,7 @@ class MCPSamplingProvider(MessagingProvider):
         """
         # Check if context exists
         if self.context is None:
-            return False
+            return False  # type: ignore[unreachable]
 
         # Check if context has session
         if not hasattr(self.context, "session"):

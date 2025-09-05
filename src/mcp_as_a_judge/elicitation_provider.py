@@ -74,8 +74,8 @@ class MCPElicitationProvider(BaseElicitationProvider):
                 # Convert Pydantic model to dictionary
                 if hasattr(elicit_result.data, "model_dump"):
                     data = elicit_result.data.model_dump()
-                elif isinstance(elicit_result.data, dict):
-                    data = elicit_result.data
+                elif isinstance(elicit_result.data, dict):  # type: ignore[unreachable]
+                    data = elicit_result.data  # type: ignore[unreachable]
                 else:
                     # Handle unexpected data types (like boolean, string, etc.)
                     data = {"user_input": str(elicit_result.data)}
