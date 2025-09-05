@@ -103,6 +103,10 @@ class TestToolDescriptionLocalStorageProvider:
         test_file.write_text("Updated content")
         provider.clear_cache()
 
+        # Small delay to ensure file system operations complete
+        import time
+        time.sleep(0.01)
+
         # Should now load updated content
         result2 = provider.get_description("cache_test_tool")
         assert result2 == "Updated content"
