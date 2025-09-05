@@ -1,0 +1,73 @@
+# Gitleaks configuration file
+# This file configures secret scanning for the repository
+
+title = "MCP as a Judge - Gitleaks Configuration"
+
+# Global allowlist for test files and known false positives
+[allowlist]
+description = "Global allowlist for test files and known false positives"
+paths = [
+    # Test files containing fake API keys for testing
+    "tests/test_llm_integration.py",
+    "tests/test_enhanced_features.py",
+    "tests/test_llm_fallback.py",
+    "tests/test_messaging_layer.py",
+]
+
+# Allowlist specific patterns that are known to be safe
+regexes = [
+    # Test API keys - these are fake keys used only for testing
+    '''api_key\s*=\s*["']sk-[a-zA-Z0-9]{32}["']''',
+    '''api_key\s*=\s*["']AIza[a-zA-Z0-9_-]{35}["']''',
+    '''api_key\s*=\s*["']gsk_[a-zA-Z0-9]{52}["']''',
+    '''api_key\s*=\s*["']xai-[a-zA-Z0-9]{64}["']''',
+    '''api_key\s*=\s*["']mistral_[a-zA-Z0-9]{32}["']''',
+    '''api_key\s*=\s*["']azure_[a-zA-Z0-9]{32}["']''',
+    '''api_key\s*=\s*["']test_[a-zA-Z0-9]{32}["']''',
+    
+    # Environment variable patterns in tests
+    '''"LLM_API_KEY":\s*["'][a-zA-Z0-9_-]{32,}["']''',
+    
+    # MAX_TOKENS constant usage (not an API key)
+    '''max_tokens\s*=\s*MAX_TOKENS''',
+    
+    # Test assertions with fake keys
+    '''assert\s+config\.api_key\s*==\s*["'][a-zA-Z0-9_-]{32,}["']''',
+]
+
+# Rules configuration
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(?:key|api|token|secret|password)\s*[:=]\s*['"][a-z0-9_-]{20,}['"]'''
+keywords = ["api", "key", "token", "secret"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''sk-[a-zA-Z0-9]{48}'''
+keywords = ["sk-"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API Key"
+regex = '''sk-ant-[a-zA-Z0-9_-]{95}'''
+keywords = ["sk-ant-"]
+
+[[rules]]
+id = "google-api-key"
+description = "Google API Key"
+regex = '''AIza[a-zA-Z0-9_-]{35}'''
+keywords = ["AIza"]
+
+[[rules]]
+id = "groq-api-key"
+description = "Groq API Key"
+regex = '''gsk_[a-zA-Z0-9]{52}'''
+keywords = ["gsk_"]
+
+[[rules]]
+id = "xai-api-key"
+description = "xAI API Key"
+regex = '''xai-[a-zA-Z0-9]{64}'''
+keywords = ["xai-"]

@@ -10,11 +10,11 @@ from mcp_as_a_judge.models import (
     ResearchValidationResponse,
     WorkflowGuidance,
 )
-from mcp_as_a_judge.server import _extract_json_from_response
+from mcp_as_a_judge.server_helpers import extract_json_from_response
 
 
 class TestJsonExtraction:
-    """Test the _extract_json_from_response function with various input formats."""
+    """Test the extract_json_from_response function with various input formats."""
 
     def test_markdown_wrapped_json(self):
         """Test extraction from markdown code blocks (the original problem case)."""
@@ -27,7 +27,7 @@ class TestJsonExtraction:
 }
 ```"""
 
-        extracted = _extract_json_from_response(test_response)
+        extracted = extract_json_from_response(test_response)
 
         # Should extract clean JSON
         expected = """{
@@ -48,7 +48,7 @@ class TestJsonExtraction:
         """Test extraction from plain JSON without markdown."""
         test_response = """{"approved": false, "required_improvements": ["Add tests"], "feedback": "Needs work"}"""
 
-        extracted = _extract_json_from_response(test_response)
+        extracted = extract_json_from_response(test_response)
 
         # Should return the same JSON
         assert extracted == test_response
@@ -70,7 +70,7 @@ class TestJsonExtraction:
 
 That concludes the analysis. Please proceed with implementation."""
 
-        extracted = _extract_json_from_response(test_response)
+        extracted = extract_json_from_response(test_response)
 
         expected = """{
     "approved": true,
@@ -95,7 +95,7 @@ That concludes the analysis. Please proceed with implementation."""
 }
 ```"""
 
-        extracted = _extract_json_from_response(test_response)
+        extracted = extract_json_from_response(test_response)
 
         # Should be valid JSON
         parsed = json.loads(extracted)
@@ -107,7 +107,7 @@ That concludes the analysis. Please proceed with implementation."""
         test_response = """This is just plain text without any JSON object in it."""
 
         with pytest.raises(ValueError, match="No valid JSON object found in response"):
-            _extract_json_from_response(test_response)
+            extract_json_from_response(test_response)
 
     def test_malformed_braces(self):
         """Test error handling when braces are malformed."""
@@ -115,14 +115,14 @@ That concludes the analysis. Please proceed with implementation."""
         test_response_no_close = """{ this is not valid JSON but has braces"""
 
         with pytest.raises(ValueError, match="No valid JSON object found in response"):
-            _extract_json_from_response(test_response_no_close)
+            extract_json_from_response(test_response_no_close)
 
         # Test case with valid braces but invalid JSON content
         test_response_invalid_json = (
             """{ this is not valid JSON but has closing brace }"""
         )
 
-        extracted = _extract_json_from_response(test_response_invalid_json)
+        extracted = extract_json_from_response(test_response_invalid_json)
         assert extracted == "{ this is not valid JSON but has closing brace }"
 
         # But it should fail when trying to parse as JSON
@@ -133,7 +133,7 @@ That concludes the analysis. Please proceed with implementation."""
         """Test that it extracts from first { to last } when multiple objects exist."""
         test_response = """First object: {"a": 1} and second object: {"b": 2}"""
 
-        extracted = _extract_json_from_response(test_response)
+        extracted = extract_json_from_response(test_response)
 
         # Should extract from first { to last }
         assert extracted == """{"a": 1} and second object: {"b": 2}"""
@@ -150,7 +150,7 @@ That concludes the analysis. Please proceed with implementation."""
 }
 ```"""
 
-        extracted = _extract_json_from_response(research_response)
+        extracted = extract_json_from_response(research_response)
         model = ResearchValidationResponse.model_validate_json(extracted)
 
         assert model.research_adequate is True
@@ -167,7 +167,7 @@ That concludes the analysis. Please proceed with implementation."""
 }
 ```"""
 
-        extracted = _extract_json_from_response(judge_response)
+        extracted = extract_json_from_response(judge_response)
         model = JudgeResponse.model_validate_json(extracted)
 
         assert model.approved is False
@@ -184,7 +184,7 @@ That concludes the analysis. Please proceed with implementation."""
 }
 ```"""
 
-        extracted = _extract_json_from_response(workflow_response)
+        extracted = extract_json_from_response(workflow_response)
         model = WorkflowGuidance.model_validate_json(extracted)
 
         assert model.next_tool == "judge_code_change"

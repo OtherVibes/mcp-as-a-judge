@@ -54,7 +54,7 @@ jobs:
           echo "Checking commit: $commit - $message"
           
           # Check if commit message follows conventional commits format
-          if [[ $message =~ ^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?: .+ ]]; then
+          if [[ $message =~ ^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?:\ .+ ]]; then
             echo "✅ Commit message follows conventional commits format"
           else
             echo "❌ Commit message must follow conventional commits format:"

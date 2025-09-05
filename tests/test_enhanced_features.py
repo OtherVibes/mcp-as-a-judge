@@ -11,21 +11,21 @@ import pytest
 
 from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
 from mcp_as_a_judge.server import (
-    elicit_missing_requirements,
-    get_workflow_guidance,
+    build_workflow,
     judge_code_change,
     judge_coding_plan,
+    raise_missing_requirements,
     raise_obstacle,
 )
 
 
 class TestElicitMissingRequirements:
-    """Test the elicit_missing_requirements tool."""
+    """Test the raise_missing_requirements tool."""
 
     @pytest.mark.asyncio
     async def test_elicit_with_valid_context(self, mock_context_with_sampling):
         """Test eliciting requirements with valid context."""
-        result = await elicit_missing_requirements(
+        result = await raise_missing_requirements(
             current_request="Build a Slack integration",
             identified_gaps=[
                 "What specific functionality?",
@@ -36,20 +36,26 @@ class TestElicitMissingRequirements:
         )
 
         assert isinstance(result, str)
-        assert "REQUIREMENTS CLARIFIED" in result or "ERROR" in result
+        # With elicitation provider, we expect either success or fallback message
+        assert (
+            "REQUIREMENTS CLARIFIED" in result
+            or "ERROR" in result
+            or "ELICITATION NOT AVAILABLE" in result
+        )
 
     @pytest.mark.asyncio
     async def test_elicit_without_context(self, mock_context_without_sampling):
         """Test eliciting requirements without valid context."""
-        result = await elicit_missing_requirements(
+        result = await raise_missing_requirements(
             current_request="Build a Slack integration",
             identified_gaps=["What specific functionality?"],
             specific_questions=["Send or receive messages?"],
             ctx=mock_context_without_sampling,
         )
 
-        assert "ERROR" in result
-        assert "Cannot proceed without clear requirements" in result
+        # With LLM-only approach, we expect error when no LLM providers are available
+        assert "ERROR: Failed to elicit requirement clarifications" in result
+        assert "No messaging providers available" in result
 
 
 class TestUserRequirementsAlignment:
@@ -149,7 +155,12 @@ class TestObstacleResolution:
         )
 
         assert isinstance(result, str)
-        assert "OBSTACLE RESOLVED" in result or "ERROR" in result
+        # With elicitation provider, we expect either success or fallback message
+        assert (
+            "OBSTACLE RESOLVED" in result
+            or "ERROR" in result
+            or "ELICITATION NOT AVAILABLE" in result
+        )
 
     @pytest.mark.asyncio
     async def test_raise_obstacle_without_context(self, mock_context_without_sampling):
@@ -161,17 +172,18 @@ class TestObstacleResolution:
             ctx=mock_context_without_sampling,
         )
 
-        assert "ERROR" in result
-        assert "Cannot resolve obstacle without user input" in result
+        # With LLM-only approach, we expect error when no LLM providers are available
+        assert "ERROR: Failed to elicit user decision" in result
+        assert "No messaging providers available" in result
 
 
 class TestWorkflowGuidance:
-    """Test the get_workflow_guidance tool."""
+    """Test the build_workflow tool."""
 
     @pytest.mark.asyncio
     async def test_workflow_guidance_basic(self, mock_context_with_sampling):
         """Test basic workflow guidance functionality."""
-        result = await get_workflow_guidance(
+        result = await build_workflow(
             task_description="Build a web API using FastAPI framework",
             ctx=mock_context_with_sampling,
         )
@@ -181,7 +193,7 @@ class TestWorkflowGuidance:
             "judge_coding_plan",
             "judge_code_change",
             "raise_obstacle",
-            "elicit_missing_requirements",
+            "raise_missing_requirements",
         ]
         assert isinstance(result.reasoning, str)
         assert isinstance(result.preparation_needed, list)
@@ -190,7 +202,7 @@ class TestWorkflowGuidance:
     @pytest.mark.asyncio
     async def test_workflow_guidance_with_context(self, mock_context_with_sampling):
         """Test workflow guidance with additional context."""
-        result = await get_workflow_guidance(
+        result = await build_workflow(
             task_description="Create authentication system with JWT tokens",
             context="E-commerce platform with high security requirements",
             ctx=mock_context_with_sampling,
@@ -202,7 +214,7 @@ class TestWorkflowGuidance:
             "judge_coding_plan",
             "judge_code_change",
             "raise_obstacle",
-            "elicit_missing_requirements",
+            "raise_missing_requirements",
         ]
 
 
@@ -215,7 +227,7 @@ class TestIntegrationScenarios:
     ):
         """Test complete workflow from guidance to code evaluation."""
         # Step 1: Get workflow guidance
-        guidance_result = await get_workflow_guidance(
+        guidance_result = await build_workflow(
             task_description="Build Slack integration using MCP server",
             ctx=mock_context_with_sampling,
         )
@@ -224,7 +236,7 @@ class TestIntegrationScenarios:
             "judge_coding_plan",
             "judge_code_change",
             "raise_obstacle",
-            "elicit_missing_requirements",
+            "raise_missing_requirements",
         ]
 
         # Step 2: Judge plan with requirements

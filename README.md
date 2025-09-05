@@ -4,7 +4,8 @@
   <img src="assets/mcp-as-a-judge.png" alt="MCP as a Judge Logo" width="200">
 </div>
 
-> **Prevent bad coding practices with AI-powered evaluation and user-driven decision making**
+> **MCP as a Judge acts as a validation layer between AI coding assistants and LLMs, helping ensure safer and higher-quality code.
+*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
@@ -67,7 +68,7 @@
 
 | Tool Name | Description |
 |-----------|-------------|
-| **`get_workflow_guidance`** | Smart workflow analysis and tool recommendation |
+| **`build_workflow`** | Smart workflow analysis and tool recommendation |
 | **`judge_coding_plan`** | Comprehensive plan evaluation with requirements alignment |
 | **`judge_code_change`** | Code review with security and quality checks |
 | **`raise_obstacle`** | User involvement when blockers arise |
@@ -86,7 +87,25 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 #### **System Prerequisites**
 
-- **Python 3.13+** - Required for running the MCP server
+- **Docker Desktop** / **Python 3.13+** - Required for running the MCP server
+
+#### **Supported AI Assistants**
+
+| AI Assistant | Platform | MCP Support | Status | Notes |
+|---------------|----------|-------------|---------|-------|
+| **GitHub Copilot** | Visual Studio Code | ✅ Full | **Recommended** | Complete MCP integration with sampling and elicitation |
+| **Claude Code** | - | ⚠️ Partial | Requires LLM API key | [Sampling Support feature request](https://github.com/anthropics/claude-code/issues/1785)<br>[Elicitation Support feature request](https://github.com/anthropics/claude-code/issues/2799) |
+| **Cursor** | - | ⚠️ Partial | Requires LLM API key | MCP support available, but sampling/elicitation limited |
+| **Augment** | - | ⚠️ Partial | Requires LLM API key | MCP support available, but sampling/elicitation limited |
+| **Qodo** | - | ⚠️ Partial | Requires LLM API key | MCP support available, but sampling/elicitation limited |
+
+**✅ Recommended Setup:** GitHub Copilot in Visual Studio Code for the best MCP as a Judge experience.
+
+**⚠️ LLM API Key Requirement:**
+- **GitHub Copilot + VS Code**: ✅ **No API key needed** - Uses built-in MCP sampling
+- **All Other Assistants**: ⚠️ **Requires LLM API key** - Limited MCP sampling support
+
+Configure an LLM API key (OpenAI, Anthropic, Google, etc.) as described in the [LLM API Configuration](#-llm-api-configuration-optional) section.
 
 
 #### **💡 Recommendations**
@@ -96,11 +115,136 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 
 
 
-## 🔧 **Configuration**
+## 🔧 **Visual Studio Code Configuration**
 
-Configure **MCP as a Judge** with your preferred AI coding assistant:
+Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
 
-### **Cursor**
+### **Method 1: Using Docker (Recommended)**
+
+1. **Configure MCP Settings:**
+
+   Add this to your Visual Studio Code MCP configuration file:
+
+   ```json
+   {
+     "mcpServers": {
+       "mcp-as-a-judge": {
+         "command": "docker",
+         "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/hepivax/mcp-as-a-judge:latest"],
+         "env": {
+           "LLM_API_KEY": "your-openai-api-key-here",
+           "LLM_MODEL_NAME": "gpt-4o-mini"
+         }
+       }
+     }
+   }
+   ```
+
+   **📝 Configuration Options (All Optional):**
+   - **LLM_API_KEY**: Optional for GitHub Copilot + VS Code (has built-in MCP sampling)
+   - **LLM_MODEL_NAME**: Optional custom model (see [Supported LLM Providers](#supported-llm-providers) for defaults)
+   - The `--pull=always` flag ensures you always get the latest version automatically
+
+   Then manually update when needed:
+
+   ```bash
+   # Pull the latest version
+   docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
+   ```
+
+### **Method 2: Using uv**
+
+1. **Install the package:**
+
+   ```bash
+   uv tool install mcp-as-a-judge
+   ```
+
+2. **Configure MCP Settings:**
+
+   The MCP server will be automatically detected by Visual Studio Code.
+
+   **📝 Notes:**
+   - **No additional configuration needed for GitHub Copilot + VS Code** (has built-in MCP sampling)
+   - LLM_API_KEY is optional and can be set via environment variable if needed
+
+3. **To update to the latest version:**
+
+   ```bash
+   # Update MCP as a Judge to the latest version
+   uv tool upgrade mcp-as-a-judge
+   ```
+
+## 🔑 **LLM API Configuration (Optional)**
+
+For AI assistants without full MCP sampling support (Cursor, Claude Code, Augment, Qodo), you can configure an LLM API key as a fallback. This ensures MCP as a Judge works even when the client doesn't support MCP sampling.
+
+### **Supported LLM Providers**
+
+| Rank | Provider | API Key Format | Default Model | Notes |
+|------|----------|----------------|---------------|-------|
+| **1** | **OpenAI** | `sk-...` | `gpt-4.1` | Fast and reliable model optimized for speed |
+| **2** | **Anthropic** | `sk-ant-...` | `claude-sonnet-4-20250514` | High-performance with exceptional reasoning |
+| **3** | **Google** | `AIza...` | `gemini-2.5-pro` | Most advanced model with built-in thinking |
+| **4** | **Azure OpenAI** | `[a-f0-9]{32}` | `gpt-4.1` | Same as OpenAI but via Azure |
+| **5** | **AWS Bedrock** | AWS credentials | `anthropic.claude-sonnet-4-20250514-v1:0` | Aligned with Anthropic |
+| **6** | **Vertex AI** | Service Account JSON | `gemini-2.5-pro` | Enterprise Gemini via Google Cloud |
+| **7** | **Groq** | `gsk_...` | `deepseek-r1` | Best reasoning model with speed advantage |
+| **8** | **OpenRouter** | `sk-or-...` | `deepseek/deepseek-r1` | Best reasoning model available |
+| **9** | **xAI** | `xai-...` | `grok-code-fast-1` | Latest coding-focused model (Aug 2025) |
+| **10** | **Mistral** | `[a-f0-9]{64}` | `pixtral-large` | Most advanced model (124B params) |
+
+### **🎯 Model Selection Rationale**
+
+All default models are optimized for **coding and reasoning tasks** with emphasis on speed:
+
+- **⚡ Speed Optimized**: GPT-4.1 for fast elicitation and real-time interactions
+- **🧠 Reasoning-Focused**: Claude Sonnet 4, Gemini 2.5 Pro with built-in thinking
+- **⚡ Speed + Quality**: DeepSeek R1 on Groq/OpenRouter for fast reasoning
+- **🎨 Multimodal**: Pixtral Large combines Mistral Large 2 with vision capabilities
+- **🚀 Coding-Specialized**: Grok Code Fast 1 designed specifically for agentic coding
+- **🏢 Enterprise**: AWS Bedrock and Vertex AI provide enterprise-grade access
+
+### **⚙️ Coding-Optimized Configuration**
+
+**Temperature: 0.1** (Low for deterministic, precise code generation)
+- Ensures consistent, reliable code suggestions
+- Reduces randomness for better debugging and maintenance
+- Optimized for technical accuracy over creativity
+
+
+
+### **🔑 When Do You Need an LLM API Key?**
+
+| Coding Assistant | API Key Required? | Reason |
+|------------------|-------------------|---------|
+| **GitHub Copilot + VS Code** | ❌ **No** | Full MCP sampling support built-in |
+| **Claude Code** | ✅ **Yes** | Limited MCP sampling support |
+| **Cursor** | ✅ **Yes** | Limited MCP sampling support |
+| **Augment** | ✅ **Yes** | Limited MCP sampling support |
+| **Qodo** | ✅ **Yes** | Limited MCP sampling support |
+
+**💡 Recommendation**: Use GitHub Copilot + VS Code for the best experience without needing API keys.
+
+**🔍 Why Some Assistants Need API Keys:**
+- **MCP Sampling**: GitHub Copilot supports advanced MCP sampling for dynamic prompts
+- **Fallback Required**: Other assistants use LLM APIs when MCP sampling is unavailable
+- **Future-Proof**: As more assistants add MCP sampling support, API keys become optional
+
+### **Configuration Steps**
+
+1. **Restart your MCP client** to pick up the environment variables.
+
+### **How It Works**
+
+- **Primary**: MCP as a Judge always tries MCP sampling first (when available)
+- **Fallback**: If MCP sampling fails or isn't available, it uses your configured LLM API
+- **Automatic**: No configuration needed - the system detects your API key and selects the appropriate provider
+- **Privacy**: Your API key is only used when MCP sampling is not available
+
+### **Client-Specific Setup**
+
+#### **Cursor**
 
 1. **Open Cursor Settings:**
    - Go to `File` → `Preferences` → `Cursor Settings`
@@ -114,78 +258,75 @@ Configure **MCP as a Judge** with your preferred AI coding assistant:
        "mcp-as-a-judge": {
          "command": "uv",
          "args": ["tool", "run", "mcp-as-a-judge"],
-         "env": {}
+         "env": {
+           "LLM_API_KEY": "your-openai-api-key-here",
+           "LLM_MODEL_NAME": "gpt-4.1"
+         }
        }
      }
    }
    ```
 
-3. **Alternative: Edit mcp.json directly:**
-   - Create or edit `.cursor/mcp.json` in your project or home directory
-   - Add the server configuration above
+   **📝 Configuration Options:**
+   - **LLM_API_KEY**: Required for Cursor (limited MCP sampling)
+   - **LLM_MODEL_NAME**: Optional custom model (see [Supported LLM Providers](#supported-llm-providers) for defaults)
 
-### **Claude Code**
+#### **Claude Code**
 
-1. **Add MCP Server via CLI (Local):**
+1. **Add MCP Server via CLI:**
    ```bash
+   # Set environment variables first (optional model override)
+   export LLM_API_KEY="your-anthropic-api-key-here"
+   export LLM_MODEL_NAME="claude-3-5-haiku"  # Optional: faster/cheaper model
+
+   # Add MCP server
    claude mcp add mcp-as-a-judge -- uv tool run mcp-as-a-judge
    ```
 
-2. **Add MCP Server via CLI (Remote - Cloudflare Workers):**
-   ```bash
-   claude mcp add --transport http mcp-as-a-judge https://mcp-as-a-judge.workers.dev/mcp
-   ```
-
-3. **Alternative: Manual Configuration:**
+2. **Alternative: Manual Configuration:**
    - Create or edit `~/.config/claude-code/mcp_servers.json`
    ```json
    {
      "mcpServers": {
        "mcp-as-a-judge": {
          "command": "uv",
-         "args": ["tool", "run", "mcp-as-a-judge"]
+         "args": ["tool", "run", "mcp-as-a-judge"],
+         "env": {
+           "LLM_API_KEY": "your-anthropic-api-key-here",
+           "LLM_MODEL_NAME": "claude-3-5-haiku"
+         }
        }
      }
    }
    ```
 
-### **VS Code (GitHub Copilot)**
+   **📝 Configuration Options:**
+   - **LLM_API_KEY**: Required for Claude Code (limited MCP sampling)
+   - **LLM_MODEL_NAME**: Optional custom model (see [Supported LLM Providers](#supported-llm-providers) for defaults)
 
-1. **Install via Command Palette:**
-   - Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-   - Run `MCP: Add Server`
-   - Choose `Workspace Settings` or `Global`
-   - Enter server details
+#### **Other MCP Clients**
 
-2. **Manual Configuration:**
-   - Create `.vscode/mcp.json` in your workspace, or
-   - Edit global config via `MCP: Open User Configuration`
-   ```json
-   {
-     "servers": {
-       "mcp-as-a-judge": {
-         "command": "uv",
-         "args": ["tool", "run", "mcp-as-a-judge"]
-       }
+For other MCP-compatible clients, use the standard MCP server configuration:
+
+```json
+{
+  "mcpServers": {
+    "mcp-as-a-judge": {
+      "command": "uv",
+      "args": ["tool", "run", "mcp-as-a-judge"],
+      "env": {
+        "LLM_API_KEY": "your-openai-api-key-here",
+        "LLM_MODEL_NAME": "gpt-4o-mini"
+      }
      }
    }
    ```
 
-### **Installation Prerequisites**
+**📝 Configuration Options:**
+- **LLM_API_KEY**: Required for most MCP clients (except GitHub Copilot + VS Code)
+- **LLM_MODEL_NAME**: Optional custom model (see [Supported LLM Providers](#supported-llm-providers) for defaults)
 
-Before configuring, install the MCP server:
 
-```bash
-# Install with uv (recommended)
-uv tool install mcp-as-a-judge
-```
-
-3. **To update to the latest version:**
-
-   ```bash
-   # Update MCP as a Judge to the latest version
-   uv tool upgrade mcp-as-a-judge
-   ```
 
 
 ## 📖 **How It Works**
@@ -196,7 +337,7 @@ Once MCP as a Judge is configured with your AI coding assistant, it automaticall
 
 **1. Intelligent Workflow Guidance**
 
-- When you make any development request, the AI assistant automatically calls `get_workflow_guidance`
+- When you make any development request, the AI assistant automatically calls `build_workflow`
 - This tool uses AI analysis to determine which validation steps are required for your specific task
 - Provides smart recommendations on which tools to use next and in what order
 - No manual intervention needed - the workflow starts automatically with intelligent guidance
@@ -239,13 +380,22 @@ Once MCP as a Judge is configured with your AI coding assistant, it automaticall
 - **User-driven decisions** - You're involved whenever your original request cannot be satisfied
 - **Professional standards** - Consistent application of software engineering best practices
 
-## 🔒 **Privacy & API Key Free**
+## 🔒 **Privacy & Flexible AI Integration**
 
-### **🔑 No LLM API Key Required**
+### **🔑 MCP Sampling (Preferred) + LLM API Key Fallback**
 
+**Primary Mode: MCP Sampling**
 - All judgments are performed using **MCP Sampling** capability
 - No need to configure or pay for external LLM API services
 - Works directly with your MCP-compatible client's existing AI model
+- **Currently supported by:** GitHub Copilot + VS Code
+
+**Fallback Mode: LLM API Key**
+- When MCP sampling is not available, the server can use LLM API keys
+- Supports multiple providers via LiteLLM: OpenAI, Anthropic, Google, Azure, Groq, Mistral, xAI
+- Automatic vendor detection from API key patterns
+- Default model selection per vendor when no model is specified
+- Set environment variables like `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.
 
 ### **🛡️ Your Privacy Matters**
 
@@ -300,8 +450,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 **Acknowledgments**
 
 - [Model Context Protocol](https://modelcontextprotocol.io/) by Anthropic
-- The amazing MCP community for inspiration and best practices
-- All developers who will benefit from better coding practices
+- [LiteLLM](https://github.com/BerriAI/litellm) for unified LLM API integration
 
 ---
 
