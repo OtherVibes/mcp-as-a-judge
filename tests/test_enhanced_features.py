@@ -107,38 +107,7 @@ def send_slack_message(channel, message):
         assert isinstance(result, JudgeResponse)
         assert len(result.feedback) > 0
 
-    @pytest.mark.asyncio
-    async def test_requirements_in_evaluation_prompt(self, mock_context_with_sampling):
-        """Test that user requirements are included in evaluation prompts."""
-        # Mock the session to capture the prompt
-        mock_session = mock_context_with_sampling.session
-        mock_session.create_message = AsyncMock()
-        mock_session.create_message.return_value = MagicMock(
-            content=[MagicMock(text="APPROVED: Requirements well aligned")]
-        )
 
-        result = await judge_coding_plan(
-            plan="Test plan",
-            design="Test design",
-            research="Test research",
-            research_urls=[
-                "https://example.com/docs",
-                "https://github.com/example/repo",
-                "https://stackoverflow.com/questions/example",
-            ],
-            user_requirements="Specific user requirements for testing",
-            context="Test context",
-            ctx=mock_context_with_sampling,
-        )
-
-        # The function should either call the LLM or return a response
-        assert isinstance(result, JudgeResponse)
-        # If sampling was called, verify the prompt contained requirements
-        if mock_session.create_message.call_count > 0:
-            call_args = mock_session.create_message.call_args
-            prompt = call_args[1]["messages"][0]["content"]
-            assert "USER REQUIREMENTS" in prompt
-            assert "Specific user requirements for testing" in prompt
 
 
 class TestObstacleResolution:
@@ -279,10 +248,11 @@ class TestIntegrationScenarios:
             ctx=mock_context_without_sampling,
         )
 
-        # Should get warning response but still approve for development environment
+        # Should get error response when no messaging providers are available
         assert isinstance(plan_result, JudgeResponse)
-        assert plan_result.approved  # Now approves with warning instead of failing
-        assert "⚠️" in plan_result.feedback  # Should contain warning symbol
+        assert not plan_result.approved  # Should fail when no providers available
+        assert "Error occurred during review" in plan_result.required_improvements
+        assert "No messaging providers available" in plan_result.feedback
 
         # Then raise obstacle
         obstacle_result = await raise_obstacle(

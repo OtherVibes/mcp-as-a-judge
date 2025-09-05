@@ -152,7 +152,21 @@ class MockServerSession:
         if not self.has_sampling:
             raise RuntimeError("Context is not available outside of a request")
 
-        return MagicMock(content=[MagicMock(text="Mocked LLM evaluation response")])
+        # Return proper JSON response for workflow guidance
+        if "workflow" in str(kwargs).lower() or "guidance" in str(kwargs).lower():
+            json_response = '{"next_tool": "judge_coding_plan", "reasoning": "Need to validate the coding plan", "preparation_needed": ["Gather requirements", "Research best practices"], "guidance": "Start by analyzing the requirements and creating a comprehensive plan"}'
+            # Create a mock that mimics the MCP response structure
+            mock_content = MagicMock()
+            mock_content.type = "text"
+            mock_content.text = json_response
+            return MagicMock(content=mock_content)
+
+        # Return proper JSON response for judge responses
+        json_response = '{"approved": true, "feedback": "Mocked evaluation response"}'
+        mock_content = MagicMock()
+        mock_content.type = "text"
+        mock_content.text = json_response
+        return MagicMock(content=mock_content)
 
 
 class MockContext:

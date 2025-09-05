@@ -276,7 +276,7 @@ All default models are optimized for **coding and reasoning tasks** with emphasi
 1. **Add MCP Server via CLI:**
    ```bash
    # Set environment variables first (optional model override)
-   export LLM_API_KEY="your-anthropic-api-key-here"
+   export LLM_API_KEY="your_api_key_here"
    export LLM_MODEL_NAME="claude-3-5-haiku"  # Optional: faster/cheaper model
 
    # Add MCP server

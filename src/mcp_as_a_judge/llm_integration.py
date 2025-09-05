@@ -129,7 +129,7 @@ def create_llm_config(
     api_key: str | None = None,
     model_name: str | None = None,
     vendor: LLMVendor | None = None,
-    **kwargs,
+    **kwargs: str,
 ) -> LLMConfig:
     """Create LLM configuration with vendor detection and defaults.
 

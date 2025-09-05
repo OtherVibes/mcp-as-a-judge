@@ -48,6 +48,7 @@ class TestMessagingLayerIntegration:
             # Mock MCP provider
             mock_provider = MagicMock()
             mock_provider.send_message = AsyncMock(return_value="MCP response")
+            mock_provider.send_message_direct = AsyncMock(return_value="MCP response")
             mock_provider.provider_type = "mcp_sampling"
             mock_factory.create_provider.return_value = mock_provider
 
@@ -71,7 +72,7 @@ class TestMessagingLayerIntegration:
                 )
 
                 assert response == "MCP response"
-                mock_provider.send_message.assert_called_once()
+                mock_provider.send_message_direct.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_llm_provider_integration(self, mock_context, mock_messages):

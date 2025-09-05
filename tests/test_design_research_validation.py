@@ -57,25 +57,23 @@ def test_judge_coding_plan_signature() -> None:
     assert True  # All checks passed
 
 
-@pytest.mark.skip(reason="Tool description provider now loads descriptions dynamically")
 def test_function_docstring() -> None:
-    """Test that the function docstring mentions design and research."""
+    """Test that the function docstring is properly loaded from tool description provider."""
     print("Testing function docstring...")
 
     docstring = judge_coding_plan.__doc__
     assert docstring is not None, "Function should have a docstring"
 
-    # Check that docstring mentions the new parameters
-    assert "design" in docstring.lower(), "Docstring should mention 'design'"
-    assert "research" in docstring.lower(), "Docstring should mention 'research'"
-    print("✓ Docstring mentions design and research parameters")
+    # Check that docstring mentions tool description provider (dynamic loading)
+    assert "tool_description_provider" in docstring.lower(), "Docstring should mention tool_description_provider"
+    assert "coding plan" in docstring.lower(), "Docstring should mention coding plan"
+    print("✓ Docstring mentions tool description provider and coding plan")
 
-    # Check that it still has the mandatory description
-    assert "MANDATORY" in docstring, "Should have mandatory usage description"
-    print("✓ Mandatory usage description is present")
+    # Check that it has the expected content
+    assert "evaluation tool" in docstring.lower(), "Should mention evaluation tool"
+    print("✓ Docstring content is correct")
 
     print("✓ All docstring tests passed!")
-    assert True  # All checks passed
 
 
 if __name__ == "__main__":
