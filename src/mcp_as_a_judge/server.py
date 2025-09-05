@@ -80,14 +80,14 @@ async def build_workflow(
     return WorkflowGuidance.model_validate_json(json_content)
 
 
-@mcp.tool(description=tool_description_local_storage_provider.get_description("raise_obstacle"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_provider.get_description("raise_obstacle"))  # type: ignore[misc,unused-ignore]
 async def raise_obstacle(
     problem: str,
     research: str,
     options: list[str],
     ctx: Context,
 ) -> str:
-    """Obstacle handling tool - description loaded from tool_description_local_storage_provider."""
+    """Obstacle handling tool - description loaded from tool_description_provider."""
     try:
         # Format the options as a numbered list for clarity
         formatted_options = "\n".join(
@@ -158,14 +158,14 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
         return f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
 
 
-@mcp.tool(description=tool_description_local_storage_provider.get_description("raise_missing_requirements"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_provider.get_description("raise_missing_requirements"))  # type: ignore[misc,unused-ignore]
 async def raise_missing_requirements(
     current_request: str,
     identified_gaps: list[str],
     specific_questions: list[str],
     ctx: Context,
 ) -> str:
-    """Requirements clarification tool - description loaded from tool_description_local_storage_provider."""
+    """Requirements clarification tool - description loaded from tool_description_provider."""
     try:
         # Format the gaps and questions for clarity
         formatted_gaps = "\n".join(f"• {gap}" for gap in identified_gaps)
@@ -353,7 +353,7 @@ async def _evaluate_coding_plan(
         ) from e
 
 
-@mcp.tool(description=tool_description_local_storage_provider.get_description("judge_coding_plan"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_provider.get_description("judge_coding_plan"))  # type: ignore[misc,unused-ignore]
 async def judge_coding_plan(
     plan: str,
     design: str,
@@ -363,7 +363,7 @@ async def judge_coding_plan(
     context: str = "",
     research_urls: list[str] | None = None,
 ) -> JudgeResponse:
-    """Coding plan evaluation tool - description loaded from tool_description_local_storage_provider."""
+    """Coding plan evaluation tool - description loaded from tool_description_provider."""
 
 
     # Handle default value for research_urls
@@ -423,7 +423,7 @@ async def judge_coding_plan(
         )
 
 
-@mcp.tool(description=tool_description_local_storage_provider.get_description("judge_code_change"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(description=tool_description_provider.get_description("judge_code_change"))  # type: ignore[misc,unused-ignore]
 async def judge_code_change(
     code_change: str,
     user_requirements: str,
@@ -431,7 +431,7 @@ async def judge_code_change(
     file_path: str = "File path not specified",
     change_description: str = "Change description not provided",
 ) -> JudgeResponse:
-    """Code change evaluation tool - description loaded from tool_description_local_storage_provider."""
+    """Code change evaluation tool - description loaded from tool_description_provider."""
 
 
     # Create system and user messages from templates
