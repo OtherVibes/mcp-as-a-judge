@@ -26,6 +26,16 @@ Evaluate code content against the following comprehensive criteria:
 - Is the code clean, readable, and well-structured?
 - Does it follow language-specific conventions and best practices?
 - Are variable and function names descriptive and intention-revealing?
+- **SOLID Principles - MANDATORY ENFORCEMENT**:
+  - **Single Responsibility**: Does each class/function have one clear responsibility?
+  - **Open/Closed**: Is the code open for extension, closed for modification?
+  - **Liskov Substitution**: Do derived classes properly substitute base classes?
+  - **Interface Segregation**: Are interfaces focused and not bloated?
+  - **Dependency Inversion**: Does code depend on abstractions, not concrete implementations?
+- **Design Patterns - VALIDATE WHEN REQUIRED**:
+  - Are appropriate design patterns implemented correctly when the code complexity requires them?
+  - Are patterns used appropriately without over-engineering simple solutions?
+  - Validate correct implementation of patterns like Factory, Strategy, Observer, Command, etc.
 - **DRY Principle**: Is duplication avoided and logic centralized?
 - **Orthogonality**: Are functions focused and loosely coupled?
 - **Code Comments**: Do comments explain WHY, not just WHAT?
@@ -91,6 +101,8 @@ Evaluate code content against the following comprehensive criteria:
 - No obvious security vulnerabilities or major bugs
 - Basic error handling is present where needed
 - Implementation matches the intended functionality
+- **SOLID Principles**: Code demonstrates adherence to SOLID principles where applicable
+- **Design Patterns**: Appropriate patterns are implemented correctly when code complexity requires them
 - **DRY Principle**: Minimal duplication and good abstraction
 - **Orthogonality**: Functions are focused and loosely coupled
 - **Fail Fast**: Errors are detected early and handled appropriately
@@ -100,7 +112,10 @@ Evaluate code content against the following comprehensive criteria:
 - Security vulnerabilities or injection risks
 - Major bugs or logical errors that will cause failures
 - Completely missing error handling in critical paths
-- Code that violates fundamental principles (DRY, SOLID, etc.)
+- **SOLID Violations**: Code that violates SOLID principles in ways that will cause maintenance issues
+- **Missing Design Patterns**: Complex code that clearly requires design patterns but doesn't use them
+- **Pattern Misuse**: Incorrect implementation of design patterns that adds unnecessary complexity
+- Code that violates fundamental principles (DRY, etc.)
 - **Broken Windows**: Quality issues that will encourage more poor code
 - **Tight Coupling**: Code that makes future changes difficult
 - **Premature Optimization**: Complex optimizations without clear benefit
@@ -112,6 +127,8 @@ You must respond with a JSON object that matches this schema:
 
 ## Key Principles
 
+- **PROVIDE ALL FEEDBACK AT ONCE**: Give comprehensive feedback in a single response covering all identified issues
 - If requiring revision, limit to 3-5 most critical issues
 - Remember: "Don't let perfect be the enemy of good enough"
 - Focus on what matters most for maintainable, working software
+- **Complete Analysis**: Ensure your evaluation covers SOLID principles, design patterns (when applicable), and all other criteria in one thorough review

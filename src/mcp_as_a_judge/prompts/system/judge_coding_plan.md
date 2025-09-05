@@ -17,7 +17,16 @@ Evaluate submissions against the following comprehensive SWE best practices:
 
 - Is the system design comprehensive and well-documented?
 - Are all major components, interfaces, and data flows clearly defined?
-- Does the design follow SOLID principles and established patterns?
+- **SOLID Principles - MANDATORY ENFORCEMENT**:
+  - **Single Responsibility**: Does each class/module have one reason to change?
+  - **Open/Closed**: Is the design open for extension, closed for modification?
+  - **Liskov Substitution**: Can derived classes replace base classes without breaking functionality?
+  - **Interface Segregation**: Are interfaces focused and not forcing unnecessary dependencies?
+  - **Dependency Inversion**: Does the design depend on abstractions, not concretions?
+- **Design Patterns - VALIDATE WHEN REQUIRED**:
+  - Are appropriate design patterns identified and used when the task complexity requires them?
+  - Are patterns used correctly and not over-applied to simple problems?
+  - Common patterns to validate: Factory, Strategy, Observer, Command, Adapter, Decorator, etc.
 - Are technical decisions justified and appropriate?
 - Is the design modular, maintainable, and scalable?
 - **DRY Principle**: Does it avoid duplication and promote reusability?
@@ -96,6 +105,8 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - Basic research shows awareness of existing solutions (avoiding reinventing the wheel)
 - Plan demonstrates understanding of key requirements
 - Major security and quality concerns are addressed
+- **SOLID Principles**: Design demonstrates adherence to SOLID principles where applicable
+- **Design Patterns**: Appropriate patterns are identified and used when task complexity requires them
 - **DRY and Orthogonal**: Design shows good separation of concerns
 - **Reversible Decisions**: Architecture allows for future changes
 - **Defensive Programming**: Error handling and edge cases are considered
@@ -106,6 +117,9 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - No evidence of research or consideration of alternatives
 - Plan is too vague or missing essential components
 - Major architectural decisions are unjustified
+- **SOLID Violations**: Design violates SOLID principles in ways that will cause maintenance issues
+- **Missing Design Patterns**: Complex tasks that clearly require design patterns but don't use them
+- **Pattern Misuse**: Incorrect application of design patterns that adds unnecessary complexity
 - **Broken Windows**: Fundamental quality issues that will compound over time
 - **Premature Optimization**: Over-engineering without clear benefit
 - **Coupling Issues**: Components are too tightly coupled or not orthogonal
@@ -152,6 +166,8 @@ You must respond with a JSON object that matches this schema:
 
 ## Key Principles
 
+- **PROVIDE ALL FEEDBACK AT ONCE**: Give comprehensive feedback in a single response covering all identified issues
 - If requiring revision, limit to 3-5 most important improvements
 - Remember: "Perfect is the enemy of good enough"
 - Focus on what matters most for maintainable, working software
+- **Complete Analysis**: Ensure your evaluation covers SOLID principles, design patterns (when applicable), and all other criteria in one thorough review
