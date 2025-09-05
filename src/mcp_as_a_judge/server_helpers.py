@@ -27,8 +27,9 @@ def initialize_llm_configuration() -> None:
     llm_config = load_llm_config_from_env()
     if llm_config:
         llm_manager.configure(llm_config)
+        vendor_name = llm_config.vendor.value if llm_config.vendor else "unknown"
         print(
-            f"LLM fallback configured: {llm_config.vendor.value} with model {llm_config.model_name}"
+            f"LLM fallback configured: {vendor_name} with model {llm_config.model_name}"
         )
     else:
         print("No LLM API key found in environment. MCP sampling will be required.")

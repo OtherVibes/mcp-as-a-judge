@@ -152,7 +152,7 @@ def create_llm_config(
     if model_name is None:
         model_name = get_default_model(vendor)
 
-    return LLMConfig(api_key=api_key, model_name=model_name, vendor=vendor, **kwargs)
+    return LLMConfig(api_key=api_key, model_name=model_name, vendor=vendor)
 
 
 def load_llm_config_from_env() -> LLMConfig | None:

@@ -8,8 +8,6 @@ and fallback functionality when MCP sampling is not available.
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from mcp_as_a_judge.llm_client import LLMClient, LLMClientManager
 from mcp_as_a_judge.llm_integration import (
     LLMConfig,

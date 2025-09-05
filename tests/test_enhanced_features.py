@@ -5,7 +5,6 @@ This module tests the new user requirements alignment and
 elicitation functionality.
 """
 
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

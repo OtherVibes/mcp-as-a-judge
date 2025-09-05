@@ -5,8 +5,6 @@ import inspect
 import os
 import sys
 
-import pytest
-
 from mcp_as_a_judge.server import judge_coding_plan
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

@@ -66,7 +66,8 @@ class LLMProvider:
         try:
             if provider.provider_type == "mcp_sampling":
                 # For MCP sampling, pass original messages directly
-                response = await provider.send_message_direct(messages, config)
+                # Type ignore because MCPSamplingProvider has send_message_direct method
+                response = await provider.send_message_direct(messages, config)  # type: ignore[attr-defined]
             else:
                 # For LLM API, convert to universal format first
                 universal_messages = mcp_messages_to_universal(messages)
@@ -79,7 +80,7 @@ class LLMProvider:
 
             # Provider successfully used
 
-            return response
+            return str(response)
 
         except Exception as e:
             # If MCP sampling failed and LLM API is available, try fallback

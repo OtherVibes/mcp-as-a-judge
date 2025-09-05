@@ -1,0 +1,23 @@
+{
+  "name": "Automatic Copilot Code Review",
+  "enforcement": "active",
+  "target": "branch",
+  "conditions": {
+    "ref_name": {
+      "include": ["~ALL"]
+    }
+  },
+  "rules": [
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false,
+        "pull_request_review_from_copilot": true
+      }
+    }
+  ]
+}

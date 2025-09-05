@@ -12,6 +12,8 @@ paths = [
     "tests/test_enhanced_features.py",
     "tests/test_llm_fallback.py",
     "tests/test_messaging_layer.py",
+    # README contains example API key format (LLM_API_REDACTED)
+    "README.md",
 ]
 
 # Allowlist specific patterns that are known to be safe
@@ -33,6 +35,10 @@ regexes = [
     
     # Test assertions with fake keys
     '''assert\s+config\.api_key\s*==\s*["'][a-zA-Z0-9_-]{32,}["']''',
+
+    # README documentation examples with REDACTED placeholder
+    '''LLM_API_REDACTED''',
+    '''export\s+LLM_API_REDACTED''',
 ]
 
 # Rules configuration

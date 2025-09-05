@@ -28,8 +28,10 @@ def messages_to_mcp_format(messages: list[Message]) -> list[Any]:
 
     for msg in messages:
         # Create proper MCP SamplingMessage objects
+        # Ensure role is valid for SamplingMessage
+        valid_role = msg.role if msg.role in ["user", "assistant"] else "user"
         mcp_msg = SamplingMessage(
-            role=msg.role, content=TextContent(type="text", text=msg.content)
+            role=valid_role, content=TextContent(type="text", text=msg.content)  # type: ignore[arg-type]
         )
         mcp_messages.append(mcp_msg)
 

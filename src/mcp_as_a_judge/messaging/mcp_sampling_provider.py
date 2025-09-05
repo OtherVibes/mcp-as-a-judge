@@ -61,7 +61,7 @@ class MCPSamplingProvider(MessagingProvider):
 
         # Extract text from response
         if hasattr(result.content, "type") and result.content.type == "text":
-            return result.content.text
+            return str(result.content.text)
         else:
             return str(result.content)
 
@@ -88,7 +88,7 @@ class MCPSamplingProvider(MessagingProvider):
 
         # Extract text from response
         if hasattr(result.content, "type") and result.content.type == "text":
-            return result.content.text
+            return str(result.content.text)
         else:
             return str(result.content)
 
@@ -117,14 +117,15 @@ class MCPSamplingProvider(MessagingProvider):
         try:
             import mcp.types as types
 
-            return self.context.session.check_client_capability(
+            result = self.context.session.check_client_capability(
                 types.ClientCapabilities(sampling=types.SamplingCapability())
             )
+            return bool(result)
         except Exception:
             # If the check fails, fall back to basic method existence check
-            return hasattr(self.context.session, "create_message") and callable(
-                self.context.session.create_message
-            )
+            has_method = hasattr(self.context.session, "create_message")
+            is_callable = callable(getattr(self.context.session, "create_message", None))
+            return bool(has_method and is_callable)
 
     @property
     def provider_type(self) -> str:

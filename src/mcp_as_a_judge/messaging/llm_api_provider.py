@@ -25,14 +25,14 @@ class LLMAPIProvider(MessagingProvider):
     Google, etc.) through LiteLLM.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the LLM API provider.
 
         Automatically configures the LLM manager from environment if not already configured.
         """
         self._ensure_configured()
 
-    def _ensure_configured(self):
+    def _ensure_configured(self) -> None:
         """Ensure LLM manager is configured from environment."""
         if not llm_manager.is_available():
             config = load_llm_config_from_env()

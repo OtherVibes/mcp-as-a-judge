@@ -159,9 +159,10 @@ class ElicitationProvider:
         """
         try:
             # Check if the client declared elicitation capability during initialization
-            return ctx.session.check_client_capability(
+            result = ctx.session.check_client_capability(
                 types.ClientCapabilities(elicitation=types.ElicitationCapability())
             )
+            return bool(result)
         except Exception:
             # Fallback to basic method check if session capability check fails
             return hasattr(ctx, "elicit") and callable(ctx.elicit)

@@ -12,11 +12,11 @@ from mcp_as_a_judge.server import raise_missing_requirements
 async def test_real_scenario():
     """Test real scenario with no success check."""
     print("Testing real scenario with no success check...")
-    
+
     # Create a mock context that doesn't support elicitation
     mock_ctx = MagicMock()
     mock_ctx.elicit = MagicMock(side_effect=Exception("Method not found"))
-    
+
     # Test the raise_missing_requirements function
     result = await raise_missing_requirements(
         current_request="Implement a new API endpoint for user profile updates",
@@ -32,11 +32,11 @@ async def test_real_scenario():
         ],
         ctx=mock_ctx
     )
-    
+
     print(f"Result type: {type(result)}")
     print(f"Result length: {len(result)}")
     print(f"Result preview: {result[:200]}...")
-    
+
     # Check what type of message we get
     if "ELICITATION NOT AVAILABLE" in result:
         print("❌ Still getting fallback message")

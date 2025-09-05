@@ -27,13 +27,13 @@ class LLMClient:
             config: LLM configuration including API key and model settings
         """
         self.config = config
-        self._litellm = None
+        self._litellm: Any = None
         self._initialize_litellm()
 
     def _initialize_litellm(self) -> None:
         """Initialize LiteLLM with lazy loading."""
         try:
-            self._litellm = litellm
+            self._litellm = litellm  # type: ignore[assignment]
 
             # Set API key based on vendor
             if self.config.api_key:
@@ -178,7 +178,7 @@ class LLMClient:
                     if not content or len(content.strip()) == 0:
                         raise ValueError("Empty response from LLM")
 
-                    return content
+                    return str(content)
 
             raise ValueError(
                 f"Unexpected response format from LLM. Response: {response}"
@@ -203,7 +203,7 @@ class LLMClient:
 class LLMClientManager:
     """Manager for LLM client instances."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize LLM client manager."""
         self._client: LLMClient | None = None
         self._config: LLMConfig | None = None
