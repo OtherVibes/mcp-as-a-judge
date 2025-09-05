@@ -132,7 +132,7 @@ Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
          "command": "docker",
          "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/hepivax/mcp-as-a-judge:latest"],
          "env": {
-           "LLM_API_KEY": "sk-your-openai-api-key-here",
+           "LLM_API_KEY": "your-openai-api-key-here",
            "LLM_MODEL_NAME": "gpt-4o-mini"
          }
        }
@@ -259,7 +259,7 @@ All default models are optimized for **coding and reasoning tasks** with emphasi
          "command": "uv",
          "args": ["tool", "run", "mcp-as-a-judge"],
          "env": {
-           "LLM_API_KEY": "sk-your-openai-api-key-here",
+           "LLM_API_KEY": "your-openai-api-key-here",
            "LLM_MODEL_NAME": "gpt-4.1"
          }
        }
@@ -276,7 +276,7 @@ All default models are optimized for **coding and reasoning tasks** with emphasi
 1. **Add MCP Server via CLI:**
    ```bash
    # Set environment variables first (optional model override)
-   export LLM_API_KEY="sk-ant-your-anthropic-api-key-here"
+   export LLM_API_KEY="your-anthropic-api-key-here"
    export LLM_MODEL_NAME="claude-3-5-haiku"  # Optional: faster/cheaper model
 
    # Add MCP server
@@ -292,7 +292,7 @@ All default models are optimized for **coding and reasoning tasks** with emphasi
          "command": "uv",
          "args": ["tool", "run", "mcp-as-a-judge"],
          "env": {
-           "LLM_API_KEY": "sk-ant-your-anthropic-api-key-here",
+           "LLM_API_KEY": "your-anthropic-api-key-here",
            "LLM_MODEL_NAME": "claude-3-5-haiku"
          }
        }
@@ -315,7 +315,7 @@ For other MCP-compatible clients, use the standard MCP server configuration:
       "command": "uv",
       "args": ["tool", "run", "mcp-as-a-judge"],
       "env": {
-        "LLM_API_KEY": "sk-your-openai-api-key-here",
+        "LLM_API_KEY": "your-openai-api-key-here",
         "LLM_MODEL_NAME": "gpt-4o-mini"
       }
      }

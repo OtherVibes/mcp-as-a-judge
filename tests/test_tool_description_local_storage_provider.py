@@ -105,6 +105,7 @@ class TestToolDescriptionLocalStorageProvider:
 
         # Small delay to ensure file system operations complete
         import time
+
         time.sleep(0.01)
 
         # Should now load updated content
