@@ -124,7 +124,9 @@ class MCPSamplingProvider(MessagingProvider):
         except Exception:
             # If the check fails, fall back to basic method existence check
             has_method = hasattr(self.context.session, "create_message")
-            is_callable = callable(getattr(self.context.session, "create_message", None))
+            is_callable = callable(
+                getattr(self.context.session, "create_message", None)
+            )
             return bool(has_method and is_callable)
 
     @property

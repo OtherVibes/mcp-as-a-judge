@@ -63,7 +63,9 @@ def test_function_docstring() -> None:
     assert docstring is not None, "Function should have a docstring"
 
     # Check that docstring mentions tool description provider (dynamic loading)
-    assert "tool_description_provider" in docstring.lower(), "Docstring should mention tool_description_provider"
+    assert "tool_description_provider" in docstring.lower(), (
+        "Docstring should mention tool_description_provider"
+    )
     assert "coding plan" in docstring.lower(), "Docstring should mention coding plan"
     print("✓ Docstring mentions tool description provider and coding plan")
 

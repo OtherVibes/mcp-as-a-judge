@@ -5,7 +5,6 @@ This module tests the new user requirements alignment and
 elicitation functionality.
 """
 
-
 import pytest
 
 from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
@@ -105,8 +104,6 @@ def send_slack_message(channel, message):
 
         assert isinstance(result, JudgeResponse)
         assert len(result.feedback) > 0
-
-
 
 
 class TestObstacleResolution:
