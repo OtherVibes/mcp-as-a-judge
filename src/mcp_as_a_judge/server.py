@@ -158,7 +158,9 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
         return f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
 
 
-@mcp.tool(description=tool_description_provider.get_description("raise_missing_requirements"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(
+    description=tool_description_provider.get_description("raise_missing_requirements")
+)  # type: ignore[misc,unused-ignore]
 async def raise_missing_requirements(
     current_request: str,
     identified_gaps: list[str],
@@ -365,7 +367,6 @@ async def judge_coding_plan(
 ) -> JudgeResponse:
     """Coding plan evaluation tool - description loaded from tool_description_provider."""
 
-
     # Handle default value for research_urls
     if research_urls is None:
         research_urls = []
@@ -432,7 +433,6 @@ async def judge_code_change(
     change_description: str = "Change description not provided",
 ) -> JudgeResponse:
     """Code change evaluation tool - description loaded from tool_description_provider."""
-
 
     # Create system and user messages from templates
     system_vars = JudgeCodeChangeSystemVars(

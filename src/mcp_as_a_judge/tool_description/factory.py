@@ -38,7 +38,7 @@ class ToolDescriptionProviderFactory:
             Dictionary with provider availability information
         """
         local_provider = LocalStorageProvider()
-        
+
         return {
             "local_storage": {
                 "available": True,

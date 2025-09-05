@@ -2,12 +2,12 @@
 
 import pytest
 
+from mcp_as_a_judge.tool_description.interface import ToolDescriptionProvider
+from mcp_as_a_judge.tool_description.local_storage_provider import LocalStorageProvider
 from mcp_as_a_judge.tool_description_provider import (
     tool_description_provider,
     tool_description_provider_factory,
 )
-from mcp_as_a_judge.tool_description.interface import ToolDescriptionProvider
-from mcp_as_a_judge.tool_description.local_storage_provider import LocalStorageProvider
 
 
 class TestToolDescriptionIntegration:
@@ -23,7 +23,7 @@ class TestToolDescriptionIntegration:
     def test_server_can_import_factory(self):
         """Test that server can import the tool description factory."""
         assert tool_description_provider_factory is not None
-        
+
         # Test that factory can create providers
         provider = tool_description_provider_factory.create_provider()
         assert isinstance(provider, ToolDescriptionProvider)
@@ -32,9 +32,9 @@ class TestToolDescriptionIntegration:
         """Test that factory and direct import return same type."""
         factory_provider = tool_description_provider_factory.create_provider()
         direct_provider = tool_description_provider
-        
+
         # Both should be the same type
-        assert type(factory_provider) == type(direct_provider)
+        assert type(factory_provider) is type(direct_provider)
         assert factory_provider.provider_type == direct_provider.provider_type
 
     def test_server_import_works(self):
@@ -42,6 +42,7 @@ class TestToolDescriptionIntegration:
         try:
             # This should not raise any import errors
             from mcp_as_a_judge.server import mcp
+
             assert mcp is not None
             assert mcp.name == "MCP-as-a-Judge"
         except ImportError as e:
@@ -55,14 +56,16 @@ class TestToolDescriptionIntegration:
             assert isinstance(description, str)
             assert len(description) > 0
         except FileNotFoundError:
-            pytest.skip("Tool description files not found - may be running in test environment")
+            pytest.skip(
+                "Tool description files not found - may be running in test environment"
+            )
 
     def test_factory_extensibility_design(self):
         """Test that factory is designed for future extensibility."""
         # Verify factory methods exist and work
-        assert hasattr(tool_description_provider_factory, 'create_provider')
-        assert hasattr(tool_description_provider_factory, 'get_available_providers')
-        
+        assert hasattr(tool_description_provider_factory, "create_provider")
+        assert hasattr(tool_description_provider_factory, "get_available_providers")
+
         # Test provider info
         providers_info = tool_description_provider_factory.get_available_providers()
         assert isinstance(providers_info, dict)
@@ -72,10 +75,10 @@ class TestToolDescriptionIntegration:
     def test_backward_compatibility(self):
         """Test that the new factory maintains backward compatibility."""
         # The global tool_description_provider should work the same as before
-        assert hasattr(tool_description_provider, 'get_description')
-        assert hasattr(tool_description_provider, 'get_available_tools')
-        assert hasattr(tool_description_provider, 'clear_cache')
-        
+        assert hasattr(tool_description_provider, "get_description")
+        assert hasattr(tool_description_provider, "get_available_tools")
+        assert hasattr(tool_description_provider, "clear_cache")
+
         # Test that methods are callable
         assert callable(tool_description_provider.get_description)
         assert callable(tool_description_provider.get_available_tools)

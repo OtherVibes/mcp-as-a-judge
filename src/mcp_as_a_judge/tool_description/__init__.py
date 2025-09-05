@@ -10,7 +10,7 @@ from mcp_as_a_judge.tool_description.interface import ToolDescriptionProvider
 from mcp_as_a_judge.tool_description.local_storage_provider import LocalStorageProvider
 
 __all__ = [
+    "LocalStorageProvider",
     "ToolDescriptionProvider",
-    "LocalStorageProvider", 
     "ToolDescriptionProviderFactory",
 ]

@@ -81,8 +81,6 @@ class LLMClient:
             # Fallback to generic API key
             self._litellm.api_key = api_key
 
-
-
     def _get_model_name(self) -> str:
         """Get the full model name with vendor prefix for LiteLLM."""
         if not self.config.model_name:

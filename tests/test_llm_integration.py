@@ -26,55 +26,61 @@ class TestVendorDetection:
 
     def test_detect_openai_key(self):
         """Test OpenAI API key detection."""
-        api_key = "sk-1234567890abcdef1234567890abcdef"
+        api_key = (
+            "sk-1234567890abcdef1234567890abcdef"  # gitleaks:allow  # gitleaks:allow
+        )
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.OPENAI
 
     def test_detect_anthropic_key(self):
         """Test Anthropic API key detection."""
-        api_key = "sk-ant-api03-1234567890abcdef1234567890abcdef"
+        api_key = "sk-ant-api03-1234567890abcdef1234567890abcdef"  # gitleaks:allow
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.ANTHROPIC
 
     def test_detect_google_key(self):
         """Test Google API key detection."""
-        api_key = "AIzaSyDaGmWKa4JsXZ-HjGw7ISLan_PizdGIrQc"
+        api_key = "AIzaSyDaGmWKa4JsXZ-HjGw7ISLan_PizdGIrQc"  # gitleaks:allow
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.GOOGLE
 
     def test_detect_groq_key(self):
         """Test Groq API key detection."""
-        api_key = "gsk_1234567890abcdef1234567890abcdef1234567890abcdef12"
+        api_key = (
+            "gsk_1234567890abcdef1234567890abcdef1234567890abcdef12"  # gitleaks:allow
+        )
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.GROQ
 
     def test_detect_xai_key(self):
         """Test xAI API key detection."""
-        api_key = "xai-1234567890abcdef1234567890abcdef12345678"
+        api_key = "xai-1234567890abcdef1234567890abcdef12345678"  # gitleaks:allow
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.XAI
 
     def test_detect_openrouter_key(self):
         """Test OpenRouter API key detection."""
-        api_key = "sk-or-1234567890abcdef1234567890abcdef1234567890abcdef"
+        api_key = (
+            "sk-or-1234567890abcdef1234567890abcdef1234567890abcdef"  # gitleaks:allow
+        )
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.OPENROUTER
 
     def test_detect_mistral_key(self):
         """Test Mistral API key detection."""
-        api_key = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        api_key = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"  # gitleaks:allow
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.MISTRAL
 
     def test_detect_azure_key(self):
         """Test Azure API key detection."""
-        api_key = "1234567890abcdef1234567890abcdef"
+        api_key = "1234567890abcdef1234567890abcdef"  # gitleaks:allow
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.AZURE
 
     def test_detect_unknown_key(self):
         """Test unknown API key pattern."""
-        api_key = "unknown-key-format"
+        api_key = "unknown-key-format"  # gitleaks:allow
         vendor = detect_vendor_from_api_key(api_key)
         assert vendor == LLMVendor.UNKNOWN
 
@@ -95,52 +101,52 @@ class TestDefaultModels:
     def test_get_openai_default(self):
         """Test OpenAI default model."""
         model = get_default_model(LLMVendor.OPENAI)
-        assert model == "gpt-5"
+        assert model == "gpt-5"  # gitleaks:allow
 
     def test_get_anthropic_default(self):
         """Test Anthropic default model."""
         model = get_default_model(LLMVendor.ANTHROPIC)
-        assert model == "claude-sonnet-4-20250514"
+        assert model == "claude-sonnet-4-20250514"  # gitleaks:allow
 
     def test_get_google_default(self):
         """Test Google default model."""
         model = get_default_model(LLMVendor.GOOGLE)
-        assert model == "gemini-2.5-pro"
+        assert model == "gemini-2.5-pro"  # gitleaks:allow
 
     def test_get_groq_default(self):
         """Test Groq default model."""
         model = get_default_model(LLMVendor.GROQ)
-        assert model == "deepseek-r1"
+        assert model == "deepseek-r1"  # gitleaks:allow
 
     def test_get_xai_default(self):
         """Test xAI default model."""
         model = get_default_model(LLMVendor.XAI)
-        assert model == "grok-code-fast-1"
+        assert model == "grok-code-fast-1"  # gitleaks:allow
 
     def test_get_mistral_default(self):
         """Test Mistral default model."""
         model = get_default_model(LLMVendor.MISTRAL)
-        assert model == "pixtral-large"
+        assert model == "pixtral-large"  # gitleaks:allow
 
     def test_get_openrouter_default(self):
         """Test OpenRouter default model."""
         model = get_default_model(LLMVendor.OPENROUTER)
-        assert model == "deepseek/deepseek-r1"
+        assert model == "deepseek/deepseek-r1"  # gitleaks:allow
 
     def test_get_aws_bedrock_default(self):
         """Test AWS Bedrock default model."""
         model = get_default_model(LLMVendor.AWS_BEDROCK)
-        assert model == "anthropic.claude-sonnet-4-20250514-v1:0"
+        assert model == "anthropic.claude-sonnet-4-20250514-v1:0"  # gitleaks:allow
 
     def test_get_vertex_ai_default(self):
         """Test Vertex AI default model."""
         model = get_default_model(LLMVendor.VERTEX_AI)
-        assert model == "gemini-2.5-pro"
+        assert model == "gemini-2.5-pro"  # gitleaks:allow
 
     def test_get_unknown_default(self):
         """Test unknown vendor default model."""
         model = get_default_model(LLMVendor.UNKNOWN)
-        assert model == "gpt-5"
+        assert model == "gpt-5"  # gitleaks:allow
 
 
 class TestLLMConfig:
@@ -148,23 +154,23 @@ class TestLLMConfig:
 
     def test_create_config_with_auto_detection(self):
         """Test config creation with automatic vendor detection."""
-        api_key = "sk-1234567890abcdef1234567890abcdef"
+        api_key = "sk-1234567890abcdef1234567890abcdef"  # gitleaks:allow
         config = create_llm_config(api_key=api_key)
 
         assert config.api_key == api_key
         assert config.vendor == LLMVendor.OPENAI
-        assert config.model_name == "gpt-5"
+        assert config.model_name == "gpt-5"  # gitleaks:allow
 
     def test_create_config_with_explicit_vendor(self):
         """Test config creation with explicit vendor."""
-        api_key = "custom-key"
+        api_key = "custom-key"  # gitleaks:allow
         config = create_llm_config(
             api_key=api_key, vendor=LLMVendor.ANTHROPIC, model_name="claude-3-opus"
         )
 
         assert config.api_key == api_key
         assert config.vendor == LLMVendor.ANTHROPIC
-        assert config.model_name == "claude-3-opus"
+        assert config.model_name == "claude-3-opus"  # gitleaks:allow
 
     def test_create_config_no_api_key(self):
         """Test config creation without API key."""
@@ -172,7 +178,7 @@ class TestLLMConfig:
 
         assert config.api_key is None
         assert config.vendor == LLMVendor.UNKNOWN
-        assert config.model_name == "gpt-5"
+        assert config.model_name == "gpt-5"  # gitleaks:allow
 
 
 class TestEnvironmentLoading:
@@ -191,9 +197,11 @@ class TestEnvironmentLoading:
             config = load_llm_config_from_env()
 
             assert config is not None
-            assert config.api_key == "sk-1234567890abcdef1234567890abcdef"
+            assert (
+                config.api_key == "sk-1234567890abcdef1234567890abcdef"
+            )  # gitleaks:allow
             assert config.vendor == LLMVendor.OPENAI
-            assert config.model_name == "gpt-4-turbo"
+            assert config.model_name == "gpt-4-turbo"  # gitleaks:allow
 
     def test_load_anthropic_from_env(self):
         """Test loading Anthropic config from environment."""
@@ -205,9 +213,11 @@ class TestEnvironmentLoading:
             config = load_llm_config_from_env()
 
             assert config is not None
-            assert config.api_key == "sk-ant-api03-1234567890abcdef1234567890abcdef"
+            assert (
+                config.api_key == "sk-ant-api03-1234567890abcdef1234567890abcdef"
+            )  # gitleaks:allow
             assert config.vendor == LLMVendor.ANTHROPIC
-            assert config.model_name == "claude-sonnet-4-20250514"
+            assert config.model_name == "claude-sonnet-4-20250514"  # gitleaks:allow
 
     def test_load_no_env_vars(self):
         """Test loading when no environment variables are set."""
@@ -233,7 +243,7 @@ class TestLLMClient:
         mock_import.side_effect = side_effect
 
         config = LLMConfig(
-            api_key="sk-1234567890abcdef1234567890abcdef",
+            api_key="sk-1234567890abcdef1234567890abcdef",  # gitleaks:allow
             vendor=LLMVendor.OPENAI,
             model_name="gpt-4o",
         )
@@ -256,7 +266,7 @@ class TestLLMClient:
         mock_import.side_effect = side_effect
 
         config = LLMConfig(
-            api_key="sk-1234567890abcdef1234567890abcdef",
+            api_key="sk-1234567890abcdef1234567890abcdef",  # gitleaks:allow
             vendor=LLMVendor.OPENAI,
             model_name="gpt-4o",
         )
@@ -295,7 +305,7 @@ class TestLLMClient:
         mock_import.side_effect = side_effect
 
         config = LLMConfig(
-            api_key="sk-1234567890abcdef1234567890abcdef",
+            api_key="sk-1234567890abcdef1234567890abcdef",  # gitleaks:allow
             vendor=LLMVendor.OPENAI,
             model_name="gpt-4o",
         )
@@ -311,7 +321,7 @@ class TestLLMClientManager:
         """Test manager configuration."""
         manager = LLMClientManager()
         config = LLMConfig(
-            api_key="sk-test123", vendor=LLMVendor.OPENAI, model_name="gpt-4o"
+            api_key="sk-test123",  # gitleaks:allow vendor=LLMVendor.OPENAI, model_name="gpt-4o"
         )
 
         with patch("mcp_as_a_judge.llm_client.LLMClient") as mock_client_class:
@@ -323,7 +333,7 @@ class TestLLMClientManager:
         """Test getting client from manager."""
         manager = LLMClientManager()
         config = LLMConfig(
-            api_key="sk-test123", vendor=LLMVendor.OPENAI, model_name="gpt-4o"
+            api_key="sk-test123",  # gitleaks:allow vendor=LLMVendor.OPENAI, model_name="gpt-4o"
         )
 
         with patch("mcp_as_a_judge.llm_client.LLMClient") as mock_client_class:

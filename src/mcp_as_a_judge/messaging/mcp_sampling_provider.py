@@ -134,5 +134,3 @@ class MCPSamplingProvider(MessagingProvider):
             String identifier for this provider type
         """
         return "mcp_sampling"
-
-

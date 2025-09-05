@@ -1,12 +1,11 @@
 """Tests for the tool description provider factory."""
 
 import pytest
-from pathlib import Path
 
 from mcp_as_a_judge.tool_description.factory import (
     ToolDescriptionProviderFactory,
-    tool_description_provider_factory,
     tool_description_provider,
+    tool_description_provider_factory,
 )
 from mcp_as_a_judge.tool_description.interface import ToolDescriptionProvider
 from mcp_as_a_judge.tool_description.local_storage_provider import LocalStorageProvider
@@ -19,7 +18,7 @@ class TestToolDescriptionProviderFactory:
         """Test that factory creates local storage provider."""
         factory = ToolDescriptionProviderFactory()
         provider = factory.create_provider()
-        
+
         assert isinstance(provider, LocalStorageProvider)
         assert isinstance(provider, ToolDescriptionProvider)
         assert provider.provider_type == "local_storage"
@@ -28,7 +27,7 @@ class TestToolDescriptionProviderFactory:
         """Test getting available providers information."""
         factory = ToolDescriptionProviderFactory()
         providers = factory.get_available_providers()
-        
+
         assert isinstance(providers, dict)
         assert "local_storage" in providers
         assert providers["local_storage"]["available"] is True
@@ -38,7 +37,7 @@ class TestToolDescriptionProviderFactory:
         """Test that static methods work correctly."""
         provider = ToolDescriptionProviderFactory.create_provider()
         providers = ToolDescriptionProviderFactory.get_available_providers()
-        
+
         assert isinstance(provider, LocalStorageProvider)
         assert isinstance(providers, dict)
         assert "local_storage" in providers
@@ -50,7 +49,9 @@ class TestGlobalFactoryInstances:
     def test_global_factory_instance_exists(self):
         """Test that global factory instance is available."""
         assert tool_description_provider_factory is not None
-        assert isinstance(tool_description_provider_factory, ToolDescriptionProviderFactory)
+        assert isinstance(
+            tool_description_provider_factory, ToolDescriptionProviderFactory
+        )
 
     def test_global_provider_instance_exists(self):
         """Test that global provider instance is available."""
@@ -66,7 +67,9 @@ class TestGlobalFactoryInstances:
             assert isinstance(description, str)
             assert len(description) > 0
         except FileNotFoundError:
-            pytest.skip("Tool description files not found - may be running in test environment")
+            pytest.skip(
+                "Tool description files not found - may be running in test environment"
+            )
 
     def test_global_provider_can_list_tools(self):
         """Test that global provider can list available tools."""
@@ -74,13 +77,15 @@ class TestGlobalFactoryInstances:
             available_tools = tool_description_provider.get_available_tools()
             assert isinstance(available_tools, list)
         except Exception:
-            pytest.skip("Tool description directory not accessible - may be running in test environment")
+            pytest.skip(
+                "Tool description directory not accessible - may be running in test environment"
+            )
 
     def test_global_provider_cache_operations(self):
         """Test that global provider cache operations work."""
         # Test that clear_cache doesn't raise errors
         tool_description_provider.clear_cache()
-        
+
         # Test that provider_type is accessible
         assert tool_description_provider.provider_type == "local_storage"
 
@@ -92,17 +97,17 @@ class TestFactoryExtensibility:
         """Test that factory pattern supports future extensions."""
         # This test verifies the factory pattern is properly structured
         # for future extensions (additional provider types)
-        
+
         # Verify the factory returns the interface type
         provider = ToolDescriptionProviderFactory.create_provider()
         assert isinstance(provider, ToolDescriptionProvider)
-        
+
         # Verify the provider has all required interface methods
-        assert hasattr(provider, 'get_description')
-        assert hasattr(provider, 'get_available_tools')
-        assert hasattr(provider, 'clear_cache')
-        assert hasattr(provider, 'provider_type')
-        
+        assert hasattr(provider, "get_description")
+        assert hasattr(provider, "get_available_tools")
+        assert hasattr(provider, "clear_cache")
+        assert hasattr(provider, "provider_type")
+
         # Verify methods are callable
         assert callable(provider.get_description)
         assert callable(provider.get_available_tools)
@@ -111,7 +116,7 @@ class TestFactoryExtensibility:
     def test_provider_interface_compliance(self):
         """Test that the created provider complies with the interface."""
         provider = ToolDescriptionProviderFactory.create_provider()
-        
+
         # Test that all interface methods exist and have correct signatures
         try:
             # These should not raise AttributeError

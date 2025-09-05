@@ -6,7 +6,7 @@ using the existing llm_client infrastructure. This serves as a fallback when
 MCP sampling is not available.
 """
 
-from mcp_as_a_judge.constants import MAX_TOKENS, DEFAULT_TEMPERATURE
+from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
 from mcp_as_a_judge.llm_client import llm_manager
 from mcp_as_a_judge.llm_integration import load_llm_config_from_env
 from mcp_as_a_judge.messaging.converters import messages_to_llm_format
@@ -90,8 +90,6 @@ class LLMAPIProvider(MessagingProvider):
             String identifier for this provider type
         """
         return "llm_api"
-
-
 
     def get_vendor_info(self) -> dict:
         """Get information about the configured LLM vendor.

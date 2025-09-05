@@ -101,7 +101,10 @@ async def generate_validation_error_message(
 
         # Use sampling to generate descriptive error message
         response_text = await llm_provider.send_message(
-            messages=messages, ctx=ctx, max_tokens=MAX_TOKENS, prefer_sampling=True
+            messages=messages,
+            ctx=ctx,
+            max_tokens=MAX_TOKENS,
+            prefer_sampling=True,  # gitleaks:allow
         )
         return response_text.strip()
 
@@ -149,7 +152,10 @@ async def generate_dynamic_elicitation_model(
 
         # Use LLM to generate field definitions
         schema_text = await llm_provider.send_message(
-            messages=messages, ctx=ctx, max_tokens=MAX_TOKENS, prefer_sampling=True
+            messages=messages,
+            ctx=ctx,
+            max_tokens=MAX_TOKENS,
+            prefer_sampling=True,  # gitleaks:allow
         )
 
         # Parse the field definitions JSON
@@ -183,7 +189,9 @@ def create_pydantic_model_from_fields(fields_dict: dict) -> type[BaseModel]:
         # Handle cases where LLM returns boolean instead of dict
         if isinstance(field_config, dict):
             is_required = field_config.get("required", False)
-            description = field_config.get("description", field_name.replace("_", " ").title())
+            description = field_config.get(
+                "description", field_name.replace("_", " ").title()
+            )
         elif isinstance(field_config, bool):
             # LLM returned boolean - treat as required flag
             is_required = field_config
@@ -191,7 +199,11 @@ def create_pydantic_model_from_fields(fields_dict: dict) -> type[BaseModel]:
         else:
             # LLM returned something else (string, etc.) - treat as description
             is_required = False
-            description = str(field_config) if field_config else field_name.replace("_", " ").title()
+            description = (
+                str(field_config)
+                if field_config
+                else field_name.replace("_", " ").title()
+            )
 
         # All fields are strings (text input) as per MCP elicitation constraints
         # MCP elicitation only supports primitive types, no unions like str | None
@@ -217,10 +229,3 @@ def create_pydantic_model_from_fields(fields_dict: dict) -> type[BaseModel]:
     )
 
     return dynamic_elicitation_model
-
-
-
-
-
-
-

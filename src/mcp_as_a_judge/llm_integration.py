@@ -12,7 +12,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from mcp_as_a_judge.constants import MAX_TOKENS, DEFAULT_TEMPERATURE
+from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
 
 
 class LLMVendor(str, Enum):
@@ -173,6 +173,3 @@ def load_llm_config_from_env() -> LLMConfig | None:
         return create_llm_config(api_key=api_key, model_name=model_name)
 
     return None
-
-
-

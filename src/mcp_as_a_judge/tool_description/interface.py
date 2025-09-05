@@ -42,7 +42,7 @@ class ToolDescriptionProvider(ABC):
     @abstractmethod
     def clear_cache(self) -> None:
         """Clear any cached descriptions.
-        
+
         Useful for testing or when description files are updated at runtime.
         """
         pass

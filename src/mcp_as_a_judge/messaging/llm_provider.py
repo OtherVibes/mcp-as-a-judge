@@ -10,7 +10,7 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
-from mcp_as_a_judge.constants import MAX_TOKENS, DEFAULT_TEMPERATURE
+from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
 from mcp_as_a_judge.messaging.converters import (
     mcp_messages_to_universal,
     validate_message_conversion,
@@ -122,7 +122,7 @@ class LLMProvider:
                         )
                         return response
 
-                    except Exception:
+                    except Exception:  # nosec B110 - Intentional fallback when LLM API unavailable
                         # LLM API fallback failed, fall through to original error handling
                         # This is expected when no LLM API is configured
                         pass
