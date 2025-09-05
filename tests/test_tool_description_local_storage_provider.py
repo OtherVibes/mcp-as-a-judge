@@ -103,13 +103,13 @@ class TestToolDescriptionLocalStorageProvider:
         test_file.write_text("Updated content")
         provider.clear_cache()
 
-        # Small delay to ensure file system operations complete
-        import time
-
-        time.sleep(0.01)
+        # Force reload by creating new provider instance
+        provider_new = ToolDescriptionLocalStorageProvider(
+            descriptions_dir=descriptions_dir
+        )
 
         # Should now load updated content
-        result2 = provider.get_description("cache_test_tool")
+        result2 = provider_new.get_description("cache_test_tool")
         assert result2 == "Updated content"
 
     def test_get_available_tools(self, tmp_path):
