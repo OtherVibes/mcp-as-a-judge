@@ -31,7 +31,7 @@ class ToolDescriptionProviderFactory:
         return LocalStorageProvider()
 
     @staticmethod
-    def get_available_providers() -> dict[str, bool]:
+    def get_available_providers() -> dict[str, dict[str, object]]:
         """Get information about all available providers.
 
         Returns:

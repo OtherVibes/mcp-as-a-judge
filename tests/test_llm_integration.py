@@ -154,7 +154,7 @@ class TestLLMConfig:
 
     def test_create_config_with_auto_detection(self):
         """Test config creation with automatic vendor detection."""
-        api_key = "sk-1234567890abcdef1234567890abcdef"  # gitleaks:allow
+        api_key = "sk-test1234567890abcdef1234567890ab"  # Test key - not real
         config = create_llm_config(api_key=api_key)
 
         assert config.api_key == api_key

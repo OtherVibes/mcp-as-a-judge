@@ -9,7 +9,7 @@ __version__ = "1.0.0"
 
 
 # Lazy imports to avoid dependency issues in Cloudflare Workers
-def __getattr__(name):
+def __getattr__(name: str) -> object:
     if name == "JudgeResponse":
         from mcp_as_a_judge.models import JudgeResponse
 
