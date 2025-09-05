@@ -3,8 +3,9 @@
 
 import inspect
 import os
-import pytest
 import sys
+
+import pytest
 
 from mcp_as_a_judge.server import judge_coding_plan
 
