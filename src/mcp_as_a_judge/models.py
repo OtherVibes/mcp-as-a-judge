@@ -5,9 +5,10 @@ This module contains all Pydantic models used for data validation,
 serialization, and API contracts.
 """
 
+from datetime import datetime
 from pydantic import BaseModel, Field
 
-from mcp_as_a_judge.llm_integration import LLMConfig
+from .llm_integration import LLMConfig
 
 
 class JudgeResponse(BaseModel):
@@ -90,6 +91,47 @@ class ResearchValidationResponse(BaseModel):
     )
     feedback: str = Field(
         description="Detailed feedback on research quality and design alignment"
+    )
+
+
+# Database models for conversation history
+
+class ConversationRecord(BaseModel):
+    """Model for conversation history records stored in database."""
+
+    id: str = Field(description="Unique identifier for the conversation record")
+    session_id: str = Field(description="Session identifier from AI agent")
+    source: str = Field(description="Tool name that generated this record")
+    input: str = Field(description="Tool input query")
+    context: list[str] = Field(
+        default_factory=list,
+        description="JSON array of conversation IDs for historical context"
+    )
+    output: str = Field(description="Tool output string")
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the conversation record was created"
+    )
+
+
+class DatabaseConfig(BaseModel):
+    """Configuration for database connection and provider selection."""
+
+    provider: str = Field(
+        default="in_memory",
+        description="Database provider type: 'in_memory', 'sqlite', 'postgresql'"
+    )
+    url: str = Field(
+        default="",
+        description="Database connection URL (empty for in-memory)"
+    )
+    max_context_records: int = Field(
+        default=20,
+        description="Maximum number of conversation records to keep per session (LRU cleanup)"
+    )
+    context_enrichment_count: int = Field(
+        default=5,
+        description="Number of recent conversation records to load for LLM context enrichment"
     )
 
 

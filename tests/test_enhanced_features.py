@@ -2,21 +2,192 @@
 Tests for enhanced MCP as a Judge features.
 
 This module tests the new user requirements alignment and
-elicitation functionality.
+elicitation functionality, plus conversation history integration.
 """
 
+import json
+import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from mcp_as_a_judge.config import Config
+from mcp_as_a_judge.conversation_history_service import ConversationHistoryService
+from mcp_as_a_judge.db import create_database_provider
+from mcp_as_a_judge.models import DatabaseConfig, JudgeResponse, WorkflowGuidance
 from mcp_as_a_judge.server import (
     build_workflow,
+    conversation_service,
     judge_code_change,
     judge_coding_plan,
     raise_missing_requirements,
     raise_obstacle,
 )
+
+
+@pytest.fixture
+def test_conversation_service():
+    """Create a test conversation history service with in-memory database."""
+    config = Config(
+        database=DatabaseConfig(
+            provider="in_memory",
+            url="",
+            max_context_records=5,  # Small limit for testing
+            context_enrichment_count=3  # Small count for testing
+        ),
+        enable_llm_fallback=True
+    )
+    db_provider = create_database_provider(config)
+    return ConversationHistoryService(config, db_provider)
+
+
+@pytest.fixture
+def mock_context_with_session():
+    """Create a mock context with session_id for conversation history testing."""
+    context = MagicMock()
+    context.session_id = "test_session_123"
+
+    # Mock sampling capability
+    context.session = MagicMock()
+    context.session.create_message = AsyncMock(return_value=MagicMock(
+        content=[MagicMock(text='{"approved": true, "required_improvements": [], "feedback": "Test feedback"}')]
+    ))
+
+    return context
+
+
+class TestConversationHistoryIntegration:
+    """Test conversation history integration with MCP judge tools."""
+
+    @pytest.mark.asyncio
+    async def test_conversation_service_initialization(self, test_conversation_service):
+        """Test that conversation service initializes correctly."""
+        assert test_conversation_service is not None
+        assert test_conversation_service.config.database.max_context_records == 5
+        assert test_conversation_service.config.database.context_enrichment_count == 3
+
+    @pytest.mark.asyncio
+    async def test_judge_coding_plan_saves_conversation_record(self, mock_context_with_session, test_conversation_service):
+        """Test that judge_coding_plan saves conversation records."""
+        # Replace the global conversation service temporarily
+        import mcp_as_a_judge.server as server_module
+        original_service = server_module.conversation_service
+        server_module.conversation_service = test_conversation_service
+
+        try:
+            # Call the tool
+            result = await judge_coding_plan(
+                plan="Create REST API with FastAPI",
+                design="Use FastAPI with SQLAlchemy",
+                research="Researched FastAPI best practices",
+                research_urls=[
+                    "https://fastapi.tiangolo.com/",
+                    "https://docs.sqlalchemy.org/",
+                    "https://pydantic-docs.helpmanual.io/"
+                ],
+                user_requirements="Build a user management API",
+                ctx=mock_context_with_session
+            )
+
+            # Verify result
+            assert isinstance(result, JudgeResponse)
+
+            # Verify conversation was saved
+            session_records = await test_conversation_service.db.get_session_conversations("test_session_123")
+            assert len(session_records) == 1
+
+            record = session_records[0]
+            assert record.source == "judge_coding_plan"
+            assert "Create REST API with FastAPI" in record.input
+            assert record.session_id == "test_session_123"
+
+        finally:
+            # Restore original service
+            server_module.conversation_service = original_service
+
+    @pytest.mark.asyncio
+    async def test_build_workflow_with_conversation_context(self, mock_context_with_session, test_conversation_service):
+        """Test that build_workflow uses conversation history for context."""
+        # Replace the global conversation service temporarily
+        import mcp_as_a_judge.server as server_module
+        original_service = server_module.conversation_service
+        server_module.conversation_service = test_conversation_service
+
+        try:
+            # First, add some conversation history
+            await test_conversation_service.save_tool_interaction(
+                session_id="test_session_123",
+                tool_name="judge_coding_plan",
+                tool_input='{"plan": "Previous plan", "user_requirements": "Previous requirements"}',
+                tool_output='{"approved": true, "feedback": "Previous plan was good"}',
+                context_ids=[]
+            )
+
+            # Now call build_workflow - it should load the previous conversation
+            result = await build_workflow(
+                task_description="Extend the API with authentication",
+                ctx=mock_context_with_session
+            )
+
+            # Verify result
+            assert isinstance(result, WorkflowGuidance)
+
+            # Verify new conversation was saved
+            session_records = await test_conversation_service.db.get_session_conversations("test_session_123")
+            assert len(session_records) == 2  # Previous + new
+
+            # Find the build_workflow record
+            workflow_record = next(r for r in session_records if r.source == "build_workflow")
+            assert workflow_record.context == ["test_session_123"]  # Should reference previous conversation
+
+        finally:
+            # Restore original service
+            server_module.conversation_service = original_service
+
+    @pytest.mark.asyncio
+    async def test_lru_cleanup_in_conversation_history(self, mock_context_with_session, test_conversation_service):
+        """Test that LRU cleanup works when max_context_records is exceeded."""
+        # Replace the global conversation service temporarily
+        import mcp_as_a_judge.server as server_module
+        original_service = server_module.conversation_service
+        server_module.conversation_service = test_conversation_service
+
+        try:
+            # Add 6 conversations (exceeds max_context_records=5)
+            for i in range(6):
+                await judge_coding_plan(
+                    plan=f"Plan {i+1}",
+                    design=f"Design {i+1}",
+                    research=f"Research {i+1}",
+                    research_urls=[
+                        "https://example1.com/",
+                        "https://example2.com/",
+                        "https://example3.com/"
+                    ],
+                    user_requirements=f"Requirements {i+1}",
+                    ctx=mock_context_with_session
+                )
+
+                # Small delay to ensure different timestamps
+                import asyncio
+                await asyncio.sleep(0.001)
+
+            # Verify only 5 records remain (LRU cleanup)
+            session_records = await test_conversation_service.db.get_session_conversations("test_session_123")
+            assert len(session_records) == 5
+
+            # Verify the oldest record (Plan 1) was removed and newest records remain
+            plans_in_records = [record.input for record in session_records]
+            assert not any("Plan 1" in plan for plan in plans_in_records)
+            assert any("Plan 6" in plan for plan in plans_in_records)
+
+        finally:
+            # Restore original service
+            server_module.conversation_service = original_service
 
 
 class TestElicitMissingRequirements:
@@ -293,3 +464,68 @@ class TestIntegrationScenarios:
         )
 
         assert "ERROR" in obstacle_result
+
+    @pytest.mark.asyncio
+    async def test_conversation_context_enrichment_workflow(self, mock_context_with_session, test_conversation_service):
+        """Test that conversation history enriches subsequent tool calls."""
+        # Replace the global conversation service temporarily
+        import mcp_as_a_judge.server as server_module
+        original_service = server_module.conversation_service
+        server_module.conversation_service = test_conversation_service
+
+        try:
+            # Step 1: Initial workflow guidance
+            workflow_result = await build_workflow(
+                task_description="Build user authentication system",
+                ctx=mock_context_with_session
+            )
+            assert isinstance(workflow_result, WorkflowGuidance)
+
+            # Step 2: Judge coding plan - should have context from workflow
+            plan_result = await judge_coding_plan(
+                plan="Implement JWT-based authentication with bcrypt password hashing",
+                design="Use FastAPI with SQLAlchemy and Pydantic models",
+                research="Researched JWT libraries and security best practices",
+                research_urls=[
+                    "https://jwt.io/introduction/",
+                    "https://fastapi.tiangolo.com/tutorial/security/",
+                    "https://passlib.readthedocs.io/en/stable/"
+                ],
+                user_requirements="Secure user login and registration system",
+                ctx=mock_context_with_session
+            )
+            assert isinstance(plan_result, JudgeResponse)
+
+            # Step 3: Judge code change - should have context from both previous calls
+            code_result = await judge_code_change(
+                code_change="def hash_password(password: str) -> str: return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')",
+                user_requirements="Secure password hashing for user authentication",
+                file_path="auth/password_utils.py",
+                change_description="Add secure password hashing function",
+                ctx=mock_context_with_session
+            )
+            assert isinstance(code_result, JudgeResponse)
+
+            # Verify all conversations were saved
+            session_records = await test_conversation_service.db.get_session_conversations("test_session_123")
+            assert len(session_records) == 3
+
+            # Verify the tools are in the expected order (most recent first)
+            tool_names = [record.source for record in session_records]
+            assert tool_names == ["judge_code_change", "judge_coding_plan", "build_workflow"]
+
+            # Verify context enrichment - each tool should reference previous conversations
+            for i, record in enumerate(session_records):
+                if i < len(session_records) - 1:  # Not the first conversation
+                    assert len(record.context) > 0, f"Tool {record.source} should have context from previous conversations"
+
+            # Verify session summary
+            summary = await test_conversation_service.get_session_summary("test_session_123")
+            assert summary["total_interactions"] == 3
+            assert summary["tool_usage"]["build_workflow"] == 1
+            assert summary["tool_usage"]["judge_coding_plan"] == 1
+            assert summary["tool_usage"]["judge_code_change"] == 1
+
+        finally:
+            # Restore original service
+            server_module.conversation_service = original_service

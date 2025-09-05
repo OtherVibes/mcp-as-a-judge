@@ -4,7 +4,13 @@ Test script to verify real scenario behavior.
 """
 
 import asyncio
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock
+
+# Add the src directory to the Python path
+src_path = Path(__file__).parent / "src"
+sys.path.insert(0, str(src_path))
 
 from mcp_as_a_judge.server import raise_missing_requirements
 
