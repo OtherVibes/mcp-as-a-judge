@@ -24,17 +24,6 @@ class DatabaseFactory:
     }
 
     @classmethod
-    def register_provider(cls, name: str, provider_class: type[ConversationHistoryDB]) -> None:
-        """
-        Register a new database provider.
-
-        Args:
-            name: Provider name (e.g., 'sqlite', 'postgresql')
-            provider_class: Provider class that implements ConversationHistoryDB
-        """
-        cls._providers[name] = provider_class
-
-    @classmethod
     def create_provider(cls, config: Config) -> ConversationHistoryDB:
         """
         Create a database provider based on configuration.
@@ -81,6 +70,19 @@ class DatabaseFactory:
     def get_available_providers(cls) -> list[str]:
         """Get list of available provider names."""
         return list(cls._providers.keys())
+
+    # Not in use - option to register additional providers
+    @classmethod
+    def register_provider(cls, name: str, provider_class: type[ConversationHistoryDB]) -> None:
+        """
+        Register a new database provider.
+
+        Args:
+            name: Provider name (e.g., 'sqlite', 'postgresql')
+            provider_class: Provider class that implements ConversationHistoryDB
+        """
+        cls._providers[name] = provider_class
+
 
 
 # Convenience function

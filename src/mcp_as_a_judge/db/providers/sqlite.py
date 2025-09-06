@@ -245,11 +245,8 @@ class SQLiteProvider(ConversationHistoryDB):
         record_id = str(uuid.uuid4())
         timestamp = datetime.utcnow().isoformat()
 
-        logger.info("💾 Saving conversation to SQLite DB:")
-        logger.info(f"   Record ID: {record_id}")
-        logger.info(f"   Session: {session_id}")
-        logger.info(f"   Source: {source}")
-        logger.info(f"   Timestamp: {timestamp}")
+        logger.info(f"💾 Saving conversation to SQLite DB: record {record_id} for session {session_id}, source {source} at {timestamp}")
+
 
         cursor = self._conn.cursor()
         cursor.execute("""
