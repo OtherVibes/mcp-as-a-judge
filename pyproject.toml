@@ -35,10 +35,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hepivax/mcp-as-a-judge"
-Repository = "https://github.com/hepivax/mcp-as-a-judge"
-Issues = "https://github.com/hepivax/mcp-as-a-judge/issues"
-Documentation = "https://github.com/hepivax/mcp-as-a-judge#readme"
+Homepage = "https://github.com/OtherVibes/mcp-as-a-judge"
+Repository = "https://github.com/OtherVibes/mcp-as-a-judge"
+Issues = "https://github.com/OtherVibes/mcp-as-a-judge/issues"
+Documentation = "https://github.com/OtherVibes/mcp-as-a-judge#readme"
 
 [project.scripts]
 mcp-as-a-judge = "mcp_as_a_judge.server:main"
