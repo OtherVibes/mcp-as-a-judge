@@ -20,7 +20,7 @@ MCP as a Judge aims to revolutionize software development by preventing bad codi
 1. **Fork and clone the repository:**
 
 ```bash
-git clone https://github.com/hepivax/mcp-as-a-judge.git
+git clone https://github.com/OtherVibes/mcp-as-a-judge.git
 cd mcp-as-a-judge
 ```
 
