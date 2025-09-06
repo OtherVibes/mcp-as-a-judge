@@ -141,11 +141,7 @@ class DatabaseConfig(BaseModel):
     )
     cleanup_enabled: bool = Field(
         default=True,
-        description="Whether to enable automatic cleanup of old records"
-    )
-    cleanup_interval_hours: int = Field(
-        default=6,
-        description="How often to run cleanup (in hours)"
+        description="Whether to enable automatic cleanup of old records (runs daily)"
     )
 
 

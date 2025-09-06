@@ -64,14 +64,14 @@ class DatabaseFactory:
         # Create provider instance based on provider type
         if provider_name in ["in_memory", "sqlite"]:
             # Both use SQLiteProvider but with different URLs
-            return provider_class(  # type: ignore[call-arg]
+            return provider_class(
                 max_context_records=config.database.max_context_records,
                 retention_days=config.database.record_retention_days,
                 url=config.database.url
             )
         else:
             # For future network database providers (PostgreSQL, MySQL, etc.)
-            return provider_class(  # type: ignore[call-arg]
+            return provider_class(
                 url=config.database.url,
                 max_context_records=config.database.max_context_records,
                 retention_days=config.database.record_retention_days

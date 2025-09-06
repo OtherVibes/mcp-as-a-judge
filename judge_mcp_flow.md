@@ -195,6 +195,177 @@ API Operations:
 • get_stats() → Get database statistics (TEST-ONLY)
 ```
 
+#### **🔧 Custom Database Providers**
+
+The Judge MCP supports extending the database system with custom providers using the `register_provider` method. This allows you to add support for new database backends without modifying the core codebase.
+
+##### **Creating a Custom Provider**
+
+1. **Implement the Interface**: Create a class that extends `ConversationHistoryDB`:
+
+```python
+from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
+from datetime import datetime
+
+class RedisProvider(ConversationHistoryDB):
+    """Redis-based conversation history provider."""
+
+    def __init__(self, max_context_records: int = 20, retention_days: int = 1, url: str = "") -> None:
+        """Initialize Redis connection."""
+        import redis
+        self._redis = redis.from_url(url)
+        self._max_context_records = max_context_records
+        self._retention_days = retention_days
+
+    async def save_conversation(self, session_id: str, source: str, input_data: str, output: str) -> str:
+        """Save conversation to Redis."""
+        record_id = str(uuid.uuid4())
+        record = {
+            "id": record_id,
+            "session_id": session_id,
+            "source": source,
+            "input": input_data,
+            "output": output,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        # Store in Redis with session-based keys
+        key = f"conversation:{session_id}:{record_id}"
+        self._redis.hset(key, mapping=record)
+        self._redis.expire(key, self._retention_days * 24 * 3600)  # TTL in seconds
+
+        return record_id
+
+    async def get_session_conversations(self, session_id: str, limit: int | None = None) -> list[ConversationRecord]:
+        """Retrieve conversations from Redis."""
+        pattern = f"conversation:{session_id}:*"
+        keys = self._redis.keys(pattern)
+
+        records = []
+        for key in keys:
+            data = self._redis.hgetall(key)
+            if data:
+                records.append(ConversationRecord(
+                    id=data[b'id'].decode(),
+                    session_id=data[b'session_id'].decode(),
+                    source=data[b'source'].decode(),
+                    input=data[b'input'].decode(),
+                    output=data[b'output'].decode(),
+                    timestamp=datetime.fromisoformat(data[b'timestamp'].decode())
+                ))
+
+        # Sort by timestamp and apply limit
+        records.sort(key=lambda r: r.timestamp, reverse=True)
+        return records[:limit] if limit else records
+```
+
+2. **Register the Provider**: Add your custom provider to the factory:
+
+```python
+from mcp_as_a_judge.db.factory import DatabaseFactory
+from your_module.providers import RedisProvider
+
+# Register the custom provider
+DatabaseFactory.register_provider("redis", RedisProvider)
+```
+
+3. **Configure the URL**: Update your configuration to use the new provider:
+
+```json
+{
+  "database": {
+    "url": "redis://localhost:6379/0",
+    "max_context_records": 20,
+    "record_retention_days": 1
+  }
+}
+```
+
+##### **Provider Registration Examples**
+
+**Plugin System Integration:**
+```python
+# In your plugin's __init__.py
+from mcp_as_a_judge.db.factory import DatabaseFactory
+from .providers import MongoDBProvider, CassandraProvider
+
+def register_providers():
+    """Register all providers from this plugin."""
+    DatabaseFactory.register_provider("mongodb", MongoDBProvider)
+    DatabaseFactory.register_provider("cassandra", CassandraProvider)
+
+# Auto-register when plugin is imported
+register_providers()
+```
+
+**Conditional Provider Loading:**
+```python
+# In application startup
+from mcp_as_a_judge.config import Config
+from mcp_as_a_judge.db.factory import DatabaseFactory
+
+config = Config()
+
+# Only register PostgreSQL if the driver is available
+try:
+    import psycopg2
+    from .providers.postgresql import PostgreSQLProvider
+    DatabaseFactory.register_provider("postgresql", PostgreSQLProvider)
+except ImportError:
+    print("PostgreSQL driver not available, skipping registration")
+
+# Only register if explicitly enabled
+if config.database.enable_experimental_providers:
+    from .providers.experimental import ExperimentalProvider
+    DatabaseFactory.register_provider("experimental", ExperimentalProvider)
+```
+
+**Testing with Mock Providers:**
+```python
+# In test setup
+from mcp_as_a_judge.db.factory import DatabaseFactory
+from unittest.mock import MagicMock
+
+class MockDatabaseProvider:
+    def __init__(self, **kwargs):
+        self.conversations = []
+
+    async def save_conversation(self, session_id, source, input_data, output):
+        # Mock implementation
+        return "mock-id"
+
+    async def get_session_conversations(self, session_id, limit=None):
+        # Return mock data
+        return []
+
+# Register for testing
+DatabaseFactory.register_provider("mock", MockDatabaseProvider)
+
+# Use in tests with mock:// URL
+config.database.url = "mock://test"
+```
+
+##### **URL Scheme Detection**
+
+The factory automatically detects the provider from the URL scheme. For custom providers, you may need to extend the `get_database_provider_from_url` function in `config.py`:
+
+```python
+def get_database_provider_from_url(url: str) -> str:
+    # ... existing logic ...
+
+    # Custom provider detection
+    elif url_lower.startswith("redis://"):
+        return "redis"
+    elif url_lower.startswith("mongodb://"):
+        return "mongodb"
+    elif url_lower.startswith("cassandra://"):
+        return "cassandra"
+
+    # ... rest of function ...
+```
+
+This extensible architecture allows the Judge MCP to support any database backend while maintaining a consistent interface and configuration system.
+
 ### **🏗️ Judge MCP Conversation History Architecture**
 
 ```

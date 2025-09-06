@@ -115,7 +115,7 @@ class SQLiteProvider(ConversationHistoryDB):
         now = datetime.utcnow()
         time_since_last_cleanup = now - self._last_cleanup_time
 
-        # Run cleanup once per day
+        # Run cleanup once per day (24 hours)
         return time_since_last_cleanup > timedelta(days=1)
 
     def _cleanup_old_records(self) -> int:
@@ -261,7 +261,7 @@ class SQLiteProvider(ConversationHistoryDB):
         self._conn.commit()
         logger.info("✅ Successfully inserted record into conversation_history table")
 
-        # Daily cleanup: only run once per day
+        # Daily cleanup: run once per day to remove old records
         self._cleanup_old_records()
 
         # Always perform LRU cleanup for this session (lightweight)
