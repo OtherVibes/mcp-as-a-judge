@@ -5,8 +5,6 @@ This module contains all Pydantic models used for data validation,
 serialization, and API contracts.
 """
 
-from datetime import datetime
-
 from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.llm_integration import LLMConfig
@@ -96,20 +94,7 @@ class ResearchValidationResponse(BaseModel):
 
 
 # Database models for conversation history
-
-
-class ConversationRecord(BaseModel):
-    """Model for conversation history records stored in database."""
-
-    id: str = Field(description="Unique identifier for the conversation record")
-    session_id: str = Field(description="Session identifier from AI agent")
-    source: str = Field(description="Tool name that generated this record")
-    input: str = Field(description="Tool input query")
-    output: str = Field(description="Tool output string")
-    timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="When the conversation record was created",
-    )
+# ConversationRecord is now defined in db/interface.py using SQLModel
 
 
 class DatabaseConfig(BaseModel):

@@ -16,8 +16,8 @@ class DatabaseFactory:
     """Factory for creating database providers."""
 
     _providers: ClassVar[dict[str, type[ConversationHistoryDB]]] = {
-        "in_memory": SQLiteProvider,  # SQLite in-memory (:memory: or empty URL)
-        "sqlite": SQLiteProvider,  # SQLite file-based storage
+        "in_memory": SQLiteProvider,  # SQLModel SQLite in-memory (:memory: or empty URL)
+        "sqlite": SQLiteProvider,  # SQLModel SQLite file-based storage
         # Future providers can be added here:
         # "postgresql": PostgreSQLProvider,
         # "mysql": MySQLProvider,
@@ -52,7 +52,7 @@ class DatabaseFactory:
 
         # Create provider instance based on provider type
         if provider_name in ["in_memory", "sqlite"]:
-            # Both use SQLiteProvider but with different URLs
+            # SQLite-based providers (both SQLModel and legacy)
             return provider_class(
                 max_context_records=config.database.max_context_records,
                 retention_days=config.database.record_retention_days,

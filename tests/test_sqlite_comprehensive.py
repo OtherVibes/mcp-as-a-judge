@@ -12,7 +12,7 @@ from mcp_as_a_judge.db.providers.sqlite import SQLiteProvider
 
 
 class TestSQLiteComprehensive:
-    """Comprehensive tests for all SQLite SQL operations."""
+    """Comprehensive tests for all SQLModel SQLite operations."""
 
     @pytest.mark.asyncio
     async def test_bulk_lru_cleanup(self):
@@ -114,24 +114,22 @@ class TestSQLiteComprehensive:
         # Test stats query performance
         stats = db.get_stats()
         assert stats["total_records"] == 100
-        assert stats["total_sessions"] >= 1
+        assert stats["unique_sessions"] >= 1
 
     def test_sql_query_syntax(self):
         """Test that all SQL queries have correct syntax."""
+        from sqlalchemy import inspect
+
         db = SQLiteProvider()
 
-        # Verify table creation worked
-        cursor = db._conn.cursor()
-        cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_history'"
-        )
-        table_exists = cursor.fetchone()
-        assert table_exists is not None
+        # Verify table creation worked using SQLAlchemy inspector
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        assert "conversation_history" in tables
 
         # Verify table schema
-        cursor.execute("PRAGMA table_info(conversation_history)")
-        columns = cursor.fetchall()
-        column_names = [col[1] for col in columns]
+        columns = inspector.get_columns("conversation_history")
+        column_names = [col["name"] for col in columns]
 
         expected_columns = [
             "id",

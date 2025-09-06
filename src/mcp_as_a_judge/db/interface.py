@@ -8,19 +8,21 @@ must implement for storing and retrieving conversation history.
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from sqlmodel import Field, SQLModel
 
 
-class ConversationRecord(BaseModel):
-    """Model for conversation history records."""
+class ConversationRecord(SQLModel, table=True):
+    """SQLModel for conversation history records."""
 
-    id: str
-    session_id: str
+    __tablename__ = "conversation_history"
+
+    id: str | None = Field(default=None, primary_key=True)
+    session_id: str = Field(index=True)
     source: str  # tool name
     input: str  # tool input query
     output: str  # tool output string
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow
+        default_factory=datetime.utcnow, index=True
     )  # when the record was created
 
 
