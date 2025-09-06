@@ -219,7 +219,7 @@ class SQLiteProvider(ConversationHistoryDB):
                 DELETE FROM conversation_history
                 WHERE id IN ({placeholders})
             """  # noqa: S608
-            cursor.execute(query, old_message_ids)
+            cursor.execute(query, tuple(old_message_ids))
 
             removed_count = cursor.rowcount
             self._conn.commit()

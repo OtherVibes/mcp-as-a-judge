@@ -5,7 +5,9 @@ This module contains all Pydantic models used for data validation,
 serialization, and API contracts.
 """
 from datetime import datetime
+
 from pydantic import BaseModel, Field
+
 from mcp_as_a_judge.llm_integration import LLMConfig
 
 
