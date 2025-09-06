@@ -4,6 +4,7 @@ Data models and schemas for MCP as a Judge.
 This module contains all Pydantic models used for data validation,
 serialization, and API contracts.
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -96,6 +97,7 @@ class ResearchValidationResponse(BaseModel):
 
 # Database models for conversation history
 
+
 class ConversationRecord(BaseModel):
     """Model for conversation history records stored in database."""
 
@@ -106,7 +108,7 @@ class ConversationRecord(BaseModel):
     output: str = Field(description="Tool output string")
     timestamp: datetime = Field(
         default_factory=datetime.utcnow,
-        description="When the conversation record was created"
+        description="When the conversation record was created",
     )
 
 
@@ -121,27 +123,27 @@ class DatabaseConfig(BaseModel):
             "- 'sqlite:///path/to/file.db' -> SQLite file\n"
             "- 'postgresql://user:pass@host:port/db' -> PostgreSQL\n"
             "- 'mysql://user:pass@host:port/db' -> MySQL"
-        )
+        ),
     )
     max_context_records: int = Field(
         default=20,
-        description="Maximum number of conversation records to keep per session (LRU cleanup)"
+        description="Maximum number of conversation records to keep per session (LRU cleanup)",
     )
     context_enrichment_count: int = Field(
         default=5,
-        description="Number of recent conversation records to load for LLM context enrichment"
+        description="Number of recent conversation records to load for LLM context enrichment",
     )
     record_retention_days: int = Field(
         default=1,
-        description="Number of days to keep conversation records before automatic deletion"
+        description="Number of days to keep conversation records before automatic deletion",
     )
     log_truncate_length: int = Field(
         default=100,
-        description="Maximum characters to show in logs for input/output (0 = no truncation)"
+        description="Maximum characters to show in logs for input/output (0 = no truncation)",
     )
     cleanup_enabled: bool = Field(
         default=True,
-        description="Whether to enable automatic cleanup of old records (runs daily)"
+        description="Whether to enable automatic cleanup of old records (runs daily)",
     )
 
 

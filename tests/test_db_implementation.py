@@ -21,7 +21,7 @@ async def test_database_operations():
         session_id="session_123",
         source="judge_coding_plan",
         input_data="Please review this coding plan",
-        output="The plan looks good with minor improvements needed"
+        output="The plan looks good with minor improvements needed",
     )
     print(f"Saved record: {record_id1}")
 
@@ -29,7 +29,7 @@ async def test_database_operations():
         session_id="session_123",
         source="judge_code_change",
         input_data="Review this code change",
-        output="Code change approved"
+        output="Code change approved",
     )
     print(f"Saved record: {record_id2}")
 
@@ -38,7 +38,7 @@ async def test_database_operations():
     session_records = await db.get_session_conversations("session_123")
     print(f"Found {len(session_records)} records for session")
     for i, rec in enumerate(session_records):
-        print(f"  {i+1}. {rec.source} - {rec.timestamp}")
+        print(f"  {i + 1}. {rec.source} - {rec.timestamp}")
 
     # Test getting recent conversation IDs
     print("\n4. Testing get_recent_conversations...")

@@ -25,7 +25,7 @@ class TestSQLiteComprehensive:
                 session_id="test_session",
                 source=f"tool_{i}",
                 input_data=f"input_{i}",
-                output=f"output_{i}"
+                output=f"output_{i}",
             )
 
         # Should only have 2 records (most recent)
@@ -51,7 +51,7 @@ class TestSQLiteComprehensive:
             session_id="test_session",
             source="test_tool",
             input_data="test_input",
-            output="test_output"
+            output="test_output",
         )
 
         # Verify record exists
@@ -85,7 +85,7 @@ class TestSQLiteComprehensive:
             session_id=malicious_session,
             source=malicious_source,
             input_data="safe_input",
-            output="safe_output"
+            output="safe_output",
         )
 
         # Verify data was saved safely
@@ -104,7 +104,7 @@ class TestSQLiteComprehensive:
                 session_id="perf_test",
                 source=f"tool_{i % 10}",  # Vary sources
                 input_data=f"input_{i}",
-                output=f"output_{i}"
+                output=f"output_{i}",
             )
 
         # Should maintain limit
@@ -122,7 +122,9 @@ class TestSQLiteComprehensive:
 
         # Verify table creation worked
         cursor = db._conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_history'")
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_history'"
+        )
         table_exists = cursor.fetchone()
         assert table_exists is not None
 
@@ -131,7 +133,14 @@ class TestSQLiteComprehensive:
         columns = cursor.fetchall()
         column_names = [col[1] for col in columns]
 
-        expected_columns = ['id', 'session_id', 'source', 'input', 'output', 'timestamp']
+        expected_columns = [
+            "id",
+            "session_id",
+            "source",
+            "input",
+            "output",
+            "timestamp",
+        ]
         for col in expected_columns:
             assert col in column_names
 

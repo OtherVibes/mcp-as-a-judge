@@ -30,7 +30,9 @@ class SQLiteProvider(ConversationHistoryDB):
     - Session-based conversation retrieval
     """
 
-    def __init__(self, max_context_records: int = 20, retention_days: int = 1, url: str = "") -> None:
+    def __init__(
+        self, max_context_records: int = 20, retention_days: int = 1, url: str = ""
+    ) -> None:
         """Initialize the SQLite database with LRU and time-based cleanup."""
         # Parse URL to get SQLite connection string
         connection_string = self._parse_sqlite_url(url)
@@ -136,23 +138,31 @@ class SQLiteProvider(ConversationHistoryDB):
         cutoff_iso = cutoff_time.isoformat()
 
         # Count records to be deleted
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) as count FROM conversation_history
             WHERE timestamp < ?
-        """, (cutoff_iso,))
+        """,
+            (cutoff_iso,),
+        )
 
-        old_count = cursor.fetchone()['count']
+        old_count = cursor.fetchone()["count"]
 
         if old_count == 0:
-            logger.info(f"🧹 Daily cleanup: No records older than {self._retention_days} days")
+            logger.info(
+                f"🧹 Daily cleanup: No records older than {self._retention_days} days"
+            )
             self._last_cleanup_time = datetime.utcnow()
             return 0
 
         # Delete old records
-        cursor.execute("""
+        cursor.execute(
+            """
             DELETE FROM conversation_history
             WHERE timestamp < ?
-        """, (cutoff_iso,))
+        """,
+            (cutoff_iso,),
+        )
 
         deleted_count = cursor.rowcount
         self._conn.commit()
@@ -160,7 +170,9 @@ class SQLiteProvider(ConversationHistoryDB):
         # Reset cleanup tracking
         self._last_cleanup_time = datetime.utcnow()
 
-        logger.info(f"🧹 Daily cleanup: Deleted {deleted_count} records older than {self._retention_days} days")
+        logger.info(
+            f"🧹 Daily cleanup: Deleted {deleted_count} records older than {self._retention_days} days"
+        )
         return deleted_count
 
     def _cleanup_old_messages(self, session_id: str) -> int:
@@ -178,14 +190,19 @@ class SQLiteProvider(ConversationHistoryDB):
         cursor = self._conn.cursor()
 
         # Count current messages in session
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) as count FROM conversation_history
             WHERE session_id = ?
-        """, (session_id,))
+        """,
+            (session_id,),
+        )
 
-        current_count = cursor.fetchone()['count']
+        current_count = cursor.fetchone()["count"]
 
-        logger.info(f"🧹 LRU cleanup check for session {session_id}: {current_count} records (max: {self._max_context_records})")
+        logger.info(
+            f"🧹 LRU cleanup check for session {session_id}: {current_count} records (max: {self._max_context_records})"
+        )
 
         if current_count <= self._max_context_records:
             logger.info("   No cleanup needed - within limits")
@@ -196,64 +213,67 @@ class SQLiteProvider(ConversationHistoryDB):
         logger.info(f"   Need to remove {messages_to_remove} oldest records")
 
         # Get the oldest message IDs to remove (LRU - remove least recently used)
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, source, timestamp FROM conversation_history
             WHERE session_id = ?
             ORDER BY timestamp ASC
             LIMIT ?
-        """, (session_id, messages_to_remove))
+        """,
+            (session_id, messages_to_remove),
+        )
 
         old_records = cursor.fetchall()
-        old_message_ids = [row['id'] for row in old_records]
+        old_message_ids = [row["id"] for row in old_records]
 
         # Log what's being removed
         logger.info(f"🗑️ Removing {len(old_message_ids)} oldest records:")
         for i, record in enumerate(old_records, 1):
-            logger.info(f"   {i}. ID: {record['id'][:8]}... | Source: {record['source']} | Timestamp: {record['timestamp']}")
+            logger.info(
+                f"   {i}. ID: {record['id'][:8]}... | Source: {record['source']} | Timestamp: {record['timestamp']}"
+            )
 
         # Remove the old messages
         if old_message_ids:
-            placeholders = ','.join('?' * len(old_message_ids))
-            # Safe: placeholders contains only '?' characters, no user data
-            query = f"""
-                DELETE FROM conversation_history
-                WHERE id IN ({placeholders})
-            """  # noqa: S608
-            cursor.execute(query, tuple(old_message_ids))
+            # Use executemany for safe bulk deletion - avoids string concatenation
+            delete_query = "DELETE FROM conversation_history WHERE id = ?"
+            cursor.executemany(delete_query, [(msg_id,) for msg_id in old_message_ids])
 
             removed_count = cursor.rowcount
             self._conn.commit()
 
-            logger.info(f"✅ LRU cleanup completed: removed {removed_count} records from session {session_id}")
+            logger.info(
+                f"✅ LRU cleanup completed: removed {removed_count} records from session {session_id}"
+            )
             return removed_count
 
         return 0
 
     def __del__(self) -> None:
         """Close the database connection when the object is destroyed."""
-        if hasattr(self, '_conn'):
+        if hasattr(self, "_conn"):
             self._conn.close()
 
     async def save_conversation(
-        self,
-        session_id: str,
-        source: str,
-        input_data: str,
-        output: str
+        self, session_id: str, source: str, input_data: str, output: str
     ) -> str:
         """Save a conversation record to SQLite in-memory database with LRU cleanup."""
         record_id = str(uuid.uuid4())
         timestamp = datetime.utcnow().isoformat()
 
-        logger.info(f"💾 Saving conversation to SQLite DB: record {record_id} for session {session_id}, source {source} at {timestamp}")
-
+        logger.info(
+            f"💾 Saving conversation to SQLite DB: record {record_id} for session {session_id}, source {source} at {timestamp}"
+        )
 
         cursor = self._conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO conversation_history
             (id, session_id, source, input, output, timestamp)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (record_id, session_id, source, input_data, output, timestamp))
+        """,
+            (record_id, session_id, source, input_data, output, timestamp),
+        )
 
         self._conn.commit()
         logger.info("✅ Successfully inserted record into conversation_history table")
@@ -266,44 +286,48 @@ class SQLiteProvider(ConversationHistoryDB):
 
         return record_id
 
-
-
     async def get_session_conversations(
-        self,
-        session_id: str,
-        limit: int | None = None
+        self, session_id: str, limit: int | None = None
     ) -> list[ConversationRecord]:
         """Retrieve all conversation records for a session."""
         cursor = self._conn.cursor()
 
         if limit is not None:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id, session_id, source, input, output, timestamp
                 FROM conversation_history
                 WHERE session_id = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
-            """, (session_id, limit))
+            """,
+                (session_id, limit),
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id, session_id, source, input, output, timestamp
                 FROM conversation_history
                 WHERE session_id = ?
                 ORDER BY timestamp DESC
-            """, (session_id,))
+            """,
+                (session_id,),
+            )
 
         rows = cursor.fetchall()
         records = []
 
         for row in rows:
-            records.append(ConversationRecord(
-                id=row['id'],
-                session_id=row['session_id'],
-                source=row['source'],
-                input=row['input'],
-                output=row['output'],
-                timestamp=datetime.fromisoformat(row['timestamp'])
-            ))
+            records.append(
+                ConversationRecord(
+                    id=row["id"],
+                    session_id=row["session_id"],
+                    source=row["source"],
+                    input=row["input"],
+                    output=row["output"],
+                    timestamp=datetime.fromisoformat(row["timestamp"]),
+                )
+            )
 
         return records
 
@@ -315,7 +339,9 @@ class SQLiteProvider(ConversationHistoryDB):
         **TEST-ONLY METHOD** - Used exclusively by tests for cleanup.
         """
         cursor = self._conn.cursor()
-        cursor.execute("DELETE FROM conversation_history WHERE session_id = ?", (session_id,))
+        cursor.execute(
+            "DELETE FROM conversation_history WHERE session_id = ?", (session_id,)
+        )
 
         deleted_count = cursor.rowcount
         self._conn.commit()
@@ -331,14 +357,16 @@ class SQLiteProvider(ConversationHistoryDB):
 
         # Get total records
         cursor.execute("SELECT COUNT(*) as count FROM conversation_history")
-        total_records = cursor.fetchone()['count']
+        total_records = cursor.fetchone()["count"]
 
         # Get total sessions
-        cursor.execute("SELECT COUNT(DISTINCT session_id) as count FROM conversation_history")
-        total_sessions = cursor.fetchone()['count']
+        cursor.execute(
+            "SELECT COUNT(DISTINCT session_id) as count FROM conversation_history"
+        )
+        total_sessions = cursor.fetchone()["count"]
 
         return {
             "total_records": total_records,
             "total_sessions": total_sessions,
-            "database_type": "sqlite"
+            "database_type": "sqlite",
         }

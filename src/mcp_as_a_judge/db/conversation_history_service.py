@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 class ConversationHistoryService:
     """Service for managing conversation history in judge tools."""
 
-    def __init__(self, config: Config, db_provider: ConversationHistoryDB | None = None):
+    def __init__(
+        self, config: Config, db_provider: ConversationHistoryDB | None = None
+    ):
         """
         Initialize the conversation history service.
 
@@ -30,7 +32,9 @@ class ConversationHistoryService:
         self.config = config
         self.db = db_provider or create_database_provider(config)
 
-    async def load_context_for_enrichment(self, session_id: str) -> list[ConversationRecord]:
+    async def load_context_for_enrichment(
+        self, session_id: str
+    ) -> list[ConversationRecord]:
         """
         Load recent conversation records for LLM context enrichment.
 
@@ -45,18 +49,14 @@ class ConversationHistoryService:
         # Load recent conversations for this session
         recent_records = await self.db.get_session_conversations(
             session_id=session_id,
-            limit=self.config.database.context_enrichment_count # load last X records
+            limit=self.config.database.context_enrichment_count,  # load last X records
         )
 
         logger.info(f"📚 Retrieved {len(recent_records)} conversation records from DB")
         return recent_records
 
     async def save_tool_interaction(
-        self,
-        session_id: str,
-        tool_name: str,
-        tool_input: str,
-        tool_output: str
+        self, session_id: str, tool_name: str, tool_input: str, tool_output: str
     ) -> str:
         """
         Save a tool interaction as a conversation record.
@@ -70,13 +70,15 @@ class ConversationHistoryService:
         Returns:
             ID of the created conversation record
         """
-        logger.info(f"💾 Saving tool interaction to SQLite DB for session: {session_id}, tool: {tool_name}")
+        logger.info(
+            f"💾 Saving tool interaction to SQLite DB for session: {session_id}, tool: {tool_name}"
+        )
 
         record_id = await self.db.save_conversation(
             session_id=session_id,
             source=tool_name,
             input_data=tool_input,
-            output=tool_output
+            output=tool_output,
         )
 
         logger.info(f"✅ Saved conversation record with ID: {record_id}")
@@ -96,19 +98,27 @@ class ConversationHistoryService:
             logger.info("📝 No conversation history to format for LLM context")
             return "No previous conversation history available."
 
-        logger.info(f"📝 Formatting {len(context_records)} conversation records for LLM context enrichment")
+        logger.info(
+            f"📝 Formatting {len(context_records)} conversation records for LLM context enrichment"
+        )
 
         context_lines = ["## Previous Conversation History"]
-        context_lines.append("Here are the recent interactions in this session for context:")
+        context_lines.append(
+            "Here are the recent interactions in this session for context:"
+        )
         context_lines.append("")
 
         # Format records (most recent first)
         for i, record in enumerate(context_records, 1):
-            context_lines.append(f"### {i}. {record.source} ({record.timestamp.strftime('%Y-%m-%d %H:%M:%S')})")
+            context_lines.append(
+                f"### {i}. {record.source} ({record.timestamp.strftime('%Y-%m-%d %H:%M:%S')})"
+            )
             context_lines.append(f"**Input:** {record.input}")
             context_lines.append(f"**Output:** {record.output}")
             context_lines.append("")
-            logger.info(f"   Formatted record {i}: {record.source} from {record.timestamp}")
+            logger.info(
+                f"   Formatted record {i}: {record.source} from {record.timestamp}"
+            )
 
         context_lines.append("---")
         context_lines.append("Use this context to make more informed decisions.")
@@ -141,18 +151,19 @@ class ConversationHistoryService:
             "session_id": session_id,
             "total_interactions": len(all_records),
             "tool_usage": tool_counts,
-            "latest_interaction": all_records[0].timestamp.isoformat() if all_records else None,
+            "latest_interaction": all_records[0].timestamp.isoformat()
+            if all_records
+            else None,
             "context_enrichment_count": self.config.database.context_enrichment_count,
-            "max_context_records": self.config.database.max_context_records
+            "max_context_records": self.config.database.max_context_records,
         }
 
 
 # Convenience functions for easy integration with existing tools
 
+
 async def enrich_with_context(
-    service: ConversationHistoryService,
-    session_id: str,
-    base_prompt: str
+    service: ConversationHistoryService, session_id: str, base_prompt: str
 ) -> str:
     """
     Enrich a base prompt with conversation history context.
@@ -165,16 +176,17 @@ async def enrich_with_context(
     Returns:
         Enriched prompt with conversation history context
     """
-    logger.info(f"🔄 Starting context enrichment for session {session_id}, base_prompt: {base_prompt}")
+    logger.info(
+        f"🔄 Starting context enrichment for session {session_id}, base_prompt: {base_prompt}"
+    )
 
     context_records = await service.load_context_for_enrichment(session_id)
     context_text = service.format_context_for_llm(context_records)
 
     enriched_prompt = f"{context_text}\n## Current Request\n{base_prompt}"
 
-    logger.info(f"🎯 Context enrichment completed for session {session_id}, enriched_prompt: {enriched_prompt}")
+    logger.info(
+        f"🎯 Context enrichment completed for session {session_id}, enriched_prompt: {enriched_prompt}"
+    )
 
     return enriched_prompt
-
-
-

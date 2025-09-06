@@ -17,7 +17,7 @@ class DatabaseFactory:
 
     _providers: ClassVar[dict[str, type[ConversationHistoryDB]]] = {
         "in_memory": SQLiteProvider,  # SQLite in-memory (:memory: or empty URL)
-        "sqlite": SQLiteProvider,     # SQLite file-based storage
+        "sqlite": SQLiteProvider,  # SQLite file-based storage
         # Future providers can be added here:
         # "postgresql": PostgreSQLProvider,
         # "mysql": MySQLProvider,
@@ -56,14 +56,14 @@ class DatabaseFactory:
             return provider_class(
                 max_context_records=config.database.max_context_records,
                 retention_days=config.database.record_retention_days,
-                url=config.database.url
+                url=config.database.url,
             )
         else:
             # For future network database providers (PostgreSQL, MySQL, etc.)
             return provider_class(
                 url=config.database.url,
                 max_context_records=config.database.max_context_records,
-                retention_days=config.database.record_retention_days
+                retention_days=config.database.record_retention_days,
             )
 
     @classmethod
@@ -73,7 +73,9 @@ class DatabaseFactory:
 
     # Not in use - option to register additional providers
     @classmethod
-    def register_provider(cls, name: str, provider_class: type[ConversationHistoryDB]) -> None:
+    def register_provider(
+        cls, name: str, provider_class: type[ConversationHistoryDB]
+    ) -> None:
         """
         Register a new database provider.
 
@@ -82,7 +84,6 @@ class DatabaseFactory:
             provider_class: Provider class that implements ConversationHistoryDB
         """
         cls._providers[name] = provider_class
-
 
 
 # Convenience function

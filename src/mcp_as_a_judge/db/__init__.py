@@ -14,5 +14,5 @@ __all__ = [
     "ConversationRecord",
     "DatabaseFactory",
     "SQLiteProvider",
-    "create_database_provider"
+    "create_database_provider",
 ]

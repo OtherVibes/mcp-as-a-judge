@@ -20,7 +20,7 @@ class Config(BaseModel):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     enable_llm_fallback: bool = Field(
         default=True,
-        description="Whether to enable LLM fallback when MCP sampling is not available"
+        description="Whether to enable LLM fallback when MCP sampling is not available",
     )
 
 
@@ -69,11 +69,18 @@ def load_config(config_path: str | None = None) -> Config:
         try:
             config_data["database"]["max_context_records"] = int(max_context)
         except ValueError:
-            print(f"Warning: Invalid value for MCP_JUDGE_MAX_CONTEXT_RECORDS: {max_context}")
+            print(
+                f"Warning: Invalid value for MCP_JUDGE_MAX_CONTEXT_RECORDS: {max_context}"
+            )
 
     llm_fallback = os.getenv("MCP_JUDGE_ENABLE_LLM_FALLBACK")
     if llm_fallback:
-        config_data["enable_llm_fallback"] = llm_fallback.lower() in ("true", "1", "yes", "on")
+        config_data["enable_llm_fallback"] = llm_fallback.lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
 
     return Config(**config_data)
 
@@ -86,15 +93,11 @@ def create_default_config_file(config_path: str = "config.json") -> None:
         config_path: Path where to create the config file
     """
     default_config = {
-        "database": {
-            "provider": "in_memory",
-            "url": "",
-            "max_context_records": 10
-        },
-        "enable_llm_fallback": True
+        "database": {"provider": "in_memory", "url": "", "max_context_records": 10},
+        "enable_llm_fallback": True,
     }
 
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         json.dump(default_config, f, indent=2)
 
     print(f"Created default configuration file: {config_path}")

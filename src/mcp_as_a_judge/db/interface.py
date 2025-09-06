@@ -19,14 +19,18 @@ class ConversationRecord(BaseModel):
     source: str  # tool name
     input: str  # tool input query
     output: str  # tool output string
-    timestamp: datetime = Field(default_factory=datetime.utcnow)  # when the record was created
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow
+    )  # when the record was created
 
 
 class ConversationHistoryDB(ABC):
     """Abstract interface for conversation history database operations."""
 
     @abstractmethod
-    def __init__(self, max_context_records: int = 20, retention_days: int = 1, url: str = "") -> None:
+    def __init__(
+        self, max_context_records: int = 20, retention_days: int = 1, url: str = ""
+    ) -> None:
         """
         Initialize the database provider.
 
@@ -39,11 +43,7 @@ class ConversationHistoryDB(ABC):
 
     @abstractmethod
     async def save_conversation(
-        self,
-        session_id: str,
-        source: str,
-        input_data: str,
-        output: str
+        self, session_id: str, source: str, input_data: str, output: str
     ) -> str:
         """
         Save a conversation record to the database.
@@ -61,9 +61,7 @@ class ConversationHistoryDB(ABC):
 
     @abstractmethod
     async def get_session_conversations(
-        self,
-        session_id: str,
-        limit: int | None = None
+        self, session_id: str, limit: int | None = None
     ) -> list[ConversationRecord]:
         """
         Retrieve all conversation records for a session.

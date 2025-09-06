@@ -59,27 +59,30 @@ conversation_service = ConversationHistoryService(config)
 # Configure logging for MCP server to see conversation history in action
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stderr),  # Log to stderr so Cursor can see it
-    ]
+    ],
 )
 
 # Enable our specific loggers for conversation history
-logging.getLogger('mcp_as_a_judge.conversation_history_service').setLevel(logging.INFO)
-logging.getLogger('mcp_as_a_judge.db.providers.in_memory').setLevel(logging.INFO)
+logging.getLogger("mcp_as_a_judge.conversation_history_service").setLevel(logging.INFO)
+logging.getLogger("mcp_as_a_judge.db.providers.in_memory").setLevel(logging.INFO)
 
 # Log startup message
 logger = logging.getLogger(__name__)
 logger.info("🚀 MCP Judge server starting with conversation history logging enabled")
-logger.info(f"📊 Configuration: max_context_records={config.database.max_context_records}, context_enrichment_count={config.database.context_enrichment_count}")
+logger.info(
+    f"📊 Configuration: max_context_records={config.database.max_context_records}, context_enrichment_count={config.database.context_enrichment_count}"
+)
 
 
 # Helper functions have been moved to server_helpers.py for better organization
 
+
 def get_session_id(ctx: Context) -> str:
     """Extract session_id from context, with fallback to default."""
-    return getattr(ctx, 'session_id', 'default_session')
+    return getattr(ctx, "session_id", "default_session")
 
 
 @mcp.tool(description=tool_description_provider.get_description("build_workflow"))  # type: ignore[misc,unused-ignore]
@@ -94,20 +97,14 @@ async def build_workflow(
     # Log tool execution start
     logger.info(f"🔧 build_workflow called for session {session_id}")
 
-
     # Store original input for saving later
-    original_input = {
-        "task_description": task_description,
-        "context": context
-    }
+    original_input = {"task_description": task_description, "context": context}
 
     try:
         # STEP 1: Load conversation history and enrich context
         base_prompt = f"Task Description: {task_description}\nContext: {context}"
         enriched_prompt = await enrich_with_context(
-            service=conversation_service,
-            session_id=session_id,
-            base_prompt=base_prompt
+            service=conversation_service, session_id=session_id, base_prompt=base_prompt
         )
 
         # STEP 2: Create system and user messages with enriched context
@@ -141,7 +138,7 @@ async def build_workflow(
             session_id=session_id,
             tool_name="build_workflow",
             tool_input=json.dumps(original_input),
-            tool_output=json.dumps(result.model_dump())
+            tool_output=json.dumps(result.model_dump()),
         )
 
         return result
@@ -152,8 +149,10 @@ async def build_workflow(
         return WorkflowGuidance(
             next_tool="elicit_missing_requirements",
             reasoning="An error occurred during workflow generation. Please provide more details.",
-            preparation_needed=["Review the error and provide more specific requirements"],
-            guidance="Please retry with more specific requirements and context about your development task."
+            preparation_needed=[
+                "Review the error and provide more specific requirements"
+            ],
+            guidance="Please retry with more specific requirements and context about your development task.",
         )
 
 
@@ -168,14 +167,9 @@ async def raise_obstacle(
     session_id = get_session_id(ctx)
 
     # Store original input for saving later
-    original_input = {
-        "problem": problem,
-        "research": research,
-        "options": options
-    }
+    original_input = {"problem": problem, "research": research, "options": options}
 
     try:
-
         # No need to load conversation history for obstacle resolution, user will need to decide what to do, LLM is not involve
 
         formatted_options = "\n".join(
@@ -243,7 +237,7 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
                 session_id=session_id,
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=result
+                tool_output=result,
             )
 
             return result
@@ -257,7 +251,7 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
                 session_id=session_id,
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=result
+                tool_output=result,
             )
 
             return result
@@ -271,7 +265,7 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
                 session_id=session_id,
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=error_result
+                tool_output=error_result,
             )
 
         return error_result
@@ -293,7 +287,7 @@ async def raise_missing_requirements(
     original_input = {
         "current_request": current_request,
         "identified_gaps": identified_gaps,
-        "specific_questions": specific_questions
+        "specific_questions": specific_questions,
     }
 
     try:
@@ -365,7 +359,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
                 session_id=session_id,
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
-                tool_output=result
+                tool_output=result,
             )
 
             return result
@@ -379,7 +373,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
                 session_id=session_id,
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
-                tool_output=result
+                tool_output=result,
             )
 
             return result
@@ -393,7 +387,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
                 session_id=session_id,
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
-                tool_output=error_result
+                tool_output=error_result,
             )
 
         return error_result
@@ -532,7 +526,9 @@ async def judge_coding_plan(
     # Log tool execution start
     logger.info(f"⚖️ judge_coding_plan called for session {session_id}")
     logger.info(f"   Plan: {plan[:100]}{'...' if len(plan) > 100 else ''}")
-    logger.info(f"   User Requirements: {user_requirements[:100]}{'...' if len(user_requirements) > 100 else ''}")
+    logger.info(
+        f"   User Requirements: {user_requirements[:100]}{'...' if len(user_requirements) > 100 else ''}"
+    )
 
     # Handle default value for research_urls
     if research_urls is None:
@@ -545,7 +541,7 @@ async def judge_coding_plan(
         "research": research,
         "user_requirements": user_requirements,
         "context": context,
-        "research_urls": research_urls
+        "research_urls": research_urls,
     }
 
     # Validate research URLs requirement
@@ -572,14 +568,18 @@ async def judge_coding_plan(
         # STEP 1: Load conversation history and enrich context
         base_prompt = f"Plan: {plan}\nDesign: {design}\nResearch: {research}\nUser Requirements: {user_requirements}"
         enriched_context = await enrich_with_context(
-            service=conversation_service,
-            session_id=session_id,
-            base_prompt=base_prompt
+            service=conversation_service, session_id=session_id, base_prompt=base_prompt
         )
 
         # STEP 2: Use helper function for main evaluation with enriched context
         evaluation_result = await _evaluate_coding_plan(
-            plan, design, research, research_urls, user_requirements, enriched_context, ctx
+            plan,
+            design,
+            research,
+            research_urls,
+            user_requirements,
+            enriched_context,
+            ctx,
         )
 
         # Additional research validation if approved
@@ -595,7 +595,7 @@ async def judge_coding_plan(
             session_id=session_id,
             tool_name="judge_coding_plan",
             tool_input=json.dumps(original_input),
-            tool_output=json.dumps(evaluation_result.model_dump())
+            tool_output=json.dumps(evaluation_result.model_dump()),
         )
 
         return evaluation_result
@@ -620,7 +620,7 @@ async def judge_coding_plan(
                 session_id=session_id,
                 tool_name="judge_coding_plan",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps(error_result.model_dump())
+                tool_output=json.dumps(error_result.model_dump()),
             )
 
         return error_result
@@ -642,16 +642,14 @@ async def judge_code_change(
         "code_change": code_change,
         "user_requirements": user_requirements,
         "file_path": file_path,
-        "change_description": change_description
+        "change_description": change_description,
     }
 
     try:
         # STEP 1: Load conversation history and enrich context
         base_prompt = f"Code Change: {code_change}\nUser Requirements: {user_requirements}\nFile: {file_path}\nDescription: {change_description}"
         enriched_prompt = await enrich_with_context(
-            service=conversation_service,
-            session_id=session_id,
-            base_prompt=base_prompt
+            service=conversation_service, session_id=session_id, base_prompt=base_prompt
         )
 
         # STEP 2: Create system and user messages with enriched context
@@ -689,7 +687,7 @@ async def judge_code_change(
                 session_id=session_id,
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps(result.model_dump())
+                tool_output=json.dumps(result.model_dump()),
             )
 
             return result
@@ -719,7 +717,7 @@ async def judge_code_change(
                 session_id=session_id,
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps(error_result.model_dump())
+                tool_output=json.dumps(error_result.model_dump()),
             )
 
         return error_result
