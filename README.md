@@ -130,7 +130,7 @@ Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
      "mcpServers": {
        "mcp-as-a-judge": {
          "command": "docker",
-         "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/hepivax/mcp-as-a-judge:latest"],
+         "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/othervibes/mcp-as-a-judge:latest"],
          "env": {
            "LLM_API_KEY": "your-openai-api-key-here",
            "LLM_MODEL_NAME": "gpt-4o-mini"
@@ -149,7 +149,7 @@ Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
 
    ```bash
    # Pull the latest version
-   docker pull ghcr.io/hepivax/mcp-as-a-judge:latest
+   docker pull ghcr.io/othervibes/mcp-as-a-judge:latest
    ```
 
 ### **Method 2: Using uv**
@@ -412,7 +412,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ```bash
 # Clone the repository
-git clone https://github.com/hepivax/mcp-as-a-judge.git
+git clone https://github.com/OtherVibes/mcp-as-a-judge.git
 cd mcp-as-a-judge
 
 # Install dependencies with uv
