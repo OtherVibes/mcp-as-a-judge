@@ -7,7 +7,6 @@ must implement for storing and retrieving conversation history.
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -47,13 +46,13 @@ class ConversationHistoryDB(ABC):
             The ID of the created record
         """
         pass
-    
+
     @abstractmethod
     async def get_session_conversations(
         self,
         session_id: str,
-        limit: Optional[int] = None
-    ) -> List[ConversationRecord]:
+        limit: int | None = None
+    ) -> list[ConversationRecord]:
         """
         Retrieve all conversation records for a session.
 
@@ -68,7 +67,7 @@ class ConversationHistoryDB(ABC):
 
     # TEST-ONLY METHODS
     # The following methods are used only by tests, not by application code
-    def clear_session(self, session_id: str) -> int:
+    async def clear_session(self, session_id: str) -> int:
         """
         Clear all conversation records for a session.
 
@@ -76,7 +75,7 @@ class ConversationHistoryDB(ABC):
         """
         raise NotImplementedError("Test-only method")
 
-    def get_stats(self) -> dict[str, int]:
+    def get_stats(self) -> dict[str, int | str]:
         """
         Get statistics about the database storage.
 

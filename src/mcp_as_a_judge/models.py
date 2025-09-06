@@ -145,10 +145,6 @@ class DatabaseConfig(BaseModel):
         default=6,
         description="How often to run cleanup (in hours)"
     )
-    record_retention_days: int = Field(
-        default=1,
-        description="How many days to keep conversation records before deletion"
-    )
 
 
 # Type aliases for better code readability

@@ -9,7 +9,6 @@ import logging
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Optional
 
 from ..interface import ConversationHistoryDB, ConversationRecord
 
@@ -215,10 +214,12 @@ class SQLiteProvider(ConversationHistoryDB):
         # Remove the old messages
         if old_message_ids:
             placeholders = ','.join('?' * len(old_message_ids))
-            cursor.execute(f"""
+            # Safe: placeholders contains only '?' characters, no user data
+            query = f"""
                 DELETE FROM conversation_history
                 WHERE id IN ({placeholders})
-            """, old_message_ids)
+            """  # noqa: S608
+            cursor.execute(query, old_message_ids)
 
             removed_count = cursor.rowcount
             self._conn.commit()
@@ -244,7 +245,7 @@ class SQLiteProvider(ConversationHistoryDB):
         record_id = str(uuid.uuid4())
         timestamp = datetime.utcnow().isoformat()
 
-        logger.info(f"💾 Saving conversation to SQLite DB:")
+        logger.info("💾 Saving conversation to SQLite DB:")
         logger.info(f"   Record ID: {record_id}")
         logger.info(f"   Session: {session_id}")
         logger.info(f"   Source: {source}")
@@ -258,23 +259,23 @@ class SQLiteProvider(ConversationHistoryDB):
         """, (record_id, session_id, source, input_data, output, timestamp))
 
         self._conn.commit()
-        logger.info(f"✅ Successfully inserted record into conversation_history table")
+        logger.info("✅ Successfully inserted record into conversation_history table")
 
         # Daily cleanup: only run once per day
         self._cleanup_old_records()
 
         # Always perform LRU cleanup for this session (lightweight)
-        removed_count = self._cleanup_old_messages(session_id)
+        self._cleanup_old_messages(session_id)
 
         return record_id
-    
 
-    
+
+
     async def get_session_conversations(
         self,
         session_id: str,
-        limit: Optional[int] = None
-    ) -> List[ConversationRecord]:
+        limit: int | None = None
+    ) -> list[ConversationRecord]:
         """Retrieve all conversation records for a session."""
         cursor = self._conn.cursor()
 
@@ -323,7 +324,7 @@ class SQLiteProvider(ConversationHistoryDB):
         self._conn.commit()
         return deleted_count
 
-    def get_stats(self) -> dict[str, int]:
+    def get_stats(self) -> dict[str, int | str]:
         """
         Get statistics about the SQLite storage.
 

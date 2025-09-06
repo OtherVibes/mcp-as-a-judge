@@ -12,7 +12,7 @@ from .providers import SQLiteProvider
 __all__ = [
     "ConversationHistoryDB",
     "ConversationRecord",
-    "SQLiteProvider",
     "DatabaseFactory",
+    "SQLiteProvider",
     "create_database_provider"
 ]

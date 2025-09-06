@@ -8,10 +8,9 @@ This service handles:
 """
 
 import logging
-from typing import List, Optional
 
-from src.mcp_as_a_judge.config import Config
-from src.mcp_as_a_judge.db import ConversationHistoryDB, ConversationRecord, create_database_provider
+from ..config import Config
+from . import ConversationHistoryDB, ConversationRecord, create_database_provider
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -19,19 +18,19 @@ logger = logging.getLogger(__name__)
 
 class ConversationHistoryService:
     """Service for managing conversation history in judge tools."""
-    
-    def __init__(self, config: Config, db_provider: Optional[ConversationHistoryDB] = None):
+
+    def __init__(self, config: Config, db_provider: ConversationHistoryDB | None = None):
         """
         Initialize the conversation history service.
-        
+
         Args:
             config: Application configuration
             db_provider: Optional database provider (will create one if not provided)
         """
         self.config = config
         self.db = db_provider or create_database_provider(config)
-    
-    async def load_context_for_enrichment(self, session_id: str) -> List[ConversationRecord]:
+
+    async def load_context_for_enrichment(self, session_id: str) -> list[ConversationRecord]:
         """
         Load recent conversation records for LLM context enrichment.
 
@@ -42,7 +41,7 @@ class ConversationHistoryService:
             List of conversation records for LLM context
         """
         logger.info(f"🔍 Loading conversation history for session: {session_id}")
-        
+
         # Load recent conversations for this session
         recent_records = await self.db.get_session_conversations(
             session_id=session_id,
@@ -51,7 +50,7 @@ class ConversationHistoryService:
 
         logger.info(f"📚 Retrieved {len(recent_records)} conversation records from DB")
         return recent_records
-    
+
     async def save_tool_interaction(
         self,
         session_id: str,
@@ -82,8 +81,8 @@ class ConversationHistoryService:
 
         logger.info(f"✅ Saved conversation record with ID: {record_id}")
         return record_id
-    
-    def format_context_for_llm(self, context_records: List[ConversationRecord]) -> str:
+
+    def format_context_for_llm(self, context_records: list[ConversationRecord]) -> str:
         """
         Format conversation history for LLM context enrichment.
 
@@ -119,25 +118,25 @@ class ConversationHistoryService:
         logger.info(f"📝 Generated context string: {len(formatted_context)} characters")
 
         return formatted_context
-    
+
     ### TEST-ONLY METHODS
     async def get_session_summary(self, session_id: str) -> dict:
         """
         Get a summary of the session's conversation history.
-        
+
         Args:
             session_id: Session identifier
-            
+
         Returns:
             Dictionary with session statistics
         """
         all_records = await self.db.get_session_conversations(session_id)
-        
+
         # Count by tool type
-        tool_counts = {}
+        tool_counts: dict[str, int] = {}
         for record in all_records:
             tool_counts[record.source] = tool_counts.get(record.source, 0) + 1
-        
+
         return {
             "session_id": session_id,
             "total_interactions": len(all_records),
@@ -174,7 +173,7 @@ async def enrich_with_context(
     enriched_prompt = f"{context_text}\n## Current Request\n{base_prompt}"
 
     logger.info(f"🎯 Context enrichment completed for session {session_id}, enriched_prompt: {enriched_prompt}")
-  
+
     return enriched_prompt
 
 

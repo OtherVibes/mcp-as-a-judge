@@ -5,7 +5,7 @@ This module provides a factory function to create the appropriate
 database provider based on configuration.
 """
 
-from typing import Dict, Type
+from typing import ClassVar
 
 from ..config import Config, get_database_provider_from_url
 from .interface import ConversationHistoryDB
@@ -14,37 +14,37 @@ from .providers import SQLiteProvider
 
 class DatabaseFactory:
     """Factory for creating database providers."""
-    
-    _providers: Dict[str, Type[ConversationHistoryDB]] = {
+
+    _providers: ClassVar[dict[str, type[ConversationHistoryDB]]] = {
         "in_memory": SQLiteProvider,  # SQLite in-memory (:memory: or empty URL)
         "sqlite": SQLiteProvider,     # SQLite file-based storage
         # Future providers can be added here:
         # "postgresql": PostgreSQLProvider,
         # "mysql": MySQLProvider,
     }
-    
+
     @classmethod
-    def register_provider(cls, name: str, provider_class: Type[ConversationHistoryDB]) -> None:
+    def register_provider(cls, name: str, provider_class: type[ConversationHistoryDB]) -> None:
         """
         Register a new database provider.
-        
+
         Args:
             name: Provider name (e.g., 'sqlite', 'postgresql')
             provider_class: Provider class that implements ConversationHistoryDB
         """
         cls._providers[name] = provider_class
-    
+
     @classmethod
     def create_provider(cls, config: Config) -> ConversationHistoryDB:
         """
         Create a database provider based on configuration.
-        
+
         Args:
             config: Application configuration
-            
+
         Returns:
             ConversationHistoryDB instance
-            
+
         Raises:
             ValueError: If provider is not supported
         """
@@ -58,25 +58,25 @@ class DatabaseFactory:
                 f"Unsupported database provider: {provider_name} (detected from URL: '{config.database.url}'). "
                 f"Available providers: {available}"
             )
-        
+
         provider_class = cls._providers[provider_name]
-        
+
         # Create provider instance based on provider type
         if provider_name in ["in_memory", "sqlite"]:
             # Both use SQLiteProvider but with different URLs
-            return provider_class(
+            return provider_class(  # type: ignore[call-arg]
                 max_context_records=config.database.max_context_records,
                 retention_days=config.database.record_retention_days,
                 url=config.database.url
             )
         else:
             # For future network database providers (PostgreSQL, MySQL, etc.)
-            return provider_class(
+            return provider_class(  # type: ignore[call-arg]
                 url=config.database.url,
                 max_context_records=config.database.max_context_records,
                 retention_days=config.database.record_retention_days
             )
-    
+
     @classmethod
     def get_available_providers(cls) -> list[str]:
         """Get list of available provider names."""
@@ -87,10 +87,10 @@ class DatabaseFactory:
 def create_database_provider(config: Config) -> ConversationHistoryDB:
     """
     Create a database provider based on configuration.
-    
+
     Args:
         config: Application configuration
-        
+
     Returns:
         ConversationHistoryDB instance
     """

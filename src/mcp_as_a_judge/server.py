@@ -5,16 +5,15 @@ This module contains the main MCP server with judge tools for validating
 coding plans and code changes against software engineering best practices.
 """
 
+import builtins
+import contextlib
 import json
+import logging
+import sys
 
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
-from .config import load_config
-from .db.conversation_history_service import (
-    ConversationHistoryService,
-    enrich_with_context
-)
 from mcp_as_a_judge.elicitation_provider import elicitation_provider
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import (
@@ -39,6 +38,12 @@ from mcp_as_a_judge.server_helpers import (
 )
 from mcp_as_a_judge.tool_description_provider import (
     tool_description_provider,
+)
+
+from .config import load_config
+from .db.conversation_history_service import (
+    ConversationHistoryService,
+    enrich_with_context,
 )
 
 # Create the MCP server instance
@@ -143,6 +148,13 @@ async def build_workflow(
 
     except Exception as e:
         logger.error(f"❌ Error in build_workflow: {e!s}")
+        # Return a default workflow guidance in case of error
+        return WorkflowGuidance(
+            next_tool="elicit_missing_requirements",
+            reasoning="An error occurred during workflow generation. Please provide more details.",
+            preparation_needed=["Review the error and provide more specific requirements"],
+            guidance="Please retry with more specific requirements and context about your development task."
+        )
 
 
 @mcp.tool(description=tool_description_provider.get_description("raise_obstacle"))  # type: ignore[misc,unused-ignore]
@@ -254,15 +266,13 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
         error_result = f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
 
         # Save error interaction
-        try:
+        with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
                 session_id=session_id,
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
                 tool_output=error_result
             )
-        except:
-            pass
 
         return error_result
 
@@ -378,15 +388,13 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
         error_result = f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. Cannot proceed without clear requirements."
 
         # Save error interaction
-        try:
+        with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
                 session_id=session_id,
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
                 tool_output=error_result
             )
-        except:
-            pass
 
         return error_result
 
@@ -607,15 +615,13 @@ async def judge_coding_plan(
         )
 
         # Save error interaction
-        try:
+        with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
                 session_id=session_id,
                 tool_name="judge_coding_plan",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(error_result.model_dump())
             )
-        except:
-            pass
 
         return error_result
 
@@ -708,15 +714,13 @@ async def judge_code_change(
         )
 
         # Save error interaction
-        try:
+        with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
                 session_id=session_id,
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(error_result.model_dump())
             )
-        except:
-            pass
 
         return error_result
 

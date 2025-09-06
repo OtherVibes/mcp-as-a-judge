@@ -8,7 +8,6 @@ including config files, environment variables, and defaults.
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +16,7 @@ from .models import DatabaseConfig
 
 class Config(BaseModel):
     """Main configuration model for the application."""
-    
+
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     enable_llm_fallback: bool = Field(
         default=True,
@@ -25,44 +24,44 @@ class Config(BaseModel):
     )
 
 
-def load_config(config_path: Optional[str] = None) -> Config:
+def load_config(config_path: str | None = None) -> Config:
     """
     Load configuration from file and environment variables.
-    
+
     Args:
         config_path: Path to config file. If None, looks for config.json in current directory
-        
+
     Returns:
         Config object with loaded settings
     """
     # Default configuration
     config_data = {}
-    
+
     # Try to load from config file
     if config_path is None:
         config_path = "config.json"
-    
+
     config_file = Path(config_path)
     if config_file.exists():
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config_data = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (json.JSONDecodeError, OSError) as e:
             print(f"Warning: Could not load config file {config_path}: {e}")
-    
+
     # Override with environment variables if present
     db_provider = os.getenv("MCP_JUDGE_DB_PROVIDER")
     if db_provider:
         if "database" not in config_data:
             config_data["database"] = {}
         config_data["database"]["provider"] = db_provider
-    
+
     db_url = os.getenv("MCP_JUDGE_DB_URL")
     if db_url:
         if "database" not in config_data:
             config_data["database"] = {}
         config_data["database"]["url"] = db_url
-    
+
     max_context = os.getenv("MCP_JUDGE_MAX_CONTEXT_RECORDS")
     if max_context:
         if "database" not in config_data:
@@ -71,18 +70,18 @@ def load_config(config_path: Optional[str] = None) -> Config:
             config_data["database"]["max_context_records"] = int(max_context)
         except ValueError:
             print(f"Warning: Invalid value for MCP_JUDGE_MAX_CONTEXT_RECORDS: {max_context}")
-    
+
     llm_fallback = os.getenv("MCP_JUDGE_ENABLE_LLM_FALLBACK")
     if llm_fallback:
         config_data["enable_llm_fallback"] = llm_fallback.lower() in ("true", "1", "yes", "on")
-    
+
     return Config(**config_data)
 
 
 def create_default_config_file(config_path: str = "config.json") -> None:
     """
     Create a default configuration file.
-    
+
     Args:
         config_path: Path where to create the config file
     """
@@ -94,10 +93,10 @@ def create_default_config_file(config_path: str = "config.json") -> None:
         },
         "enable_llm_fallback": True
     }
-    
+
     with open(config_path, 'w') as f:
         json.dump(default_config, f, indent=2)
-    
+
     print(f"Created default configuration file: {config_path}")
 
 
