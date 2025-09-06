@@ -1,6 +1,6 @@
 [project]
 name = "mcp-as-a-judge"
-version = "0.1.0"
+version = "0.2.0"
 description = "🚨 MCP as a Judge: Prevent bad coding practices with AI-powered evaluation and user-driven decision making"
 readme = "README.md"
 license = { text = "MIT" }
@@ -35,10 +35,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hepivax/mcp-as-a-judge"
-Repository = "https://github.com/hepivax/mcp-as-a-judge"
-Issues = "https://github.com/hepivax/mcp-as-a-judge/issues"
-Documentation = "https://github.com/hepivax/mcp-as-a-judge#readme"
+Homepage = "https://github.com/OtherVibes/mcp-as-a-judge"
+Repository = "https://github.com/OtherVibes/mcp-as-a-judge"
+Issues = "https://github.com/OtherVibes/mcp-as-a-judge/issues"
+Documentation = "https://github.com/OtherVibes/mcp-as-a-judge#readme"
 
 [project.scripts]
 mcp-as-a-judge = "mcp_as_a_judge.server:main"

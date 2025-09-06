@@ -155,4 +155,9 @@ Thumbs.db
 .env.test
 .env.production
 
-.actrc
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+conversations.db
+test.db

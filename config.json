@@ -1,0 +1,9 @@
+{
+  "database": {
+    "url": "sqlite://:memory:",
+    "max_context_records": 20,
+    "context_enrichment_count": 10,
+    "record_retention_days": 1
+  },
+  "enable_llm_fallback": true
+}

@@ -11,8 +11,8 @@
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
 
-[![CI](https://github.com/hepivax/mcp-as-a-judge/workflows/CI/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/ci.yml)
-[![Release](https://github.com/hepivax/mcp-as-a-judge/workflows/Release/badge.svg)](https://github.com/hepivax/mcp-as-a-judge/actions/workflows/release.yml)
+[![CI](https://github.com/OtherVibes/mcp-as-a-judge/workflows/CI/badge.svg)](https://github.com/OtherVibes/mcp-as-a-judge/actions/workflows/ci.yml)
+[![Release](https://github.com/OtherVibes/mcp-as-a-judge/workflows/Release/badge.svg)](https://github.com/OtherVibes/mcp-as-a-judge/actions/workflows/release.yml)
 [![PyPI version](https://img.shields.io/pypi/v/mcp-as-a-judge.svg)](https://pypi.org/project/mcp-as-a-judge/)
 
 
