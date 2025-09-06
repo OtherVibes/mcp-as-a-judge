@@ -130,7 +130,7 @@ The Judge MCP has **built-in conversation history** to make **better, context-aw
 
 #### **📊 Database Configuration Options**
 
-The Judge MCP supports multiple database backends via URL configuration such as:
+The Judge MCP supports multiple database backends via URL configuration:
 
 ```json
 {
