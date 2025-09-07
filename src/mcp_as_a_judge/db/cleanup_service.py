@@ -27,8 +27,10 @@ class ConversationCleanupService:
     - Runs once per day to avoid performance overhead
 
     LRU vs FIFO for Better User Experience:
-    - LRU (Least Recently Used): Keeps sessions that users are actively using, even if they're old
-    - FIFO (First In, First Out): Would remove oldest sessions regardless of recent activity
+    - LRU (Least Recently Used): Keeps sessions that users are actively using,
+      even if they're old
+    - FIFO (First In, First Out): Would remove oldest sessions regardless of
+      recent activity
     - LRU provides better UX because active conversations are preserved longer
 
     Note: Per-session FIFO cleanup (max 20 records) is handled by the SQLite provider.
@@ -71,7 +73,8 @@ class ConversationCleanupService:
 
             if old_count == 0:
                 logger.info(
-                    f"🧹 Daily cleanup: No records older than {self.retention_days} days"
+                    f"🧹 Daily cleanup: No records older than "
+                    f"{self.retention_days} days"
                 )
                 self.last_cleanup_time = datetime.utcnow()
                 return 0
@@ -86,7 +89,8 @@ class ConversationCleanupService:
             self.last_cleanup_time = datetime.utcnow()
 
             logger.info(
-                f"🧹 Daily cleanup: Deleted {old_count} records older than {self.retention_days} days"
+                f"🧹 Daily cleanup: Deleted {old_count} records older than "
+                f"{self.retention_days} days"
             )
             return old_count
 
@@ -99,7 +103,9 @@ class ConversationCleanupService:
         """
         with Session(self.engine) as session:
             # Count distinct session_ids
-            count_stmt = select(func.count(func.distinct(ConversationRecord.session_id)))
+            count_stmt = select(
+                func.count(func.distinct(ConversationRecord.session_id))
+            )
             result = session.exec(count_stmt).first()
             return result or 0
 
@@ -168,7 +174,8 @@ class ConversationCleanupService:
 
     def cleanup_excess_sessions(self) -> int:
         """
-        Remove least recently used sessions when total sessions exceed MAX_TOTAL_SESSIONS.
+        Remove least recently used sessions when total sessions exceed
+        MAX_TOTAL_SESSIONS.
 
         This implements LRU (Least Recently Used) cleanup strategy:
         - Keeps sessions that users are actively using (better UX than FIFO)

@@ -195,7 +195,8 @@ class TestConversationHistoryLifecycle:
         records_after = await db.get_session_conversations("time_test_session")
         assert len(records_after) == 4
         print(
-            f"✅ After time-based cleanup: {len(records_after)} records (within retention)"
+            f"✅ After time-based cleanup: {len(records_after)} records "
+            f"(within retention)"
         )
 
     @pytest.mark.asyncio
