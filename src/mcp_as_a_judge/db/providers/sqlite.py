@@ -5,17 +5,18 @@ This provider uses SQLModel with SQLAlchemy for type-safe database operations.
 It supports both in-memory (:memory:) and file-based SQLite storage.
 """
 
-import logging
 import uuid
 from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, asc, desc, select
 
+from mcp_as_a_judge.logging_config import get_logger
+
 from ..interface import ConversationHistoryDB, ConversationRecord
 
 # Set up logger
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SQLiteProvider(ConversationHistoryDB):

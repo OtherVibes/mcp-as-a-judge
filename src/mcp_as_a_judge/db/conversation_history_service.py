@@ -7,13 +7,13 @@ This service handles:
 3. Managing session-based conversation history
 """
 
-import logging
+from mcp_as_a_judge.config import Config
+from mcp_as_a_judge.logging_config import get_logger
 
-from ..config import Config
 from . import ConversationHistoryDB, ConversationRecord, create_database_provider
 
 # Set up logger
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ConversationHistoryService:
@@ -129,6 +129,32 @@ class ConversationHistoryService:
 
         return formatted_context
 
+    async def enrich_with_context(self, session_id: str, base_prompt: str) -> str:
+        """
+        Enrich a base prompt with conversation history context.
+
+        Args:
+            session_id: Session identifier
+            base_prompt: Original prompt to enrich
+
+        Returns:
+            Enriched prompt with conversation history context
+        """
+        logger.info(
+            f"🔄 Starting context enrichment for session {session_id}, base_prompt: {base_prompt}"
+        )
+
+        context_records = await self.load_context_for_enrichment(session_id)
+        context_text = self.format_context_for_llm(context_records)
+
+        enriched_prompt = f"{context_text}\n## Current Request\n{base_prompt}"
+
+        logger.info(
+            f"🎯 Context enrichment completed for session {session_id}, enriched_prompt: {enriched_prompt}"
+        )
+
+        return enriched_prompt
+
     ### TEST-ONLY METHODS
     async def get_session_summary(self, session_id: str) -> dict:
         """
@@ -157,36 +183,3 @@ class ConversationHistoryService:
             "context_enrichment_count": self.config.database.context_enrichment_count,
             "max_context_records": self.config.database.max_context_records,
         }
-
-
-# Convenience functions for easy integration with existing tools
-
-
-async def enrich_with_context(
-    service: ConversationHistoryService, session_id: str, base_prompt: str
-) -> str:
-    """
-    Enrich a base prompt with conversation history context.
-
-    Args:
-        service: ConversationHistoryService instance
-        session_id: Session identifier
-        base_prompt: Original prompt to enrich
-
-    Returns:
-        Enriched prompt with conversation history context
-    """
-    logger.info(
-        f"🔄 Starting context enrichment for session {session_id}, base_prompt: {base_prompt}"
-    )
-
-    context_records = await service.load_context_for_enrichment(session_id)
-    context_text = service.format_context_for_llm(context_records)
-
-    enriched_prompt = f"{context_text}\n## Current Request\n{base_prompt}"
-
-    logger.info(
-        f"🎯 Context enrichment completed for session {session_id}, enriched_prompt: {enriched_prompt}"
-    )
-
-    return enriched_prompt
