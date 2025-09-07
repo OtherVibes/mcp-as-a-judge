@@ -17,6 +17,11 @@ from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.prompt_loader import create_separate_messages
 
 
+def get_session_id(ctx: Context) -> str:
+    """Extract session_id from context, with fallback to default."""
+    return getattr(ctx, "session_id", "default_session")
+
+
 def initialize_llm_configuration() -> None:
     """Initialize LLM configuration from environment variables.
 

@@ -5,12 +5,23 @@ This module contains the main MCP server with judge tools for validating
 coding plans and code changes against software engineering best practices.
 """
 
+import builtins
+import contextlib
 import json
 
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
+from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
+from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.elicitation_provider import elicitation_provider
+from mcp_as_a_judge.logging_config import (
+    get_logger,
+    log_error,
+    log_startup_message,
+    log_tool_execution,
+    setup_logging,
+)
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import (
     JudgeCodeChangeSystemVars,
@@ -30,17 +41,31 @@ from mcp_as_a_judge.server_helpers import (
     extract_json_from_response,
     generate_dynamic_elicitation_model,
     generate_validation_error_message,
+    get_session_id,
     initialize_llm_configuration,
 )
 from mcp_as_a_judge.tool_description_provider import (
     tool_description_provider,
 )
 
+# Initialize centralized logging
+setup_logging()
+
 # Create the MCP server instance
 mcp = FastMCP(name="MCP-as-a-Judge")
 
 # Initialize LLM configuration from environment
 initialize_llm_configuration()
+
+# Initialize conversation history service
+config = load_config()
+conversation_service = ConversationHistoryService(config)
+
+# Log startup message using centralized logging
+log_startup_message(config)
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 
 # Helper functions have been moved to server_helpers.py for better organization
@@ -53,31 +78,73 @@ async def build_workflow(
     context: str = "",
 ) -> WorkflowGuidance:
     """Workflow guidance tool - description loaded from tool_description_provider."""
-    # Create system and user messages from templates
-    system_vars = WorkflowGuidanceSystemVars(
-        response_schema=json.dumps(WorkflowGuidance.model_json_schema())
-    )
-    user_vars = WorkflowGuidanceUserVars(
-        task_description=task_description,
-        context=context,
-    )
-    messages = create_separate_messages(
-        "system/build_workflow.md",
-        "user/build_workflow.md",
-        system_vars,
-        user_vars,
-    )
+    session_id = get_session_id(ctx)
 
-    # Use messaging layer to get LLM evaluation
-    response_text = await llm_provider.send_message(
-        messages=messages,
-        ctx=ctx,
-        max_tokens=5000,
-        prefer_sampling=True,
-    )
+    # Log tool execution start
+    log_tool_execution("build_workflow", session_id)
 
-    json_content = extract_json_from_response(response_text)
-    return WorkflowGuidance.model_validate_json(json_content)
+    # Store original input for saving later
+    original_input = {"task_description": task_description, "context": context}
+
+    try:
+        # STEP 1: Load conversation history and format as JSON array
+        conversation_history = await conversation_service.get_conversation_history(
+            session_id
+        )
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
+        )
+
+        # STEP 2: Create system and user messages with separate context and conversation history
+        system_vars = WorkflowGuidanceSystemVars(
+            response_schema=json.dumps(WorkflowGuidance.model_json_schema())
+        )
+        user_vars = WorkflowGuidanceUserVars(
+            task_description=task_description,
+            context=context,  # Keep original context separate
+            conversation_history=history_json_array,  # JSON array with timestamps
+        )
+        messages = create_separate_messages(
+            "system/build_workflow.md",
+            "user/build_workflow.md",
+            system_vars,
+            user_vars,
+        )
+
+        # STEP 3: Use messaging layer to get LLM evaluation
+        response_text = await llm_provider.send_message(
+            messages=messages,
+            ctx=ctx,
+            max_tokens=5000,
+            prefer_sampling=True,
+        )
+
+        json_content = extract_json_from_response(response_text)
+        result = WorkflowGuidance.model_validate_json(json_content)
+
+        # STEP 4: Save tool interaction to conversation history
+        await conversation_service.save_tool_interaction(
+            session_id=session_id,
+            tool_name="build_workflow",
+            tool_input=json.dumps(original_input),
+            tool_output=json.dumps(result.model_dump()),
+        )
+
+        return result
+
+    except Exception as e:
+        log_error(e, "build_workflow")
+        # Return a default workflow guidance in case of error
+        return WorkflowGuidance(
+            next_tool="elicit_missing_requirements",
+            reasoning="An error occurred during workflow generation. Please provide more details.",
+            preparation_needed=[
+                "Review the error and provide more specific requirements"
+            ],
+            guidance="Please retry with more specific requirements and context about your development task.",
+        )
 
 
 @mcp.tool(description=tool_description_provider.get_description("raise_obstacle"))  # type: ignore[misc,unused-ignore]
@@ -88,8 +155,14 @@ async def raise_obstacle(
     ctx: Context,
 ) -> str:
     """Obstacle handling tool - description loaded from tool_description_provider."""
+    session_id = get_session_id(ctx)
+
+    # Store original input for saving later
+    original_input = {"problem": problem, "research": research, "options": options}
+
     try:
-        # Format the options as a numbered list for clarity
+        # No need to load conversation history for obstacle resolution, user will need to decide what to do, LLM is not involve
+
         formatted_options = "\n".join(
             f"{i + 1}. {option}" for i, option in enumerate(options)
         )
@@ -144,18 +217,49 @@ Please choose an option (by number or description) and provide any additional co
                 else "User provided response"
             )
 
-            return f"""✅ OBSTACLE RESOLVED
+            result = f"""✅ OBSTACLE RESOLVED
 
 {response_text}
 
 You can now proceed with the user's chosen approach. Make sure to incorporate their input into your implementation."""
 
+            # Save successful interaction as conversation record
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="raise_obstacle",
+                tool_input=json.dumps(original_input),
+                tool_output=result,
+            )
+
+            return result
+
         else:
             # Elicitation failed or not available - return the fallback message
-            return elicit_result.message
+            result = elicit_result.message
+
+            # Save failed interaction
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="raise_obstacle",
+                tool_input=json.dumps(original_input),
+                tool_output=result,
+            )
+
+            return result
 
     except Exception as e:
-        return f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
+        error_result = f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
+
+        # Save error interaction
+        with contextlib.suppress(builtins.BaseException):
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="raise_obstacle",
+                tool_input=json.dumps(original_input),
+                tool_output=error_result,
+            )
+
+        return error_result
 
 
 @mcp.tool(
@@ -168,7 +272,18 @@ async def raise_missing_requirements(
     ctx: Context,
 ) -> str:
     """Requirements clarification tool - description loaded from tool_description_provider."""
+    session_id = get_session_id(ctx)
+
+    # Store original input for saving later
+    original_input = {
+        "current_request": current_request,
+        "identified_gaps": identified_gaps,
+        "specific_questions": specific_questions,
+    }
+
     try:
+        # No need to load conversation history for requirement clarification, user will need to decide what to do, LLM is not involve
+
         # Format the gaps and questions for clarity
         formatted_gaps = "\n".join(f"• {gap}" for gap in identified_gaps)
         formatted_questions = "\n".join(
@@ -224,18 +339,49 @@ Please provide clarified requirements and indicate their priority level (high/me
                 else "User provided clarifications"
             )
 
-            return f"""✅ REQUIREMENTS CLARIFIED
+            result = f"""✅ REQUIREMENTS CLARIFIED
 
 {response_text}
 
 You can now proceed with the clarified requirements. Make sure to incorporate all clarifications into your planning and implementation."""
 
+            # Save successful interaction
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="raise_missing_requirements",
+                tool_input=json.dumps(original_input),
+                tool_output=result,
+            )
+
+            return result
+
         else:
             # Elicitation failed or not available - return the fallback message
-            return elicit_result.message
+            result = elicit_result.message
+
+            # Save failed interaction
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="raise_missing_requirements",
+                tool_input=json.dumps(original_input),
+                tool_output=result,
+            )
+
+            return result
 
     except Exception as e:
-        return f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. Cannot proceed without clear requirements."
+        error_result = f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. Cannot proceed without clear requirements."
+
+        # Save error interaction
+        with contextlib.suppress(builtins.BaseException):
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="raise_missing_requirements",
+                tool_input=json.dumps(original_input),
+                tool_output=error_result,
+            )
+
+        return error_result
 
 
 async def _validate_research_quality(
@@ -261,6 +407,8 @@ async def _validate_research_quality(
         design=design,
         research=research,
         research_urls=research_urls,
+        context="",  # No additional context for research validation
+        conversation_history=[],  # No conversation history for research validation
     )
     messages = create_separate_messages(
         "system/research_validation.md",
@@ -312,6 +460,7 @@ async def _evaluate_coding_plan(
     research_urls: list[str],
     user_requirements: str,
     context: str,
+    conversation_history: list[dict],
     ctx: Context,
 ) -> JudgeResponse:
     """Evaluate coding plan using AI judge.
@@ -329,7 +478,8 @@ async def _evaluate_coding_plan(
         design=design,
         research=research,
         research_urls=research_urls,
-        context=context,
+        context=context,  # Additional context (separate from conversation history)
+        conversation_history=conversation_history,  # JSON array with timestamps
     )
     messages = create_separate_messages(
         "system/judge_coding_plan.md",
@@ -366,10 +516,28 @@ async def judge_coding_plan(
     research_urls: list[str] | None = None,
 ) -> JudgeResponse:
     """Coding plan evaluation tool - description loaded from tool_description_provider."""
+    session_id = get_session_id(ctx)
+
+    # Log tool execution start
+    log_tool_execution(
+        "judge_coding_plan",
+        session_id,
+        f"Plan: {plan}\nUser Requirements: {user_requirements}",
+    )
 
     # Handle default value for research_urls
     if research_urls is None:
         research_urls = []
+
+    # Store original input for saving later
+    original_input = {
+        "plan": plan,
+        "design": design,
+        "research": research,
+        "user_requirements": user_requirements,
+        "context": context,
+        "research_urls": research_urls,
+    }
 
     # Validate research URLs requirement
     if len(research_urls) < 3:
@@ -392,11 +560,26 @@ async def judge_coding_plan(
         )
 
     try:
-        # Try to use sampling directly - if it fails, we'll catch the error and provide fallback
+        # STEP 1: Load conversation history and format as JSON array
+        conversation_history = await conversation_service.get_conversation_history(
+            session_id
+        )
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
+        )
 
-        # Use helper function for main evaluation
+        # STEP 2: Use helper function for main evaluation with JSON array conversation history
         evaluation_result = await _evaluate_coding_plan(
-            plan, design, research, research_urls, user_requirements, context, ctx
+            plan,
+            design,
+            research,
+            research_urls,
+            user_requirements,
+            "",  # Empty context for now - can be enhanced later
+            history_json_array,
+            ctx,
         )
 
         # Additional research validation if approved
@@ -406,6 +589,14 @@ async def judge_coding_plan(
             )
             if research_validation_result:
                 return research_validation_result
+
+        # STEP 3: Save tool interaction to conversation history
+        await conversation_service.save_tool_interaction(
+            session_id=session_id,
+            tool_name="judge_coding_plan",
+            tool_input=json.dumps(original_input),
+            tool_output=json.dumps(evaluation_result.model_dump()),
+        )
 
         return evaluation_result
 
@@ -417,11 +608,22 @@ async def judge_coding_plan(
         )
 
         # For all errors, return the actual error (capability checking is done upfront)
-        return JudgeResponse(
+        error_result = JudgeResponse(
             approved=False,
             required_improvements=["Error occurred during review"],
             feedback=error_details,
         )
+
+        # Save error interaction
+        with contextlib.suppress(builtins.BaseException):
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="judge_coding_plan",
+                tool_input=json.dumps(original_input),
+                tool_output=json.dumps(error_result.model_dump()),
+            )
+
+        return error_result
 
 
 @mcp.tool(description=tool_description_provider.get_description("judge_code_change"))  # type: ignore[misc,unused-ignore]
@@ -433,26 +635,47 @@ async def judge_code_change(
     change_description: str = "Change description not provided",
 ) -> JudgeResponse:
     """Code change evaluation tool - description loaded from tool_description_provider."""
+    session_id = get_session_id(ctx)
 
-    # Create system and user messages from templates
-    system_vars = JudgeCodeChangeSystemVars(
-        response_schema=json.dumps(JudgeResponse.model_json_schema())
-    )
-    user_vars = JudgeCodeChangeUserVars(
-        user_requirements=user_requirements,
-        code_change=code_change,
-        file_path=file_path,
-        change_description=change_description,
-    )
-    messages = create_separate_messages(
-        "system/judge_code_change.md",
-        "user/judge_code_change.md",
-        system_vars,
-        user_vars,
-    )
+    # Store original input for saving later
+    original_input = {
+        "code_change": code_change,
+        "user_requirements": user_requirements,
+        "file_path": file_path,
+        "change_description": change_description,
+    }
 
     try:
-        # Use messaging layer for LLM evaluation
+        # STEP 1: Load conversation history and format as JSON array
+        conversation_history = await conversation_service.get_conversation_history(
+            session_id
+        )
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
+        )
+
+        # STEP 2: Create system and user messages with separate context and conversation history
+        system_vars = JudgeCodeChangeSystemVars(
+            response_schema=json.dumps(JudgeResponse.model_json_schema())
+        )
+        user_vars = JudgeCodeChangeUserVars(
+            user_requirements=user_requirements,
+            code_change=code_change,
+            file_path=file_path,
+            change_description=change_description,
+            context="",  # Empty context for now - can be enhanced later
+            conversation_history=history_json_array,  # JSON array with timestamps
+        )
+        messages = create_separate_messages(
+            "system/judge_code_change.md",
+            "user/judge_code_change.md",
+            system_vars,
+            user_vars,
+        )
+
+        # STEP 3: Use messaging layer for LLM evaluation
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
@@ -463,7 +686,18 @@ async def judge_code_change(
         # Parse the JSON response
         try:
             json_content = extract_json_from_response(response_text)
-            return JudgeResponse.model_validate_json(json_content)
+            result = JudgeResponse.model_validate_json(json_content)
+
+            # STEP 4: Save tool interaction to conversation history
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="judge_code_change",
+                tool_input=json.dumps(original_input),
+                tool_output=json.dumps(result.model_dump()),
+            )
+
+            return result
+
         except (ValidationError, ValueError) as e:
             raise ValueError(
                 f"Failed to parse code change evaluation response: {e}. Raw response: {response_text}"
@@ -477,11 +711,22 @@ async def judge_code_change(
         )
 
         # For all errors, return the actual error (capability checking is done upfront)
-        return JudgeResponse(
+        error_result = JudgeResponse(
             approved=False,
             required_improvements=["Error occurred during review"],
             feedback=error_details,
         )
+
+        # Save error interaction
+        with contextlib.suppress(builtins.BaseException):
+            await conversation_service.save_tool_interaction(
+                session_id=session_id,
+                tool_name="judge_code_change",
+                tool_input=json.dumps(original_input),
+                tool_output=json.dumps(error_result.model_dump()),
+            )
+
+        return error_result
 
 
 def main() -> None:

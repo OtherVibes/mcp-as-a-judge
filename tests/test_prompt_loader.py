@@ -173,6 +173,7 @@ class TestPromptLoader:
                 "https://numpy.org/doc/",
                 "https://scipy.org/",
             ],
+            conversation_history=[],  # Empty conversation history for test
         )
 
         messages = create_separate_messages(

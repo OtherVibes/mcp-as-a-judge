@@ -10,3 +10,8 @@ DEFAULT_TEMPERATURE = 0.1  # Default temperature for LLM requests
 
 # Timeout Configuration
 DEFAULT_TIMEOUT = 30  # Default timeout in seconds for operations
+
+# Database Configuration
+DATABASE_URL = "sqlite://:memory:"
+MAX_SESSION_RECORDS = 20  # Maximum records to keep per session (FIFO)
+RECORD_RETENTION_DAYS = 1
