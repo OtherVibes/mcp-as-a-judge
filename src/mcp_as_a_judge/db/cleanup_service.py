@@ -135,7 +135,7 @@ class ConversationCleanupService:
             )
 
             results = session.exec(lru_stmt).all()
-            return [result.session_id for result in results]
+            return [result[0] for result in results]
 
     def delete_sessions(self, session_ids: list[str]) -> int:
         """
@@ -153,7 +153,7 @@ class ConversationCleanupService:
         with Session(self.engine) as session:
             # Count records before deletion for logging
             count_stmt = select(ConversationRecord).where(
-                ConversationRecord.session_id.in_(session_ids)
+                ConversationRecord.session_id.in_(session_ids)  # type: ignore[attr-defined]
             )
             records_to_delete = session.exec(count_stmt).all()
             delete_count = len(records_to_delete)
