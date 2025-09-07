@@ -73,8 +73,7 @@ class ConversationCleanupService:
 
             if old_count == 0:
                 logger.info(
-                    f"🧹 Daily cleanup: No records older than "
-                    f"{self.retention_days} days"
+                    f"🧹 Daily cleanup: No records older than {self.retention_days} days"
                 )
                 self.last_cleanup_time = datetime.utcnow()
                 return 0
