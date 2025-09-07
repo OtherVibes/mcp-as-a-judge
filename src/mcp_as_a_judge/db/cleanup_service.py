@@ -173,7 +173,8 @@ class ConversationCleanupService:
         This implements LRU (Least Recently Used) cleanup strategy:
         - Keeps sessions that users are actively using (better UX than FIFO)
         - Only runs once per day to avoid excessive cleanup operations
-        - During the day, session count can exceed limit (e.g., 5000 sessions is not a memory issue)
+        - During the day, session count can exceed limit
+          (e.g., 5000 sessions is not a memory issue)
         - Daily cleanup brings it back to the target limit (2000 sessions)
         - Removes entire sessions (all records for those session_ids)
 
@@ -199,7 +200,8 @@ class ConversationCleanupService:
 
         logger.info(
             f"🧹 Daily session LRU cleanup: {current_session_count} sessions exceeds limit "
-            f"({self.max_total_sessions}), removing {sessions_to_remove} least recently used sessions"
+            f"({self.max_total_sessions}), removing {sessions_to_remove} "
+            f"least recently used sessions"
         )
 
         # Get least recently used sessions

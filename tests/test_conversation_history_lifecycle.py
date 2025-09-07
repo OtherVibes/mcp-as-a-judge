@@ -234,7 +234,9 @@ class TestConversationHistoryLifecycle:
         print("   Session E: Created")
 
         # Add recent activity to Session A (making it most recently used)
-        await db.save_conversation("session_A", "tool2", "recent_input", "recent_output")
+        await db.save_conversation(
+            "session_A", "tool2", "recent_input", "recent_output"
+        )
         print("   Session A: Updated with recent activity (most recently used)")
 
         # Verify all sessions exist
@@ -252,7 +254,9 @@ class TestConversationHistoryLifecycle:
         # Should be sessions B and C (oldest last activity)
         assert "session_B" in lru_sessions, "Session B should be LRU"
         assert "session_C" in lru_sessions, "Session C should be LRU"
-        assert "session_A" not in lru_sessions, "Session A should NOT be LRU (recent activity)"
+        assert (
+            "session_A" not in lru_sessions
+        ), "Session A should NOT be LRU (recent activity)"
         print("✅ Phase 2: LRU detection working correctly")
 
         # PHASE 3: Trigger LRU cleanup
@@ -268,13 +272,21 @@ class TestConversationHistoryLifecycle:
 
         # Verify session count is now at limit
         final_count = db._cleanup_service.get_session_count()
-        assert final_count == 3, f"Expected 3 sessions after cleanup, got {final_count}"
+        assert (
+            final_count == 3
+        ), f"Expected 3 sessions after cleanup, got {final_count}"
         print(f"✅ Phase 3: Session count reduced to {final_count}")
 
         # PHASE 4: Verify which sessions remain
         print("\n🔍 PHASE 4: Verifying remaining sessions...")
 
-        sessions_to_check = ["session_A", "session_B", "session_C", "session_D", "session_E"]
+        sessions_to_check = [
+            "session_A",
+            "session_B",
+            "session_C",
+            "session_D",
+            "session_E",
+        ]
         remaining_sessions = []
         deleted_sessions = []
 
@@ -283,15 +295,24 @@ class TestConversationHistoryLifecycle:
             if records:
                 remaining_sessions.append(session_id)
                 last_activity = max(r.timestamp for r in records)
-                print(f"   ✅ {session_id}: {len(records)} records, last activity: {last_activity}")
+                print(
+                    f"   ✅ {session_id}: {len(records)} records, "
+                    f"last activity: {last_activity}"
+                )
             else:
                 deleted_sessions.append(session_id)
                 print(f"   ❌ {session_id}: DELETED (was least recently used)")
 
         # Verify correct sessions were kept/deleted
-        assert "session_A" in remaining_sessions, "Session A should remain (most recent activity)"
-        assert "session_D" in remaining_sessions, "Session D should remain (recent creation)"
-        assert "session_E" in remaining_sessions, "Session E should remain (most recent creation)"
+        assert (
+            "session_A" in remaining_sessions
+        ), "Session A should remain (most recent activity)"
+        assert (
+            "session_D" in remaining_sessions
+        ), "Session D should remain (recent creation)"
+        assert (
+            "session_E" in remaining_sessions
+        ), "Session E should remain (most recent creation)"
         assert "session_B" in deleted_sessions, "Session B should be deleted (LRU)"
         assert "session_C" in deleted_sessions, "Session C should be deleted (LRU)"
 
@@ -301,7 +322,9 @@ class TestConversationHistoryLifecycle:
         print("\n📊 PHASE 5: Verifying session record preservation...")
 
         session_a_records = await db.get_session_conversations("session_A")
-        assert len(session_a_records) == 2, f"Session A should have 2 records, got {len(session_a_records)}"
+        assert (
+            len(session_a_records) == 2
+        ), f"Session A should have 2 records, got {len(session_a_records)}"
 
         # Check that both records exist
         sources = [r.source for r in session_a_records]
