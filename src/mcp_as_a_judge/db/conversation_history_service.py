@@ -135,7 +135,7 @@ class ConversationHistoryService:
                     "source": record.source,
                     "input": record.input,
                     "output": record.output,
-                    "timestamp": record.timestamp.isoformat()
+                    "timestamp": record.timestamp.isoformat(),
                 }
             )
 
