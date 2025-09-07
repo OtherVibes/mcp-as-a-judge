@@ -5,7 +5,7 @@ This service handles time-based cleanup operations for conversation history reco
 removing records older than the retention period (default: 1 day).
 """
 
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Engine, func
 from sqlmodel import Session, select
