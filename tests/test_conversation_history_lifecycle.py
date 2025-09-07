@@ -5,12 +5,9 @@ Tests the complete flow of conversation records through the system.
 """
 
 import asyncio
-from datetime import datetime, timedelta
-
+from datetime import datetime, timedelta, timezone
 import pytest
-
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
-
 
 class TestConversationHistoryLifecycle:
     """Test the complete lifecycle of conversation history records."""
@@ -50,17 +47,13 @@ class TestConversationHistoryLifecycle:
         # Records should be in reverse chronological order (newest first)
         sources = [r.source for r in records]
         expected_sources = ["tool_2", "tool_1", "tool_0"]  # Newest first
-        assert sources == expected_sources, (
-            f"Expected {expected_sources}, got {sources}"
-        )
+        assert sources == expected_sources, f"Expected {expected_sources}, got {sources}"
 
         # Verify timestamps are in descending order
         timestamps = [r.timestamp for r in records]
         for i in range(len(timestamps) - 1):
-            assert timestamps[i] >= timestamps[i + 1], (
-                "Records should be ordered newest first"
-            )
-
+            assert timestamps[i] >= timestamps[i + 1], "Records should be ordered newest first"
+            
         print(f"✅ Phase 2: Records retrieved in correct order: {sources}")
 
         # PHASE 3: Trigger FIFO cleanup by adding more records
@@ -78,16 +71,12 @@ class TestConversationHistoryLifecycle:
 
         # Verify FIFO cleanup worked
         records = await db.get_session_conversations(session_id)
-        assert len(records) == 3, (
-            f"Expected 3 records after cleanup, got {len(records)}"
-        )
+        assert len(records) == 3, f"Expected 3 records after cleanup, got {len(records)}"
 
         # Should have the 3 most recent records
         sources = [r.source for r in records]
         expected_sources = ["tool_4", "tool_3", "tool_2"]  # Most recent 3
-        assert sources == expected_sources, (
-            f"Expected {expected_sources}, got {sources}"
-        )
+        assert sources == expected_sources, f"Expected {expected_sources}, got {sources}"
 
         print(f"✅ Phase 3: FIFO cleanup worked correctly: {sources}")
 
@@ -180,7 +169,7 @@ class TestConversationHistoryLifecycle:
         print(f"✅ Before cleanup: {len(records_before)} records")
 
         # Force time-based cleanup by mocking old cleanup time
-        old_time = datetime.utcnow() - timedelta(days=2)
+        old_time = datetime.now(timezone.utc) - timedelta(days=2)
         db._last_cleanup_time = old_time
 
         # Trigger cleanup by adding another record
@@ -194,10 +183,7 @@ class TestConversationHistoryLifecycle:
         # Records should still exist (within retention period)
         records_after = await db.get_session_conversations("time_test_session")
         assert len(records_after) == 4
-        print(
-            f"✅ After time-based cleanup: {len(records_after)} records "
-            f"(within retention)"
-        )
+        print(f"✅ After time-based cleanup: {len(records_after)} records (within retention)")
 
     @pytest.mark.asyncio
     async def test_lru_session_cleanup_lifecycle(self):
@@ -265,7 +251,7 @@ class TestConversationHistoryLifecycle:
         print("\n🧹 PHASE 3: Triggering LRU session cleanup...")
 
         # Force cleanup by mocking old cleanup time
-        old_time = datetime.utcnow() - timedelta(days=2)
+        old_time = datetime.now(timezone.utc) - timedelta(days=2)
         db._cleanup_service.last_session_cleanup_time = old_time
 
         # Trigger cleanup
@@ -280,13 +266,7 @@ class TestConversationHistoryLifecycle:
         # PHASE 4: Verify which sessions remain
         print("\n🔍 PHASE 4: Verifying remaining sessions...")
 
-        sessions_to_check = [
-            "session_A",
-            "session_B",
-            "session_C",
-            "session_D",
-            "session_E",
-        ]
+        sessions_to_check = ["session_A", "session_B", "session_C", "session_D", "session_E"]
         remaining_sessions = []
         deleted_sessions = []
 
@@ -295,10 +275,7 @@ class TestConversationHistoryLifecycle:
             if records:
                 remaining_sessions.append(session_id)
                 last_activity = max(r.timestamp for r in records)
-                print(
-                    f"   ✅ {session_id}: {len(records)} records, "
-                    f"last activity: {last_activity}"
-                )
+                print(f"   ✅ {session_id}: {len(records)} records, last activity: {last_activity}")
             else:
                 deleted_sessions.append(session_id)
                 print(f"   ❌ {session_id}: DELETED (was least recently used)")

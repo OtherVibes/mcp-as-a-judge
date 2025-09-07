@@ -5,7 +5,7 @@ This service handles time-based cleanup operations for conversation history reco
 removing records older than the retention period (default: 1 day).
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import Engine, func
 from sqlmodel import Session, select
@@ -46,8 +46,8 @@ class ConversationCleanupService:
         self.engine = engine
         self.max_total_sessions = MAX_TOTAL_SESSIONS
         self.retention_days = RECORD_RETENTION_DAYS
-        self.last_cleanup_time = datetime.utcnow()
-        self.last_session_cleanup_time = datetime.utcnow()
+        self.last_cleanup_time = datetime.now(timezone.utc)
+        self.last_session_cleanup_time = datetime.now(timezone.utc)
 
     def cleanup_old_records(self) -> int:
         """
@@ -58,10 +58,10 @@ class ConversationCleanupService:
             Number of records deleted
         """
         # Only run cleanup once per day
-        if (datetime.utcnow() - self.last_cleanup_time).days < 1:
+        if (datetime.now(timezone.utc) - self.last_cleanup_time).days < 1:
             return 0
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
 
         with Session(self.engine) as session:
             # Count old records
@@ -75,7 +75,7 @@ class ConversationCleanupService:
                 logger.info(
                     f"🧹 Daily cleanup: No records older than {self.retention_days} days"
                 )
-                self.last_cleanup_time = datetime.utcnow()
+                self.last_cleanup_time = datetime.now(timezone.utc)
                 return 0
 
             # Delete old records
@@ -85,7 +85,7 @@ class ConversationCleanupService:
             session.commit()
 
             # Reset cleanup tracking
-            self.last_cleanup_time = datetime.utcnow()
+            self.last_cleanup_time = datetime.now(timezone.utc)
 
             logger.info(
                 f"🧹 Daily cleanup: Deleted {old_count} records older than "
@@ -188,7 +188,7 @@ class ConversationCleanupService:
             Number of records deleted
         """
         # Only run session cleanup once per day
-        if (datetime.utcnow() - self.last_session_cleanup_time).days < 1:
+        if (datetime.now(timezone.utc) - self.last_session_cleanup_time).days < 1:
             return 0
 
         current_session_count = self.get_session_count()
@@ -198,7 +198,7 @@ class ConversationCleanupService:
                 f"🧹 Daily session LRU cleanup: {current_session_count} sessions "
                 f"(max: {self.max_total_sessions}) - no cleanup needed"
             )
-            self.last_session_cleanup_time = datetime.utcnow()
+            self.last_session_cleanup_time = datetime.now(timezone.utc)
             return 0
 
         # Calculate how many sessions to remove
@@ -215,14 +215,14 @@ class ConversationCleanupService:
 
         if not lru_session_ids:
             logger.warning("🧹 No sessions found for LRU cleanup")
-            self.last_session_cleanup_time = datetime.utcnow()
+            self.last_session_cleanup_time = datetime.now(timezone.utc)
             return 0
 
         # Delete all records for these sessions
         deleted_count = self.delete_sessions(lru_session_ids)
 
         # Reset cleanup tracking
-        self.last_session_cleanup_time = datetime.utcnow()
+        self.last_session_cleanup_time = datetime.now(timezone.utc)
 
         logger.info(
             f"✅ Daily session LRU cleanup completed: removed {sessions_to_remove} sessions, "
