@@ -159,3 +159,5 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+.actrc

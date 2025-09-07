@@ -71,6 +71,7 @@ class TestUserRequirementsAlignment:
             research_urls=[
                 "https://slack.dev/python-slack-sdk/",
                 "https://modelcontextprotocol.io/docs/",
+                "https://github.com/slackapi/python-slack-sdk",
             ],
             user_requirements="Send CI/CD status updates to Slack channels",
             context="CI/CD integration project",

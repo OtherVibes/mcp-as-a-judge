@@ -11,7 +11,7 @@ Args:
     plan: The detailed coding plan to be reviewed (REQUIRED)
     design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
     research: Research findings on existing solutions, libraries, frameworks, and best practices (REQUIRED)
-    research_urls: 🌐 URLs from MANDATORY online research - AI assistant MUST provide at least 3 URLs from research (List of URL strings)
+    research_urls: 🌐 URLs from MANDATORY online research - AI assistant MUST provide at least 3 URLs from research (REQUIRED)
     user_requirements: Clear statement of what the user wants to achieve (REQUIRED)
     context: Additional context about the project, requirements, or constraints
 

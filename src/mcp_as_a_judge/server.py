@@ -510,10 +510,10 @@ async def judge_coding_plan(
     plan: str,
     design: str,
     research: str,
+    research_urls: list[str],
     user_requirements: str,
     ctx: Context,
     context: str = "",
-    research_urls: list[str] | None = None,
 ) -> JudgeResponse:
     """Coding plan evaluation tool - description loaded from tool_description_provider."""
     session_id = get_session_id(ctx)
@@ -524,10 +524,6 @@ async def judge_coding_plan(
         session_id,
         f"Plan: {plan}\nUser Requirements: {user_requirements}",
     )
-
-    # Handle default value for research_urls
-    if research_urls is None:
-        research_urls = []
 
     # Store original input for saving later
     original_input = {
