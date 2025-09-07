@@ -128,7 +128,7 @@ class ConversationCleanupService:
             lru_stmt = (
                 select(
                     ConversationRecord.session_id,
-                    func.max(ConversationRecord.timestamp).label("last_activity")
+                    func.max(ConversationRecord.timestamp).label("last_activity"),
                 )
                 .group_by(ConversationRecord.session_id)
                 .order_by(func.max(ConversationRecord.timestamp).asc())
