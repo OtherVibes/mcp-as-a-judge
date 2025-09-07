@@ -34,7 +34,7 @@ class SQLiteProvider(ConversationHistoryDB):
     - Session-based conversation retrieval
     """
 
-    def __init__(self, max_context_records: int = 20, url: str = "") -> None:
+    def __init__(self, max_session_records: int = 20, url: str = "") -> None:
         """Initialize the SQLModel SQLite database with LRU and time-based cleanup."""
         # Parse URL to get SQLite connection string
         connection_string = self._parse_sqlite_url(url)
@@ -48,7 +48,7 @@ class SQLiteProvider(ConversationHistoryDB):
             else {},
         )
 
-        self._max_context_records = max_context_records
+        self._max_session_records = max_session_records
 
         # Initialize cleanup service for time-based cleanup
         self._cleanup_service = ConversationCleanupService(engine=self.engine)
@@ -58,7 +58,7 @@ class SQLiteProvider(ConversationHistoryDB):
 
         logger.info(
             f"🗄️ SQLModel SQLite provider initialized: {connection_string}, "
-            f"max_records={max_context_records}, retention_days={self._cleanup_service.retention_days}"
+            f"max_records={max_session_records}, retention_days={self._cleanup_service.retention_days}"
         )
 
     def _parse_sqlite_url(self, url: str) -> str:
@@ -88,8 +88,8 @@ class SQLiteProvider(ConversationHistoryDB):
 
     def _cleanup_old_messages(self, session_id: str) -> int:
         """
-        Remove old messages from a session using LRU (Least Recently Used) strategy.
-        Keeps only the most recent max_context_records messages per session.
+        Remove old messages from a session using FIFO strategy.
+        Keeps only the most recent max_session_records messages per session.
         """
         with Session(self.engine) as session:
             # Count current messages in session
@@ -100,16 +100,16 @@ class SQLiteProvider(ConversationHistoryDB):
             current_count = len(current_records)
 
             logger.info(
-                f"🧹 LRU cleanup check for session {session_id}: {current_count} records "
-                f"(max: {self._max_context_records})"
+                f"🧹 FIFO cleanup check for session {session_id}: {current_count} records "
+                f"(max: {self._max_session_records})"
             )
 
-            if current_count <= self._max_context_records:
+            if current_count <= self._max_session_records:
                 logger.info("   No cleanup needed - within limits")
                 return 0
 
-            # Get oldest records to remove
-            records_to_remove = current_count - self._max_context_records
+            # Get oldest records to remove (FIFO)
+            records_to_remove = current_count - self._max_session_records
             oldest_stmt = (
                 select(ConversationRecord)
                 .where(ConversationRecord.session_id == session_id)

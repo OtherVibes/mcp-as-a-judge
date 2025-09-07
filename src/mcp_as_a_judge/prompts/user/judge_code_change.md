@@ -14,6 +14,9 @@ Please review the following code:
 
 ## Code Content
 
+## Previous Conversation History as JSON array 
+{{ conversation_history }}
+
 ```
 {{ code_change }}
 ```

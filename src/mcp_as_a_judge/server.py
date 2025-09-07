@@ -87,26 +87,24 @@ async def build_workflow(
     original_input = {"task_description": task_description, "context": context}
 
     try:
-        # STEP 1: Load conversation history and format as context string
+        # STEP 1: Load conversation history and format as JSON array
         conversation_history = await conversation_service.get_conversation_history(
             session_id
         )
-        history_context = conversation_service.format_conversation_history_as_context(
-            conversation_history
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
         )
 
-        # Combine user-provided context with conversation history
-        combined_context = (
-            f"{context}\n\n{history_context}".strip() if context else history_context
-        )
-
-        # STEP 2: Create system and user messages with formatted context
+        # STEP 2: Create system and user messages with separate context and conversation history
         system_vars = WorkflowGuidanceSystemVars(
             response_schema=json.dumps(WorkflowGuidance.model_json_schema())
         )
         user_vars = WorkflowGuidanceUserVars(
             task_description=task_description,
-            context=combined_context,
+            context=context,  # Keep original context separate
+            conversation_history=history_json_array,  # JSON array with timestamps
         )
         messages = create_separate_messages(
             "system/build_workflow.md",
@@ -409,7 +407,8 @@ async def _validate_research_quality(
         design=design,
         research=research,
         research_urls=research_urls,
-        context="",  # No conversation history for research validation
+        context="",  # No additional context for research validation
+        conversation_history=[],  # No conversation history for research validation
     )
     messages = create_separate_messages(
         "system/research_validation.md",
@@ -461,6 +460,7 @@ async def _evaluate_coding_plan(
     research_urls: list[str],
     user_requirements: str,
     context: str,
+    conversation_history: list[dict],
     ctx: Context,
 ) -> JudgeResponse:
     """Evaluate coding plan using AI judge.
@@ -478,7 +478,8 @@ async def _evaluate_coding_plan(
         design=design,
         research=research,
         research_urls=research_urls,
-        context=context,  # Formatted conversation history string
+        context=context,  # Additional context (separate from conversation history)
+        conversation_history=conversation_history,  # JSON array with timestamps
     )
     messages = create_separate_messages(
         "system/judge_coding_plan.md",
@@ -559,22 +560,25 @@ async def judge_coding_plan(
         )
 
     try:
-        # STEP 1: Load conversation history and format as context string
+        # STEP 1: Load conversation history and format as JSON array
         conversation_history = await conversation_service.get_conversation_history(
             session_id
         )
-        history_context = conversation_service.format_conversation_history_as_context(
-            conversation_history
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
         )
 
-        # STEP 2: Use helper function for main evaluation with formatted conversation history
+        # STEP 2: Use helper function for main evaluation with JSON array conversation history
         evaluation_result = await _evaluate_coding_plan(
             plan,
             design,
             research,
             research_urls,
             user_requirements,
-            history_context,
+            "",  # Empty context for now - can be enhanced later
+            history_json_array,
             ctx,
         )
 
@@ -642,15 +646,17 @@ async def judge_code_change(
     }
 
     try:
-        # STEP 1: Load conversation history and format as context string
+        # STEP 1: Load conversation history and format as JSON array
         conversation_history = await conversation_service.get_conversation_history(
             session_id
         )
-        history_context = conversation_service.format_conversation_history_as_context(
-            conversation_history
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
         )
 
-        # STEP 2: Create system and user messages with formatted context
+        # STEP 2: Create system and user messages with separate context and conversation history
         system_vars = JudgeCodeChangeSystemVars(
             response_schema=json.dumps(JudgeResponse.model_json_schema())
         )
@@ -659,7 +665,8 @@ async def judge_code_change(
             code_change=code_change,
             file_path=file_path,
             change_description=change_description,
-            context=history_context,
+            context="",  # Empty context for now - can be enhanced later
+            conversation_history=history_json_array,  # JSON array with timestamps
         )
         messages = create_separate_messages(
             "system/judge_code_change.md",

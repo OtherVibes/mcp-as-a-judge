@@ -131,8 +131,7 @@ def log_startup_message(config: Any) -> None:
         "🚀 MCP Judge server starting with conversation history logging enabled"
     )
     logger.info(
-        f"📊 Configuration: max_context_records={config.database.max_context_records}, "
-        f"context_enrichment_count={config.database.context_enrichment_count}"
+        f"📊 Configuration: max_session_records={config.database.max_session_records}"
     )
 
 

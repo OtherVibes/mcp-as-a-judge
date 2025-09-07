@@ -16,9 +16,9 @@ class TestSQLiteComprehensive:
     """Comprehensive tests for all SQLModel SQLite operations."""
 
     @pytest.mark.asyncio
-    async def test_bulk_lru_cleanup(self):
-        """Test LRU cleanup with multiple records deletion."""
-        db = SQLiteProvider(max_context_records=2)
+    async def test_bulk_fifo_cleanup(self):
+        """Test FIFO cleanup with multiple records deletion."""
+        db = SQLiteProvider(max_session_records=2)
 
         # Add more records than limit
         for i in range(5):
@@ -97,7 +97,7 @@ class TestSQLiteComprehensive:
     @pytest.mark.asyncio
     async def test_large_dataset_performance(self):
         """Test SQL performance with larger datasets."""
-        db = SQLiteProvider(max_context_records=100)
+        db = SQLiteProvider(max_session_records=100)
 
         # Add many records
         for i in range(150):
@@ -112,11 +112,11 @@ class TestSQLiteComprehensive:
         records = await db.get_session_conversations("perf_test")
         assert len(records) == 100
 
-        # Test performance verification - ensure LRU cleanup worked correctly
-        # Verify that we have exactly the max_context_records (100) and they are the most recent
+        # Test performance verification - ensure FIFO cleanup worked correctly
+        # Verify that we have exactly the max_session_records (100) and they are the most recent
         all_records = await db.get_session_conversations("perf_test")
         assert len(all_records) == 100, (
-            f"Expected exactly 100 records after LRU cleanup, got {len(all_records)}"
+            f"Expected exactly 100 records after FIFO cleanup, got {len(all_records)}"
         )
 
         # Verify records are in correct order (most recent first)
@@ -125,7 +125,7 @@ class TestSQLiteComprehensive:
                 "Records should be ordered by timestamp desc"
             )
 
-        print("✅ Performance and LRU cleanup verification successful")
+        print("✅ Performance and FIFO cleanup verification successful")
 
     def test_sql_query_syntax(self):
         """Test that all SQL queries have correct syntax."""

@@ -30,20 +30,6 @@ class ConversationHistoryDB(ABC):
     """Abstract interface for conversation history database operations."""
 
     @abstractmethod
-    def __init__(
-        self, max_context_records: int = 20, retention_days: int = 1, url: str = ""
-    ) -> None:
-        """
-        Initialize the database provider.
-
-        Args:
-            max_context_records: Maximum number of conversation records to keep per session
-            retention_days: Number of days to keep conversation records before deletion
-            url: Database connection URL
-        """
-        pass
-
-    @abstractmethod
     async def save_conversation(
         self, session_id: str, source: str, input_data: str, output: str
     ) -> str:

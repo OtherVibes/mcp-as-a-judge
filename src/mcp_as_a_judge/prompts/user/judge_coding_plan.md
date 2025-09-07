@@ -8,6 +8,9 @@ Please evaluate the following coding plan:
 
 {{ context }}
 
+## Previous Conversation History as JSON array 
+{{ conversation_history }}
+
 ## Plan
 
 {{ plan }}

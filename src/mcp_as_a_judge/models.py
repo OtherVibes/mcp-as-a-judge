@@ -118,13 +118,17 @@ class JudgeCodingPlanUserVars(BaseModel):
     user_requirements: str = Field(
         description="The user's requirements for the coding task"
     )
-    context: str = Field(description="Context including conversation history")
+    context: str = Field(description="Additional context about the task")
     plan: str = Field(description="The coding plan to be evaluated")
     design: str = Field(description="The design documentation")
     research: str = Field(description="Research findings and analysis")
     research_urls: list[str] = Field(
         default_factory=list,
         description="URLs from MANDATORY online research - minimum 3 URLs required",
+    )
+    conversation_history: list = Field(
+        default_factory=list,
+        description="Previous conversation history as JSON array with timestamps",
     )
 
 
@@ -145,7 +149,11 @@ class JudgeCodeChangeUserVars(BaseModel):
     file_path: str = Field(description="Path to the file being changed")
     change_description: str = Field(description="Description of what the change does")
     code_change: str = Field(description="The actual code content being reviewed")
-    context: str = Field(description="Context including conversation history")
+    context: str = Field(description="Additional context about the code change")
+    conversation_history: list = Field(
+        default_factory=list,
+        description="Previous conversation history as JSON array with timestamps",
+    )
 
 
 class ResearchValidationSystemVars(BaseModel):
@@ -167,7 +175,11 @@ class ResearchValidationUserVars(BaseModel):
         default_factory=list,
         description="URLs from MANDATORY online research - minimum 3 URLs required",
     )
-    context: str = Field(description="Context including conversation history")
+    context: str = Field(description="Additional context about the research validation")
+    conversation_history: list = Field(
+        default_factory=list,
+        description="Previous conversation history as JSON array with timestamps",
+    )
 
 
 class WorkflowGuidanceSystemVars(BaseModel):
@@ -182,7 +194,11 @@ class WorkflowGuidanceUserVars(BaseModel):
     """Variables for build_workflow user prompt."""
 
     task_description: str = Field(description="Description of the development task")
-    context: str = Field(description="Context including conversation history")
+    context: str = Field(description="Additional context about the task")
+    conversation_history: list = Field(
+        default_factory=list,
+        description="Previous conversation history as JSON array with timestamps",
+    )
 
 
 class ValidationErrorSystemVars(BaseModel):

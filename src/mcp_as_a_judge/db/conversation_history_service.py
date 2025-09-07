@@ -52,7 +52,7 @@ class ConversationHistoryService:
         # Load recent conversations for this session
         recent_records = await self.db.get_session_conversations(
             session_id=session_id,
-            limit=self.config.database.context_enrichment_count,  # load last X records
+            limit=self.config.database.max_session_records,  # load last X records (same as save limit)
         )
 
         logger.info(f"📚 Retrieved {len(recent_records)} conversation records from DB")
@@ -109,33 +109,35 @@ class ConversationHistoryService:
 
         return context_records
 
-    def format_conversation_history_as_context(
+    def format_conversation_history_as_json_array(
         self, conversation_history: list[ConversationRecord]
-    ) -> str:
+    ) -> list[dict]:
         """
-        Convert conversation history list to formatted string for context field.
+        Convert conversation history list to JSON array for prompt injection.
 
         Args:
             conversation_history: List of conversation records
 
         Returns:
-            Formatted string representation of conversation history
+            List of dictionaries with conversation history data including timestamps
         """
         if not conversation_history:
-            return ""
+            return []
 
         logger.info(
-            f"📝 Formatting {len(conversation_history)} conversation records as context string"
+            f"📝 Formatting {len(conversation_history)} conversation records as JSON array"
         )
 
-        context_parts = []
+        json_array = []
         for record in conversation_history:
-            context_parts.append(f"Tool: {record.source}")
-            context_parts.append(f"Input: {record.input}")
-            context_parts.append(f"Output: {record.output}")
-            context_parts.append("")  # Empty line between records
+            json_array.append(
+                {
+                    "source": record.source,
+                    "input": record.input,
+                    "output": record.output,
+                    "timestamp": record.timestamp.isoformat()
+                }
+            )
 
-        formatted_context = "\n".join(context_parts).strip()
-        logger.info(f"📝 Generated context string: {len(formatted_context)} characters")
-
-        return formatted_context
+        logger.info(f"📝 Generated JSON array with {len(json_array)} records")
+        return json_array

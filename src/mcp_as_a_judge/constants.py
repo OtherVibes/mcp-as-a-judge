@@ -13,6 +13,5 @@ DEFAULT_TIMEOUT = 30  # Default timeout in seconds for operations
 
 # Database Configuration
 DATABASE_URL = "sqlite://:memory:"
-MAX_CONTEXT_RECORDS = 20
-CONTEXT_ENRICHMENT_COUNT = 10
+MAX_SESSION_RECORDS = 20  # Maximum records to keep per session (FIFO)
 RECORD_RETENTION_DAYS = 1

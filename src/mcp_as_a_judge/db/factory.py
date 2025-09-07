@@ -54,14 +54,14 @@ class DatabaseFactory:
         if provider_name in ["in_memory", "sqlite"]:
             # SQLite-based providers (both SQLModel and legacy)
             return provider_class(
-                max_context_records=config.database.max_context_records,
+                max_session_records=config.database.max_session_records,
                 url=config.database.url,
             )
         else:
             # For future network database providers (PostgreSQL, MySQL, etc.)
             return provider_class(
                 url=config.database.url,
-                max_context_records=config.database.max_context_records,
+                max_session_records=config.database.max_session_records,
             )
 
     @classmethod
