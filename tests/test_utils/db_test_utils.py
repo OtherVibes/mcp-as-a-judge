@@ -40,5 +40,3 @@ class DatabaseTestUtils:
                 return len(records)
         else:
             raise NotImplementedError(f"clear_session not implemented for {type(db)}")
-
-

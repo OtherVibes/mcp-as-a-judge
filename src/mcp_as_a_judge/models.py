@@ -118,9 +118,7 @@ class JudgeCodingPlanUserVars(BaseModel):
     user_requirements: str = Field(
         description="The user's requirements for the coding task"
     )
-    context: str = Field(
-        description="Context including conversation history"
-    )
+    context: str = Field(description="Context including conversation history")
     plan: str = Field(description="The coding plan to be evaluated")
     design: str = Field(description="The design documentation")
     research: str = Field(description="Research findings and analysis")
@@ -147,9 +145,7 @@ class JudgeCodeChangeUserVars(BaseModel):
     file_path: str = Field(description="Path to the file being changed")
     change_description: str = Field(description="Description of what the change does")
     code_change: str = Field(description="The actual code content being reviewed")
-    context: str = Field(
-        description="Context including conversation history"
-    )
+    context: str = Field(description="Context including conversation history")
 
 
 class ResearchValidationSystemVars(BaseModel):
@@ -171,9 +167,7 @@ class ResearchValidationUserVars(BaseModel):
         default_factory=list,
         description="URLs from MANDATORY online research - minimum 3 URLs required",
     )
-    context: str = Field(
-        description="Context including conversation history"
-    )
+    context: str = Field(description="Context including conversation history")
 
 
 class WorkflowGuidanceSystemVars(BaseModel):
@@ -224,7 +218,6 @@ class DynamicSchemaUserVars(BaseModel):
     current_understanding: str = Field(
         description="What we currently understand about the situation"
     )
-
 
 
 class ElicitationFallbackUserVars(BaseModel):

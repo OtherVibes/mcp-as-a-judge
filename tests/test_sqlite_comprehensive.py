@@ -115,11 +115,15 @@ class TestSQLiteComprehensive:
         # Test performance verification - ensure LRU cleanup worked correctly
         # Verify that we have exactly the max_context_records (100) and they are the most recent
         all_records = await db.get_session_conversations("perf_test")
-        assert len(all_records) == 100, f"Expected exactly 100 records after LRU cleanup, got {len(all_records)}"
+        assert len(all_records) == 100, (
+            f"Expected exactly 100 records after LRU cleanup, got {len(all_records)}"
+        )
 
         # Verify records are in correct order (most recent first)
         for i in range(len(all_records) - 1):
-            assert all_records[i].timestamp >= all_records[i + 1].timestamp, "Records should be ordered by timestamp desc"
+            assert all_records[i].timestamp >= all_records[i + 1].timestamp, (
+                "Records should be ordered by timestamp desc"
+            )
 
         print("✅ Performance and LRU cleanup verification successful")
 

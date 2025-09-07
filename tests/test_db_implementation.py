@@ -54,9 +54,15 @@ async def test_database_operations():
     assert len(all_records) == 2, f"Expected 2 records, got {len(all_records)}"
 
     # Verify record content
-    assert all_records[0].source == "judge_code_change", "Most recent record should be judge_code_change"
-    assert all_records[1].source == "judge_coding_plan", "Older record should be judge_coding_plan"
-    assert all_records[0].input == "Review this code change", "Record content should match"
+    assert all_records[0].source == "judge_code_change", (
+        "Most recent record should be judge_code_change"
+    )
+    assert all_records[1].source == "judge_coding_plan", (
+        "Older record should be judge_coding_plan"
+    )
+    assert all_records[0].input == "Review this code change", (
+        "Record content should match"
+    )
     print("✅ CRUD operations verified successfully")
 
     # Test deletion
@@ -76,7 +82,9 @@ async def test_database_operations():
     # Final verification - ensure cleanup worked
     final_records = await db.get_session_conversations("session_123")
     print(f"Final verification: {len(final_records)} records remaining")
-    assert len(final_records) == 0, f"Expected 0 records after cleanup, got {len(final_records)}"
+    assert len(final_records) == 0, (
+        f"Expected 0 records after cleanup, got {len(final_records)}"
+    )
     print("✅ Cleanup verification successful")
 
     print("\n✅ All tests completed successfully!")

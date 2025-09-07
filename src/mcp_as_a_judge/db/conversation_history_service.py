@@ -87,9 +87,9 @@ class ConversationHistoryService:
         logger.info(f"✅ Saved conversation record with ID: {record_id}")
         return record_id
 
-
-
-    async def get_conversation_history(self, session_id: str) -> list[ConversationRecord]:
+    async def get_conversation_history(
+        self, session_id: str
+    ) -> list[ConversationRecord]:
         """
         Get conversation history for a session to be injected into user prompts.
 
@@ -103,11 +103,15 @@ class ConversationHistoryService:
 
         context_records = await self.load_context_for_enrichment(session_id)
 
-        logger.info(f"📝 Retrieved {len(context_records)} conversation records for session {session_id}")
+        logger.info(
+            f"📝 Retrieved {len(context_records)} conversation records for session {session_id}"
+        )
 
         return context_records
 
-    def format_conversation_history_as_context(self, conversation_history: list[ConversationRecord]) -> str:
+    def format_conversation_history_as_context(
+        self, conversation_history: list[ConversationRecord]
+    ) -> str:
         """
         Convert conversation history list to formatted string for context field.
 
@@ -120,7 +124,9 @@ class ConversationHistoryService:
         if not conversation_history:
             return ""
 
-        logger.info(f"📝 Formatting {len(conversation_history)} conversation records as context string")
+        logger.info(
+            f"📝 Formatting {len(conversation_history)} conversation records as context string"
+        )
 
         context_parts = []
         for record in conversation_history:
@@ -133,5 +139,3 @@ class ConversationHistoryService:
         logger.info(f"📝 Generated context string: {len(formatted_context)} characters")
 
         return formatted_context
-
-

@@ -76,5 +76,3 @@ class ConversationHistoryDB(ABC):
             List of ConversationRecord objects
         """
         pass
-
-

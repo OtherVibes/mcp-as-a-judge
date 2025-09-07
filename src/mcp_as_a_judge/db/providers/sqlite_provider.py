@@ -34,9 +34,7 @@ class SQLiteProvider(ConversationHistoryDB):
     - Session-based conversation retrieval
     """
 
-    def __init__(
-        self, max_context_records: int = 20, url: str = ""
-    ) -> None:
+    def __init__(self, max_context_records: int = 20, url: str = "") -> None:
         """Initialize the SQLModel SQLite database with LRU and time-based cleanup."""
         # Parse URL to get SQLite connection string
         connection_string = self._parse_sqlite_url(url)
@@ -190,5 +188,3 @@ class SQLiteProvider(ConversationHistoryDB):
 
             records = session.exec(stmt).all()
             return list(records)
-
-

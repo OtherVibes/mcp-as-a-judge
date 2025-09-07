@@ -88,11 +88,17 @@ async def build_workflow(
 
     try:
         # STEP 1: Load conversation history and format as context string
-        conversation_history = await conversation_service.get_conversation_history(session_id)
-        history_context = conversation_service.format_conversation_history_as_context(conversation_history)
+        conversation_history = await conversation_service.get_conversation_history(
+            session_id
+        )
+        history_context = conversation_service.format_conversation_history_as_context(
+            conversation_history
+        )
 
         # Combine user-provided context with conversation history
-        combined_context = f"{context}\n\n{history_context}".strip() if context else history_context
+        combined_context = (
+            f"{context}\n\n{history_context}".strip() if context else history_context
+        )
 
         # STEP 2: Create system and user messages with formatted context
         system_vars = WorkflowGuidanceSystemVars(
@@ -515,7 +521,7 @@ async def judge_coding_plan(
     log_tool_execution(
         "judge_coding_plan",
         session_id,
-        f"Plan: {plan}\nUser Requirements: {user_requirements}"
+        f"Plan: {plan}\nUser Requirements: {user_requirements}",
     )
 
     # Handle default value for research_urls
@@ -554,8 +560,12 @@ async def judge_coding_plan(
 
     try:
         # STEP 1: Load conversation history and format as context string
-        conversation_history = await conversation_service.get_conversation_history(session_id)
-        history_context = conversation_service.format_conversation_history_as_context(conversation_history)
+        conversation_history = await conversation_service.get_conversation_history(
+            session_id
+        )
+        history_context = conversation_service.format_conversation_history_as_context(
+            conversation_history
+        )
 
         # STEP 2: Use helper function for main evaluation with formatted conversation history
         evaluation_result = await _evaluate_coding_plan(
@@ -633,8 +643,12 @@ async def judge_code_change(
 
     try:
         # STEP 1: Load conversation history and format as context string
-        conversation_history = await conversation_service.get_conversation_history(session_id)
-        history_context = conversation_service.format_conversation_history_as_context(conversation_history)
+        conversation_history = await conversation_service.get_conversation_history(
+            session_id
+        )
+        history_context = conversation_service.format_conversation_history_as_context(
+            conversation_history
+        )
 
         # STEP 2: Create system and user messages with formatted context
         system_vars = JudgeCodeChangeSystemVars(
