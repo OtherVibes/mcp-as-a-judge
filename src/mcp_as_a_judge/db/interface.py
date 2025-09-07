@@ -77,20 +77,4 @@ class ConversationHistoryDB(ABC):
         """
         pass
 
-    # TEST-ONLY METHODS
-    # The following methods are used only by tests, not by application code
-    async def clear_session(self, session_id: str) -> int:
-        """
-        Clear all conversation records for a session.
 
-        **TEST-ONLY METHOD** - Used exclusively by tests for cleanup.
-        """
-        raise NotImplementedError("Test-only method")
-
-    def get_stats(self) -> dict[str, int | str]:
-        """
-        Get statistics about the database storage.
-
-        **TEST-ONLY METHOD** - Used exclusively by tests for verification.
-        """
-        raise NotImplementedError("Test-only method")

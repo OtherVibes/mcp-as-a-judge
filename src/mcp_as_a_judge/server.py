@@ -12,6 +12,8 @@ import json
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
+from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
+from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.elicitation_provider import elicitation_provider
 from mcp_as_a_judge.logging_config import (
     get_logger,
@@ -45,9 +47,6 @@ from mcp_as_a_judge.server_helpers import (
 from mcp_as_a_judge.tool_description_provider import (
     tool_description_provider,
 )
-
-from .config import load_config
-from .db.conversation_history_service import ConversationHistoryService
 
 # Initialize centralized logging
 setup_logging()
@@ -88,19 +87,20 @@ async def build_workflow(
     original_input = {"task_description": task_description, "context": context}
 
     try:
-        # STEP 1: Load conversation history and enrich context
-        base_prompt = f"Task Description: {task_description}\nContext: {context}"
-        enriched_prompt = await conversation_service.enrich_with_context(
-            session_id=session_id, base_prompt=base_prompt
-        )
+        # STEP 1: Load conversation history and format as context string
+        conversation_history = await conversation_service.get_conversation_history(session_id)
+        history_context = conversation_service.format_conversation_history_as_context(conversation_history)
 
-        # STEP 2: Create system and user messages with enriched context
+        # Combine user-provided context with conversation history
+        combined_context = f"{context}\n\n{history_context}".strip() if context else history_context
+
+        # STEP 2: Create system and user messages with formatted context
         system_vars = WorkflowGuidanceSystemVars(
             response_schema=json.dumps(WorkflowGuidance.model_json_schema())
         )
         user_vars = WorkflowGuidanceUserVars(
             task_description=task_description,
-            context=enriched_prompt,  # Now includes conversation history
+            context=combined_context,
         )
         messages = create_separate_messages(
             "system/build_workflow.md",
@@ -403,6 +403,7 @@ async def _validate_research_quality(
         design=design,
         research=research,
         research_urls=research_urls,
+        context="",  # No conversation history for research validation
     )
     messages = create_separate_messages(
         "system/research_validation.md",
@@ -471,7 +472,7 @@ async def _evaluate_coding_plan(
         design=design,
         research=research,
         research_urls=research_urls,
-        context=context,
+        context=context,  # Formatted conversation history string
     )
     messages = create_separate_messages(
         "system/judge_coding_plan.md",
@@ -511,10 +512,10 @@ async def judge_coding_plan(
     session_id = get_session_id(ctx)
 
     # Log tool execution start
-    plan_preview = f"Plan: {plan[:100]}{'...' if len(plan) > 100 else ''}"
-    requirements_preview = f"User Requirements: {user_requirements[:100]}{'...' if len(user_requirements) > 100 else ''}"
     log_tool_execution(
-        "judge_coding_plan", session_id, f"{plan_preview}\n   {requirements_preview}"
+        "judge_coding_plan",
+        session_id,
+        f"Plan: {plan}\nUser Requirements: {user_requirements}"
     )
 
     # Handle default value for research_urls
@@ -552,20 +553,18 @@ async def judge_coding_plan(
         )
 
     try:
-        # STEP 1: Load conversation history and enrich context
-        base_prompt = f"Plan: {plan}\nDesign: {design}\nResearch: {research}\nUser Requirements: {user_requirements}"
-        enriched_context = await conversation_service.enrich_with_context(
-            session_id=session_id, base_prompt=base_prompt
-        )
+        # STEP 1: Load conversation history and format as context string
+        conversation_history = await conversation_service.get_conversation_history(session_id)
+        history_context = conversation_service.format_conversation_history_as_context(conversation_history)
 
-        # STEP 2: Use helper function for main evaluation with enriched context
+        # STEP 2: Use helper function for main evaluation with formatted conversation history
         evaluation_result = await _evaluate_coding_plan(
             plan,
             design,
             research,
             research_urls,
             user_requirements,
-            enriched_context,
+            history_context,
             ctx,
         )
 
@@ -633,21 +632,20 @@ async def judge_code_change(
     }
 
     try:
-        # STEP 1: Load conversation history and enrich context
-        base_prompt = f"Code Change: {code_change}\nUser Requirements: {user_requirements}\nFile: {file_path}\nDescription: {change_description}"
-        enriched_prompt = await conversation_service.enrich_with_context(
-            session_id=session_id, base_prompt=base_prompt
-        )
+        # STEP 1: Load conversation history and format as context string
+        conversation_history = await conversation_service.get_conversation_history(session_id)
+        history_context = conversation_service.format_conversation_history_as_context(conversation_history)
 
-        # STEP 2: Create system and user messages with enriched context
+        # STEP 2: Create system and user messages with formatted context
         system_vars = JudgeCodeChangeSystemVars(
             response_schema=json.dumps(JudgeResponse.model_json_schema())
         )
         user_vars = JudgeCodeChangeUserVars(
-            user_requirements=enriched_prompt,  # Now includes conversation history
+            user_requirements=user_requirements,
             code_change=code_change,
             file_path=file_path,
             change_description=change_description,
+            context=history_context,
         )
         messages = create_separate_messages(
             "system/judge_code_change.md",

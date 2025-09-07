@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from mcp_as_a_judge.db.providers.sqlite import SQLiteProvider
+from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
+from test_utils import DatabaseTestUtils
 
 
 class TestSQLiteComprehensive:
@@ -40,7 +41,7 @@ class TestSQLiteComprehensive:
     @pytest.mark.asyncio
     async def test_daily_cleanup_sql(self):
         """Test daily cleanup SQL with time-based deletion."""
-        db = SQLiteProvider(retention_days=1)
+        db = SQLiteProvider()
 
         # Mock old cleanup time to force daily cleanup
         old_time = datetime.utcnow() - timedelta(days=2)
@@ -68,7 +69,7 @@ class TestSQLiteComprehensive:
         assert len(records) == 0
 
         # Test clear empty session
-        deleted = await db.clear_session("nonexistent_session")
+        deleted = await DatabaseTestUtils.clear_session(db, "nonexistent_session")
         assert deleted == 0
 
     @pytest.mark.asyncio
@@ -111,10 +112,16 @@ class TestSQLiteComprehensive:
         records = await db.get_session_conversations("perf_test")
         assert len(records) == 100
 
-        # Test stats query performance
-        stats = db.get_stats()
-        assert stats["total_records"] == 100
-        assert stats["unique_sessions"] >= 1
+        # Test performance verification - ensure LRU cleanup worked correctly
+        # Verify that we have exactly the max_context_records (100) and they are the most recent
+        all_records = await db.get_session_conversations("perf_test")
+        assert len(all_records) == 100, f"Expected exactly 100 records after LRU cleanup, got {len(all_records)}"
+
+        # Verify records are in correct order (most recent first)
+        for i in range(len(all_records) - 1):
+            assert all_records[i].timestamp >= all_records[i + 1].timestamp, "Records should be ordered by timestamp desc"
+
+        print("✅ Performance and LRU cleanup verification successful")
 
     def test_sql_query_syntax(self):
         """Test that all SQL queries have correct syntax."""

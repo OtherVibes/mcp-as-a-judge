@@ -7,8 +7,6 @@ serialization, and API contracts.
 
 from pydantic import BaseModel, Field
 
-from mcp_as_a_judge.llm_integration import LLMConfig
-
 
 class JudgeResponse(BaseModel):
     """Response model for all judge tool evaluations.
@@ -95,41 +93,7 @@ class ResearchValidationResponse(BaseModel):
 
 # Database models for conversation history
 # ConversationRecord is now defined in db/interface.py using SQLModel
-
-
-class DatabaseConfig(BaseModel):
-    """Configuration for database connection."""
-
-    url: str = Field(
-        default="",
-        description=(
-            "Database connection URL. Examples:\n"
-            "- '' or ':memory:' or 'sqlite://:memory:' -> SQLite in-memory\n"
-            "- 'sqlite:///path/to/file.db' -> SQLite file\n"
-            "- 'postgresql://user:pass@host:port/db' -> PostgreSQL\n"
-            "- 'mysql://user:pass@host:port/db' -> MySQL"
-        ),
-    )
-    max_context_records: int = Field(
-        default=20,
-        description="Maximum number of conversation records to keep per session (LRU cleanup)",
-    )
-    context_enrichment_count: int = Field(
-        default=5,
-        description="Number of recent conversation records to load for LLM context enrichment",
-    )
-    record_retention_days: int = Field(
-        default=1,
-        description="Number of days to keep conversation records before automatic deletion",
-    )
-    log_truncate_length: int = Field(
-        default=100,
-        description="Maximum characters to show in logs for input/output (0 = no truncation)",
-    )
-    cleanup_enabled: bool = Field(
-        default=True,
-        description="Whether to enable automatic cleanup of old records (runs daily)",
-    )
+# DatabaseConfig is now defined in constants.py
 
 
 # Type aliases for better code readability
@@ -154,7 +118,9 @@ class JudgeCodingPlanUserVars(BaseModel):
     user_requirements: str = Field(
         description="The user's requirements for the coding task"
     )
-    context: str = Field(description="Additional context about the task")
+    context: str = Field(
+        description="Context including conversation history"
+    )
     plan: str = Field(description="The coding plan to be evaluated")
     design: str = Field(description="The design documentation")
     research: str = Field(description="Research findings and analysis")
@@ -181,6 +147,9 @@ class JudgeCodeChangeUserVars(BaseModel):
     file_path: str = Field(description="Path to the file being changed")
     change_description: str = Field(description="Description of what the change does")
     code_change: str = Field(description="The actual code content being reviewed")
+    context: str = Field(
+        description="Context including conversation history"
+    )
 
 
 class ResearchValidationSystemVars(BaseModel):
@@ -202,6 +171,9 @@ class ResearchValidationUserVars(BaseModel):
         default_factory=list,
         description="URLs from MANDATORY online research - minimum 3 URLs required",
     )
+    context: str = Field(
+        description="Context including conversation history"
+    )
 
 
 class WorkflowGuidanceSystemVars(BaseModel):
@@ -216,7 +188,7 @@ class WorkflowGuidanceUserVars(BaseModel):
     """Variables for build_workflow user prompt."""
 
     task_description: str = Field(description="Description of the development task")
-    context: str = Field(description="Additional context about the task")
+    context: str = Field(description="Context including conversation history")
 
 
 class ValidationErrorSystemVars(BaseModel):
@@ -253,18 +225,6 @@ class DynamicSchemaUserVars(BaseModel):
         description="What we currently understand about the situation"
     )
 
-
-class ServerConfig(BaseModel):
-    """Server configuration including LLM fallback settings."""
-
-    llm_config: LLMConfig | None = Field(
-        default=None,
-        description="LLM configuration for fallback when MCP sampling is not available",
-    )
-    enable_llm_fallback: bool = Field(
-        default=True,
-        description="Whether to enable LLM fallback when MCP sampling is not available",
-    )
 
 
 class ElicitationFallbackUserVars(BaseModel):

@@ -10,3 +10,12 @@ DEFAULT_TEMPERATURE = 0.1  # Default temperature for LLM requests
 
 # Timeout Configuration
 DEFAULT_TIMEOUT = 30  # Default timeout in seconds for operations
+
+# Database Configuration
+DATABASE_URL = "sqlite://:memory:"
+MAX_CONTEXT_RECORDS = 20
+CONTEXT_ENRICHMENT_COUNT = 10
+RECORD_RETENTION_DAYS = 1
+
+
+

@@ -7,9 +7,9 @@ database provider based on configuration.
 
 from typing import ClassVar
 
-from ..config import Config, get_database_provider_from_url
-from .interface import ConversationHistoryDB
-from .providers import SQLiteProvider
+from mcp_as_a_judge.db.db_config import Config, get_database_provider_from_url
+from mcp_as_a_judge.db.interface import ConversationHistoryDB
+from mcp_as_a_judge.db.providers import SQLiteProvider
 
 
 class DatabaseFactory:
@@ -55,7 +55,6 @@ class DatabaseFactory:
             # SQLite-based providers (both SQLModel and legacy)
             return provider_class(
                 max_context_records=config.database.max_context_records,
-                retention_days=config.database.record_retention_days,
                 url=config.database.url,
             )
         else:
@@ -63,7 +62,6 @@ class DatabaseFactory:
             return provider_class(
                 url=config.database.url,
                 max_context_records=config.database.max_context_records,
-                retention_days=config.database.record_retention_days,
             )
 
     @classmethod

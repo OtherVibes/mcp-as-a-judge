@@ -7,10 +7,13 @@ This service handles:
 3. Managing session-based conversation history
 """
 
-from mcp_as_a_judge.config import Config
+from mcp_as_a_judge.db import (
+    ConversationHistoryDB,
+    ConversationRecord,
+    create_database_provider,
+)
+from mcp_as_a_judge.db.db_config import Config
 from mcp_as_a_judge.logging_config import get_logger
-
-from . import ConversationHistoryDB, ConversationRecord, create_database_provider
 
 # Set up logger
 logger = get_logger(__name__)
@@ -84,102 +87,51 @@ class ConversationHistoryService:
         logger.info(f"✅ Saved conversation record with ID: {record_id}")
         return record_id
 
-    def format_context_for_llm(self, context_records: list[ConversationRecord]) -> str:
+
+
+    async def get_conversation_history(self, session_id: str) -> list[ConversationRecord]:
         """
-        Format conversation history for LLM context enrichment.
+        Get conversation history for a session to be injected into user prompts.
 
         Args:
-            context_records: Recent conversation records
+            session_id: Session identifier
 
         Returns:
-            Formatted context string for LLM
+            List of conversation records for the session (most recent first)
         """
-        if not context_records:
-            logger.info("📝 No conversation history to format for LLM context")
-            return "No previous conversation history available."
+        logger.info(f"🔄 Loading conversation history for session {session_id}")
 
-        logger.info(
-            f"📝 Formatting {len(context_records)} conversation records for LLM context enrichment"
-        )
+        context_records = await self.load_context_for_enrichment(session_id)
 
-        context_lines = ["## Previous Conversation History"]
-        context_lines.append(
-            "Here are the recent interactions in this session for context:"
-        )
-        context_lines.append("")
+        logger.info(f"📝 Retrieved {len(context_records)} conversation records for session {session_id}")
 
-        # Format records (most recent first)
-        for i, record in enumerate(context_records, 1):
-            context_lines.append(
-                f"### {i}. {record.source} ({record.timestamp.strftime('%Y-%m-%d %H:%M:%S')})"
-            )
-            context_lines.append(f"**Input:** {record.input}")
-            context_lines.append(f"**Output:** {record.output}")
-            context_lines.append("")
-            logger.info(
-                f"   Formatted record {i}: {record.source} from {record.timestamp}"
-            )
+        return context_records
 
-        context_lines.append("---")
-        context_lines.append("Use this context to make more informed decisions.")
-        context_lines.append("")
+    def format_conversation_history_as_context(self, conversation_history: list[ConversationRecord]) -> str:
+        """
+        Convert conversation history list to formatted string for context field.
 
-        formatted_context = "\n".join(context_lines)
+        Args:
+            conversation_history: List of conversation records
+
+        Returns:
+            Formatted string representation of conversation history
+        """
+        if not conversation_history:
+            return ""
+
+        logger.info(f"📝 Formatting {len(conversation_history)} conversation records as context string")
+
+        context_parts = []
+        for record in conversation_history:
+            context_parts.append(f"Tool: {record.source}")
+            context_parts.append(f"Input: {record.input}")
+            context_parts.append(f"Output: {record.output}")
+            context_parts.append("")  # Empty line between records
+
+        formatted_context = "\n".join(context_parts).strip()
         logger.info(f"📝 Generated context string: {len(formatted_context)} characters")
 
         return formatted_context
 
-    async def enrich_with_context(self, session_id: str, base_prompt: str) -> str:
-        """
-        Enrich a base prompt with conversation history context.
 
-        Args:
-            session_id: Session identifier
-            base_prompt: Original prompt to enrich
-
-        Returns:
-            Enriched prompt with conversation history context
-        """
-        logger.info(
-            f"🔄 Starting context enrichment for session {session_id}, base_prompt: {base_prompt}"
-        )
-
-        context_records = await self.load_context_for_enrichment(session_id)
-        context_text = self.format_context_for_llm(context_records)
-
-        enriched_prompt = f"{context_text}\n## Current Request\n{base_prompt}"
-
-        logger.info(
-            f"🎯 Context enrichment completed for session {session_id}, enriched_prompt: {enriched_prompt}"
-        )
-
-        return enriched_prompt
-
-    ### TEST-ONLY METHODS
-    async def get_session_summary(self, session_id: str) -> dict:
-        """
-        Get a summary of the session's conversation history.
-
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            Dictionary with session statistics
-        """
-        all_records = await self.db.get_session_conversations(session_id)
-
-        # Count by tool type
-        tool_counts: dict[str, int] = {}
-        for record in all_records:
-            tool_counts[record.source] = tool_counts.get(record.source, 0) + 1
-
-        return {
-            "session_id": session_id,
-            "total_interactions": len(all_records),
-            "tool_usage": tool_counts,
-            "latest_interaction": all_records[0].timestamp.isoformat()
-            if all_records
-            else None,
-            "context_enrichment_count": self.config.database.context_enrichment_count,
-            "max_context_records": self.config.database.max_context_records,
-        }

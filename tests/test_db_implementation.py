@@ -5,7 +5,8 @@ Simple test script to verify the SQLite-based in-memory database implementation.
 
 import asyncio
 
-from mcp_as_a_judge.db.providers.sqlite import SQLiteProvider
+from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
+from test_utils import DatabaseTestUtils
 
 
 async def test_database_operations():
@@ -45,14 +46,21 @@ async def test_database_operations():
     recent_ids = await db.get_session_conversations("session_123", limit=5)
     print(f"Recent conversation IDs: {recent_ids}")
 
-    # Test statistics
-    print("\n5. Testing get_stats...")
-    stats = db.get_stats()
-    print(f"Database stats: {stats}")
+    # Test CRUD verification - check that records were actually saved correctly
+    print("\n5. Testing CRUD verification...")
+    all_records = await db.get_session_conversations("session_123")
+    print(f"Retrieved {len(all_records)} records for session")
+    assert len(all_records) == 2, f"Expected 2 records, got {len(all_records)}"
+
+    # Verify record content
+    assert all_records[0].source == "judge_code_change", "Most recent record should be judge_code_change"
+    assert all_records[1].source == "judge_coding_plan", "Older record should be judge_coding_plan"
+    assert all_records[0].input == "Review this code change", "Record content should match"
+    print("✅ CRUD operations verified successfully")
 
     # Test deletion
     print("\n6. Testing delete_conversation...")
-    deleted = await db.clear_session(record_id1)
+    deleted = await DatabaseTestUtils.clear_session(db, record_id1)
     print(f"Deleted record {record_id1}: {deleted}")
 
     # Verify deletion
@@ -61,12 +69,14 @@ async def test_database_operations():
 
     # Test clear session
     print("\n7. Testing clear_session...")
-    cleared_count = await db.clear_session("session_123")
+    cleared_count = await DatabaseTestUtils.clear_session(db, "session_123")
     print(f"Cleared {cleared_count} records from session")
 
-    # Final stats
-    final_stats = db.get_stats()
-    print(f"Final stats: {final_stats}")
+    # Final verification - ensure cleanup worked
+    final_records = await db.get_session_conversations("session_123")
+    print(f"Final verification: {len(final_records)} records remaining")
+    assert len(final_records) == 0, f"Expected 0 records after cleanup, got {len(final_records)}"
+    print("✅ Cleanup verification successful")
 
     print("\n✅ All tests completed successfully!")
 

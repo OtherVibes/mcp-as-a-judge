@@ -91,7 +91,7 @@ def configure_application_loggers(level: int = logging.INFO) -> None:
         "mcp_as_a_judge.conversation_history_service",
         "mcp_as_a_judge.db.conversation_history_service",
         "mcp_as_a_judge.db.providers.in_memory",
-        "mcp_as_a_judge.db.providers.sqlite",
+        "mcp_as_a_judge.db.providers.sqlite_provider",
         "mcp_as_a_judge.messaging",
         "mcp_as_a_judge.llm_client",
         "mcp_as_a_judge.config",
@@ -136,6 +136,22 @@ def log_startup_message(config: Any) -> None:
     )
 
 
+def _truncate_text(text: str, max_length: int = 100) -> str:
+    """
+    Truncate text to a maximum length with ellipsis if needed.
+
+    Args:
+        text: Text to truncate
+        max_length: Maximum length before truncation
+
+    Returns:
+        Truncated text with '...' if it was longer than max_length
+    """
+    if len(text) <= max_length:
+        return text
+    return text[:max_length] + "..."
+
+
 def log_tool_execution(
     tool_name: str, session_id: str, additional_info: str = ""
 ) -> None:
@@ -145,7 +161,7 @@ def log_tool_execution(
     Args:
         tool_name: Name of the tool being executed
         session_id: Session identifier
-        additional_info: Additional information to log
+        additional_info: Additional information to log (will be truncated if too long)
     """
     logger = get_logger("mcp_as_a_judge.server")
 
@@ -159,10 +175,12 @@ def log_tool_execution(
     }
 
     emoji = tool_emojis.get(tool_name, "🛠️")
-    logger.info(f"{emoji} {tool_name} called for session {session_id}")
+    logger.info(f"{emoji} {tool_name} called for session {_truncate_text(session_id)}")
 
     if additional_info:
-        logger.info(f"   {additional_info}")
+        # Truncate additional info to prevent overly long log lines
+        truncated_info = _truncate_text(additional_info, 200)
+        logger.info(f"   {truncated_info}")
 
 
 def log_error(error: Exception, context: str = "") -> None:
@@ -171,11 +189,15 @@ def log_error(error: Exception, context: str = "") -> None:
 
     Args:
         error: Exception that occurred
-        context: Additional context about where the error occurred
+        context: Additional context about where the error occurred (will be truncated if too long)
     """
     logger = get_logger("mcp_as_a_judge.server")
 
+    # Truncate error message and context to prevent overly long log lines
+    error_msg = _truncate_text(str(error), 300)
+
     if context:
-        logger.error(f"❌ Error in {context}: {error!s}")
+        truncated_context = _truncate_text(context, 100)
+        logger.error(f"❌ Error in {truncated_context}: {error_msg}")
     else:
-        logger.error(f"❌ Error: {error!s}")
+        logger.error(f"❌ Error: {error_msg}")

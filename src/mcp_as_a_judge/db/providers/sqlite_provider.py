@@ -6,14 +6,14 @@ It supports both in-memory (:memory:) and file-based SQLite storage.
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, asc, desc, select
 
+from mcp_as_a_judge.db.cleanup_service import ConversationCleanupService
+from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
 from mcp_as_a_judge.logging_config import get_logger
-
-from ..interface import ConversationHistoryDB, ConversationRecord
 
 # Set up logger
 logger = get_logger(__name__)
@@ -35,7 +35,7 @@ class SQLiteProvider(ConversationHistoryDB):
     """
 
     def __init__(
-        self, max_context_records: int = 20, retention_days: int = 1, url: str = ""
+        self, max_context_records: int = 20, url: str = ""
     ) -> None:
         """Initialize the SQLModel SQLite database with LRU and time-based cleanup."""
         # Parse URL to get SQLite connection string
@@ -51,15 +51,16 @@ class SQLiteProvider(ConversationHistoryDB):
         )
 
         self._max_context_records = max_context_records
-        self._retention_days = retention_days
-        self._last_cleanup_time = datetime.utcnow()
+
+        # Initialize cleanup service for time-based cleanup
+        self._cleanup_service = ConversationCleanupService(engine=self.engine)
 
         # Create tables
         self._create_tables()
 
         logger.info(
             f"🗄️ SQLModel SQLite provider initialized: {connection_string}, "
-            f"max_records={max_context_records}, retention_days={retention_days}"
+            f"max_records={max_context_records}, retention_days={self._cleanup_service.retention_days}"
         )
 
     def _parse_sqlite_url(self, url: str) -> str:
@@ -82,43 +83,10 @@ class SQLiteProvider(ConversationHistoryDB):
 
     def _cleanup_old_records(self) -> int:
         """
-        Remove records older than retention_days.
+        Remove records older than retention_days using the cleanup service.
         This runs once per day to avoid excessive cleanup operations.
         """
-        # Only run cleanup once per day
-        if (datetime.utcnow() - self._last_cleanup_time).days < 1:
-            return 0
-
-        cutoff_date = datetime.utcnow() - timedelta(days=self._retention_days)
-
-        with Session(self.engine) as session:
-            # Count old records
-            old_count_stmt = select(ConversationRecord).where(
-                ConversationRecord.timestamp < cutoff_date
-            )
-            old_records = session.exec(old_count_stmt).all()
-            old_count = len(old_records)
-
-            if old_count == 0:
-                logger.info(
-                    f"🧹 Daily cleanup: No records older than {self._retention_days} days"
-                )
-                self._last_cleanup_time = datetime.utcnow()
-                return 0
-
-            # Delete old records
-            for record in old_records:
-                session.delete(record)
-
-            session.commit()
-
-            # Reset cleanup tracking
-            self._last_cleanup_time = datetime.utcnow()
-
-            logger.info(
-                f"🧹 Daily cleanup: Deleted {old_count} records older than {self._retention_days} days"
-            )
-            return old_count
+        return self._cleanup_service.cleanup_old_records()
 
     def _cleanup_old_messages(self, session_id: str) -> int:
         """
@@ -223,48 +191,4 @@ class SQLiteProvider(ConversationHistoryDB):
             records = session.exec(stmt).all()
             return list(records)
 
-    # TEST-ONLY METHODS
-    async def clear_session(self, session_id: str) -> int:
-        """
-        Clear all conversation records for a session.
 
-        **TEST-ONLY METHOD** - Used exclusively by tests for cleanup.
-        """
-        with Session(self.engine) as session:
-            stmt = select(ConversationRecord).where(
-                ConversationRecord.session_id == session_id
-            )
-            records = session.exec(stmt).all()
-
-            for record in records:
-                session.delete(record)
-
-            session.commit()
-            return len(records)
-
-    def get_stats(self) -> dict[str, int | str]:
-        """
-        Get statistics about the database storage.
-
-        **TEST-ONLY METHOD** - Used exclusively by tests for verification.
-        """
-        with Session(self.engine) as session:
-            # Count total records
-            total_stmt = select(ConversationRecord)
-            total_records = len(session.exec(total_stmt).all())
-
-            # Count unique sessions using SQLAlchemy
-            from sqlalchemy import func
-
-            unique_sessions_stmt = select(
-                func.count(func.distinct(ConversationRecord.session_id))
-            )
-            unique_sessions = session.exec(unique_sessions_stmt).one() or 0
-
-            return {
-                "provider": "SQLModel SQLite",
-                "total_records": total_records,
-                "unique_sessions": unique_sessions,
-                "max_context_records": self._max_context_records,
-                "retention_days": self._retention_days,
-            }
