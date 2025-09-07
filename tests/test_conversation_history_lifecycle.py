@@ -258,9 +258,7 @@ class TestConversationHistoryLifecycle:
         # Should be sessions B and C (oldest last activity)
         assert "session_B" in lru_sessions, "Session B should be LRU"
         assert "session_C" in lru_sessions, "Session C should be LRU"
-        assert (
-            "session_A" not in lru_sessions
-        ), "Session A should NOT be LRU (recent activity)"
+        assert "session_A" not in lru_sessions, "Session A should NOT be LRU (recent activity)"
         print("✅ Phase 2: LRU detection working correctly")
 
         # PHASE 3: Trigger LRU cleanup
@@ -276,9 +274,7 @@ class TestConversationHistoryLifecycle:
 
         # Verify session count is now at limit
         final_count = db._cleanup_service.get_session_count()
-        assert (
-            final_count == 3
-        ), f"Expected 3 sessions after cleanup, got {final_count}"
+        assert final_count == 3, f"Expected 3 sessions after cleanup, got {final_count}"
         print(f"✅ Phase 3: Session count reduced to {final_count}")
 
         # PHASE 4: Verify which sessions remain
@@ -308,15 +304,9 @@ class TestConversationHistoryLifecycle:
                 print(f"   ❌ {session_id}: DELETED (was least recently used)")
 
         # Verify correct sessions were kept/deleted
-        assert (
-            "session_A" in remaining_sessions
-        ), "Session A should remain (most recent activity)"
-        assert (
-            "session_D" in remaining_sessions
-        ), "Session D should remain (recent creation)"
-        assert (
-            "session_E" in remaining_sessions
-        ), "Session E should remain (most recent creation)"
+        assert "session_A" in remaining_sessions, "Session A should remain (most recent activity)"
+        assert "session_D" in remaining_sessions, "Session D should remain (recent creation)"
+        assert "session_E" in remaining_sessions, "Session E should remain (most recent creation)"
         assert "session_B" in deleted_sessions, "Session B should be deleted (LRU)"
         assert "session_C" in deleted_sessions, "Session C should be deleted (LRU)"
 
@@ -326,9 +316,7 @@ class TestConversationHistoryLifecycle:
         print("\n📊 PHASE 5: Verifying session record preservation...")
 
         session_a_records = await db.get_session_conversations("session_A")
-        assert (
-            len(session_a_records) == 2
-        ), f"Session A should have 2 records, got {len(session_a_records)}"
+        assert len(session_a_records) == 2, f"Session A should have 2 records, got {len(session_a_records)}"
 
         # Check that both records exist
         sources = [r.source for r in session_a_records]
