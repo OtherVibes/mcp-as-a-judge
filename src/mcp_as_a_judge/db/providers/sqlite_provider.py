@@ -29,8 +29,9 @@ class SQLiteProvider(ConversationHistoryDB):
     Features:
     - SQLModel with SQLAlchemy for type safety
     - In-memory or file-based SQLite storage
-    - LRU cleanup per session
-    - Time-based cleanup (configurable retention)
+    - Two-level cleanup strategy:
+      1. Daily session-based LRU cleanup (max 2000 sessions, removes least recently used)
+      2. Per-session FIFO cleanup (max 20 records per session, runs on every save)
     - Session-based conversation retrieval
     """
 
@@ -58,7 +59,9 @@ class SQLiteProvider(ConversationHistoryDB):
 
         logger.info(
             f"🗄️ SQLModel SQLite provider initialized: {connection_string}, "
-            f"max_records={max_session_records}, retention_days={self._cleanup_service.retention_days}"
+            f"max_records_per_session={max_session_records}, "
+            f"max_total_sessions={self._cleanup_service.max_total_sessions}, "
+            f"retention_days={self._cleanup_service.retention_days}"
         )
 
     def _parse_sqlite_url(self, url: str) -> str:
@@ -85,6 +88,14 @@ class SQLiteProvider(ConversationHistoryDB):
         This runs once per day to avoid excessive cleanup operations.
         """
         return self._cleanup_service.cleanup_old_records()
+
+    def _cleanup_excess_sessions(self) -> int:
+        """
+        Remove least recently used sessions when total sessions exceed limit.
+        This implements daily LRU cleanup to maintain max 2000 sessions for better memory management.
+        Runs once per day - during the day session count can exceed limit without issues.
+        """
+        return self._cleanup_service.cleanup_excess_sessions()
 
     def _cleanup_old_messages(self, session_id: str) -> int:
         """
@@ -164,10 +175,10 @@ class SQLiteProvider(ConversationHistoryDB):
 
         logger.info("✅ Successfully inserted record into conversation_history table")
 
-        # Daily cleanup: run once per day to remove old records
-        self._cleanup_old_records()
+        # Daily session LRU cleanup: maintain max 2000 sessions (runs once per day)
+        self._cleanup_excess_sessions()
 
-        # Always perform LRU cleanup for this session (lightweight)
+        # Per-session FIFO cleanup: maintain max 20 records per session (runs on every save)
         self._cleanup_old_messages(session_id)
 
         return record_id
