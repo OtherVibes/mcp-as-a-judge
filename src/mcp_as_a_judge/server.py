@@ -513,7 +513,9 @@ async def judge_coding_plan(
     # Log tool execution start
     plan_preview = f"Plan: {plan[:100]}{'...' if len(plan) > 100 else ''}"
     requirements_preview = f"User Requirements: {user_requirements[:100]}{'...' if len(user_requirements) > 100 else ''}"
-    log_tool_execution("judge_coding_plan", session_id, f"{plan_preview}\n   {requirements_preview}")
+    log_tool_execution(
+        "judge_coding_plan", session_id, f"{plan_preview}\n   {requirements_preview}"
+    )
 
     # Handle default value for research_urls
     if research_urls is None:
