@@ -236,10 +236,10 @@ class TestConversationHistoryLifecycle:
 
         # Add recent activity to Session A (making it most recently used)
         await db.save_conversation(
-            "session_A",
-            "tool2",
-            "recent_input",
-            "recent_output",
+            session_id="session_A",
+            source="tool2",
+            input_data="recent_input",
+            output="recent_output",
         )
         print("   Session A: Updated with recent activity (most recently used)")
 
