@@ -5,7 +5,7 @@ Tests the complete flow of conversation records through the system.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 import pytest
 

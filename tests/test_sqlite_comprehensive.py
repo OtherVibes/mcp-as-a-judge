@@ -4,7 +4,7 @@ Comprehensive tests for SQLite provider SQL queries and edge cases.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 import pytest
 from test_utils import DatabaseTestUtils

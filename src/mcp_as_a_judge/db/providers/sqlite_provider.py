@@ -6,7 +6,7 @@ It supports both in-memory (:memory:) and file-based SQLite storage.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, UTC
 
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, asc, desc, select
