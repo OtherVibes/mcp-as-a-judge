@@ -6,7 +6,7 @@ It supports both in-memory (:memory:) and file-based SQLite storage.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, asc, desc, select
@@ -152,7 +152,7 @@ class SQLiteProvider(ConversationHistoryDB):
     ) -> str:
         """Save a conversation record to SQLite database with LRU cleanup."""
         record_id = str(uuid.uuid4())
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         logger.info(
             f"💾 Saving conversation to SQLModel SQLite DB: record {record_id} "

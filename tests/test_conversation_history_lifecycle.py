@@ -5,8 +5,10 @@ Tests the complete flow of conversation records through the system.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 import pytest
+
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
 
 class TestConversationHistoryLifecycle:
@@ -53,7 +55,7 @@ class TestConversationHistoryLifecycle:
         timestamps = [r.timestamp for r in records]
         for i in range(len(timestamps) - 1):
             assert timestamps[i] >= timestamps[i + 1], "Records should be ordered newest first"
-            
+
         print(f"✅ Phase 2: Records retrieved in correct order: {sources}")
 
         # PHASE 3: Trigger FIFO cleanup by adding more records
@@ -169,7 +171,7 @@ class TestConversationHistoryLifecycle:
         print(f"✅ Before cleanup: {len(records_before)} records")
 
         # Force time-based cleanup by mocking old cleanup time
-        old_time = datetime.now(timezone.utc) - timedelta(days=2)
+        old_time = datetime.now(UTC) - timedelta(days=2)
         db._last_cleanup_time = old_time
 
         # Trigger cleanup by adding another record
@@ -251,7 +253,7 @@ class TestConversationHistoryLifecycle:
         print("\n🧹 PHASE 3: Triggering LRU session cleanup...")
 
         # Force cleanup by mocking old cleanup time
-        old_time = datetime.now(timezone.utc) - timedelta(days=2)
+        old_time = datetime.now(UTC) - timedelta(days=2)
         db._cleanup_service.last_session_cleanup_time = old_time
 
         # Trigger cleanup

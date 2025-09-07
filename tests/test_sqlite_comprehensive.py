@@ -4,7 +4,7 @@ Comprehensive tests for SQLite provider SQL queries and edge cases.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from test_utils import DatabaseTestUtils
@@ -44,7 +44,7 @@ class TestSQLiteComprehensive:
         db = SQLiteProvider()
 
         # Mock old cleanup time to force daily cleanup
-        old_time = datetime.now(timezone.utc) - timedelta(days=2)
+        old_time = datetime.now(UTC) - timedelta(days=2)
         db._last_cleanup_time = old_time
 
         # Add a record
