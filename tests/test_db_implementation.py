@@ -5,8 +5,9 @@ Simple test script to verify the SQLite-based in-memory database implementation.
 
 import asyncio
 
-from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
 from test_utils import DatabaseTestUtils
+
+from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
 
 
 async def test_database_operations():

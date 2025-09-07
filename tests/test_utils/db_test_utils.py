@@ -18,11 +18,11 @@ class DatabaseTestUtils:
     async def clear_session(db: ConversationHistoryDB, session_id: str) -> int:
         """
         Clear all conversation records for a session.
-        
+
         Args:
             db: Database provider instance
             session_id: Session identifier to clear
-            
+
         Returns:
             Number of records deleted
         """
