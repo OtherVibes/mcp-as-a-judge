@@ -5,7 +5,7 @@ This module provides a factory function to create the appropriate
 database provider based on configuration.
 """
 
-from typing import ClassVar
+from typing import Any, ClassVar, cast
 
 from mcp_as_a_judge.db.db_config import Config, get_database_provider_from_url
 from mcp_as_a_judge.db.interface import ConversationHistoryDB
@@ -15,7 +15,7 @@ from mcp_as_a_judge.db.providers import SQLiteProvider
 class DatabaseFactory:
     """Factory for creating database providers."""
 
-    _providers: ClassVar[dict[str, type[ConversationHistoryDB]]] = {
+    _providers: ClassVar[dict[str, Any]] = {
         "in_memory": SQLiteProvider,  # SQLModel SQLite in-memory (:memory: or empty URL)
         "sqlite": SQLiteProvider,  # SQLModel SQLite file-based storage
         # Future providers can be added here:
@@ -50,19 +50,15 @@ class DatabaseFactory:
 
         provider_class = cls._providers[provider_name]
 
-        # Create provider instance based on provider type
-        if provider_name in ["in_memory", "sqlite"]:
-            # SQLite-based providers (both SQLModel and legacy)
-            return provider_class(
+        # Create provider instance - call concrete implementation constructor
+        # All current providers accept max_session_records and url parameters
+        return cast(
+            ConversationHistoryDB,
+            provider_class(
                 max_session_records=config.database.max_session_records,
                 url=config.database.url,
-            )
-        else:
-            # For future network database providers (PostgreSQL, MySQL, etc.)
-            return provider_class(
-                url=config.database.url,
-                max_session_records=config.database.max_session_records,
-            )
+            ),
+        )
 
     @classmethod
     def get_available_providers(cls) -> list[str]:

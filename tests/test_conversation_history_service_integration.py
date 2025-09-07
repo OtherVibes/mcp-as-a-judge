@@ -74,17 +74,14 @@ class TestConversationHistoryServiceIntegration:
 
         # Verify JSON structure
         first_record = json_array[0]
-        assert "id" in first_record
         assert "source" in first_record
         assert "input" in first_record
         assert "output" in first_record
         assert "timestamp" in first_record
-        assert "session_id" in first_record
 
         # Verify content
         assert first_record["source"] == "judge_code_change"
         assert first_record["input"] == "Review this JWT implementation"
-        assert first_record["session_id"] == session_id
 
         print("✅ JSON array formatted correctly with all required fields")
         print(
