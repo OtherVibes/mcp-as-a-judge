@@ -7,14 +7,18 @@ serialization, and API contracts.
 
 from pydantic import BaseModel, Field
 
+from mcp_as_a_judge.models.task_metadata import TaskMetadata
+from mcp_as_a_judge.workflow import WorkflowGuidance
+
 
 class JudgeResponse(BaseModel):
-    """Response model for all judge tool evaluations.
+    """Enhanced response model for all judge tool evaluations.
 
     This standardized response format ensures consistent feedback
-    across all evaluation tools.
+    across all evaluation tools and includes task metadata and workflow guidance.
     """
 
+    # Standard judge response fields
     approved: bool = Field(
         description="Whether the plan/code is approved for implementation"
     )
@@ -24,6 +28,14 @@ class JudgeResponse(BaseModel):
     )
     feedback: str = Field(
         description="Detailed explanation of the decision and recommendations"
+    )
+
+    # Enhanced workflow fields
+    current_task_metadata: TaskMetadata = Field(
+        description="Current state of task metadata after operation"
+    )
+    workflow_guidance: WorkflowGuidance = Field(
+        description="LLM-generated next steps and instructions"
     )
 
 
@@ -247,4 +259,57 @@ class ElicitationFallbackUserVars(BaseModel):
     )
     optional_fields: list[str] = Field(
         description="List of optional field descriptions for the user to provide"
+    )
+
+
+class TestingEvaluationSystemVars(BaseModel):
+    """Variables for testing evaluation system prompt."""
+
+    response_schema: str = Field(
+        description="JSON schema for the expected response format"
+    )
+
+
+class TestingEvaluationUserVars(BaseModel):
+    """Variables for testing evaluation user prompt."""
+
+    user_requirements: str = Field(
+        description="The user's requirements for the coding task"
+    )
+    task_description: str = Field(
+        description="Description of the coding task being tested"
+    )
+    modified_files: list[str] = Field(
+        default_factory=list,
+        description="List of implementation files that were modified"
+    )
+    test_summary: str = Field(
+        description="Summary of the testing implementation"
+    )
+    test_files: list[str] = Field(
+        default_factory=list,
+        description="List of test files that were created"
+    )
+    test_execution_results: str = Field(
+        description="Results from running the tests"
+    )
+    test_coverage_report: str = Field(
+        description="Test coverage report data"
+    )
+    test_types_implemented: list[str] = Field(
+        default_factory=list,
+        description="Types of tests implemented (unit, integration, e2e, etc.)"
+    )
+    testing_framework: str = Field(
+        description="Testing framework used"
+    )
+    performance_test_results: str = Field(
+        description="Performance test results if applicable"
+    )
+    manual_test_notes: str = Field(
+        description="Notes from manual testing if applicable"
+    )
+    conversation_history: list = Field(
+        default_factory=list,
+        description="Previous conversation history as JSON array with timestamps"
     )

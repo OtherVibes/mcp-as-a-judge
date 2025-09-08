@@ -71,6 +71,10 @@ class LocalStorageProvider(ToolDescriptionProvider):
 
         return description
 
+    def clear_cache(self) -> None:
+        """Clear the description cache to force reload from files."""
+        self._description_cache.clear()
+
     def _load_description_file(self, tool_name: str) -> str:
         """Load description from markdown file.
 

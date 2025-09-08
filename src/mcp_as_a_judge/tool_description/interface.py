@@ -39,6 +39,14 @@ class ToolDescriptionProvider(ABC):
         """
         pass
 
+    def clear_cache(self) -> None:
+        """Clear any cached descriptions to force reload.
+
+        Default implementation does nothing. Providers with caching
+        should override this method.
+        """
+        pass
+
     @abstractmethod
     def clear_cache(self) -> None:
         """Clear any cached descriptions.

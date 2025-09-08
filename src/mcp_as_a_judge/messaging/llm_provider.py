@@ -11,10 +11,6 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
-from mcp_as_a_judge.messaging.converters import (
-    mcp_messages_to_universal,
-    validate_message_conversion,
-)
 from mcp_as_a_judge.messaging.factory import MessagingProviderFactory
 from mcp_as_a_judge.messaging.interface import MessagingConfig
 
@@ -59,27 +55,23 @@ class LLMProvider:
             prefer_sampling=prefer_sampling,
         )
 
-        # Get provider from factory
-        provider = MessagingProviderFactory.create_provider(ctx, config)
+        # Get the appropriate provider and correctly formatted messages from factory
+        # The factory handles ALL message format decisions
+        provider, formatted_messages = MessagingProviderFactory.get_provider_with_messages(
+            ctx, messages, config
+        )
 
-        # Send message with appropriate format for each provider
+        # Send message using the provider with correctly formatted messages
         try:
             if provider.provider_type == "mcp_sampling":
-                # For MCP sampling, pass original messages directly
+                # MCP sampling provider with SamplingMessage objects
                 # Type ignore because MCPSamplingProvider has send_message_direct method
-                response = await provider.send_message_direct(messages, config)  # type: ignore[attr-defined]
+                response = await provider.send_message_direct(formatted_messages, config)  # type: ignore[attr-defined]
             else:
-                # For LLM API, convert to universal format first
-                universal_messages = mcp_messages_to_universal(messages)
-
-                # Validate conversion
-                if not validate_message_conversion(messages, universal_messages):
-                    raise ValueError("Failed to convert messages to universal format")
-
-                response = await provider.send_message(universal_messages, config)
+                # LLM API provider with universal Message objects
+                response = await provider.send_message(formatted_messages, config)
 
             # Provider successfully used
-
             return str(response)
 
         except Exception as e:
@@ -99,29 +91,22 @@ class LLMProvider:
                 )
 
                 if is_mcp_failure:
-                    # Try LLM API fallback
+                    # Try LLM API fallback using factory for consistent message handling
                     try:
-                        # Create LLM provider and try again
-                        from mcp_as_a_judge.messaging.llm_api_provider import (
-                            LLMAPIProvider,
+                        # Force LLM API configuration for fallback
+                        fallback_config = MessagingConfig(
+                            max_tokens=config.max_tokens,
+                            temperature=config.temperature,
+                            prefer_sampling=False,  # Force LLM API
                         )
 
-                        llm_provider_instance = LLMAPIProvider()
-
-                        # Convert to universal format for LLM API
-                        universal_messages = mcp_messages_to_universal(messages)
-
-                        if not validate_message_conversion(
-                            messages, universal_messages
-                        ):
-                            raise ValueError(
-                                "Failed to convert messages to universal format"
-                            )
-
-                        response = await llm_provider_instance.send_message(
-                            universal_messages, config
+                        # Get LLM provider and correctly formatted messages from factory
+                        fallback_provider, fallback_messages = MessagingProviderFactory.get_provider_with_messages(
+                            ctx, messages, fallback_config
                         )
-                        return response
+
+                        response = await fallback_provider.send_message(fallback_messages, fallback_config)
+                        return str(response)
 
                     except Exception:  # nosec B110 - Intentional fallback when LLM API unavailable
                         # LLM API fallback failed, fall through to original error handling

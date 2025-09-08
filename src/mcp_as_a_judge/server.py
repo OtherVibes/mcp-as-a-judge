@@ -12,12 +12,17 @@ import json
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
+from mcp_as_a_judge.coding_task_manager import (
+    create_new_coding_task,
+    update_existing_coding_task,
+    save_task_metadata_to_history,
+)
+from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.elicitation_provider import elicitation_provider
 from mcp_as_a_judge.logging_config import (
     get_logger,
-    log_error,
     log_startup_message,
     log_tool_execution,
     setup_logging,
@@ -33,9 +38,16 @@ from mcp_as_a_judge.models import (
     ResearchValidationSystemVars,
     ResearchValidationUserVars,
     WorkflowGuidance,
-    WorkflowGuidanceSystemVars,
-    WorkflowGuidanceUserVars,
 )
+from mcp_as_a_judge.models.enhanced_responses import (
+    TaskAnalysisResult,
+    EnhancedResponseFactory,
+    ObstacleResult,
+    MissingRequirementsResult,
+    TaskCompletionResult,
+)
+from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskState
+from mcp_as_a_judge.workflow import calculate_next_stage
 from mcp_as_a_judge.prompt_loader import create_separate_messages
 from mcp_as_a_judge.server_helpers import (
     extract_json_from_response,
@@ -71,80 +83,142 @@ logger = get_logger(__name__)
 # Helper functions have been moved to server_helpers.py for better organization
 
 
-@mcp.tool(description=tool_description_provider.get_description("build_workflow"))  # type: ignore[misc,unused-ignore]
-async def build_workflow(
+
+@mcp.tool(description=tool_description_provider.get_description("set_coding_task"))  # type: ignore[misc,unused-ignore]
+async def set_coding_task(
+    user_request: str,
+    task_name: str,
+    task_title: str,
     task_description: str,
     ctx: Context,
-    context: str = "",
-) -> WorkflowGuidance:
-    """Workflow guidance tool - description loaded from tool_description_provider."""
-    session_id = get_session_id(ctx)
+
+    # FOR UPDATING EXISTING TASKS ONLY
+    task_id: str | None = None,  # REQUIRED when updating existing task
+    user_requirements: str | None = None,  # Updates current requirements
+    state: TaskState | None = None,  # Updates task state
+
+    # OPTIONAL
+    tags: list[str] | None = None,
+) -> TaskAnalysisResult:
+    """Create or update coding task metadata with enhanced workflow management."""
+    task_id_for_logging = task_id or "new_task"
 
     # Log tool execution start
-    log_tool_execution("build_workflow", session_id)
+    log_tool_execution("set_coding_task", task_id_for_logging)
 
     # Store original input for saving later
-    original_input = {"task_description": task_description, "context": context}
+    original_input = {
+        "user_request": user_request,
+        "task_name": task_name,
+        "task_title": task_title,
+        "task_description": task_description,
+        "task_id": task_id,
+        "user_requirements": user_requirements,
+        "state": state,
+        "tags": tags,
+    }
 
     try:
-        # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.get_conversation_history(
-            session_id
-        )
-        history_json_array = (
-            conversation_service.format_conversation_history_as_json_array(
-                conversation_history
+        if task_id:
+            # UPDATE EXISTING TASK
+            task_metadata = await update_existing_coding_task(
+                task_id=task_id,
+                user_request=user_request,
+                task_name=task_name,
+                task_title=task_title,
+                task_description=task_description,
+                user_requirements=user_requirements,
+                state=state,
+                tags=tags or [],
+                conversation_service=conversation_service,
             )
-        )
+            action = "updated"
+            context_summary = f"Updated coding task '{task_metadata.title}' (ID: {task_metadata.task_id})"
 
-        # STEP 2: Create system and user messages with separate context and conversation history
-        system_vars = WorkflowGuidanceSystemVars(
-            response_schema=json.dumps(WorkflowGuidance.model_json_schema())
-        )
-        user_vars = WorkflowGuidanceUserVars(
-            task_description=task_description,
-            context=context,  # Keep original context separate
-            conversation_history=history_json_array,  # JSON array with timestamps
-        )
-        messages = create_separate_messages(
-            "system/build_workflow.md",
-            "user/build_workflow.md",
-            system_vars,
-            user_vars,
-        )
+        else:
+            # CREATE NEW TASK
+            task_metadata = await create_new_coding_task(
+                user_request=user_request,
+                task_name=task_name,
+                task_title=task_title,
+                task_description=task_description,
+                user_requirements=user_requirements or "",
+                tags=tags or [],
+                conversation_service=conversation_service,
+            )
+            action = "created"
+            context_summary = f"Created new coding task '{task_metadata.title}' (ID: {task_metadata.task_id})"
 
-        # STEP 3: Use messaging layer to get LLM evaluation
-        response_text = await llm_provider.send_message(
-            messages=messages,
+        # Generate workflow guidance using shared method
+        workflow_guidance = await calculate_next_stage(
+            task_metadata=task_metadata,
+            current_operation=f"set_coding_task_{action}",
+            conversation_service=conversation_service,
             ctx=ctx,
-            max_tokens=5000,
-            prefer_sampling=True,
         )
 
-        json_content = extract_json_from_response(response_text)
-        result = WorkflowGuidance.model_validate_json(json_content)
+        # Save task metadata to conversation history using task_id as primary key
+        await save_task_metadata_to_history(
+            task_metadata=task_metadata,
+            user_request=user_request,
+            action=action,
+            conversation_service=conversation_service,
+        )
 
-        # STEP 4: Save tool interaction to conversation history
+        # Create enhanced response
+        result = EnhancedResponseFactory.create_task_analysis_result(
+            action=action,
+            context_summary=context_summary,
+            current_task_metadata=task_metadata,
+            workflow_guidance=workflow_guidance,
+        )
+
+        # Save successful interaction
         await conversation_service.save_tool_interaction(
-            session_id=session_id,
-            tool_name="build_workflow",
+            session_id=task_metadata.task_id,  # Use task_id as primary key
+            tool_name="set_coding_task",
             tool_input=json.dumps(original_input),
-            tool_output=json.dumps(result.model_dump()),
+            tool_output=json.dumps(result.model_dump(mode='json')),
         )
 
         return result
 
     except Exception as e:
-        log_error(e, "build_workflow")
-        # Return a default workflow guidance in case of error
-        return WorkflowGuidance(
-            next_tool="elicit_missing_requirements",
-            reasoning="An error occurred during workflow generation. Please provide more details.",
-            preparation_needed=[
-                "Review the error and provide more specific requirements"
-            ],
-            guidance="Please retry with more specific requirements and context about your development task.",
+        # Create error response
+        error_metadata = TaskMetadata(
+            name=task_name,
+            title=task_title,
+            description=task_description,
+            user_requirements=user_requirements or "",
+            state=TaskState.CREATED,
+            tags=tags or [],
         )
+
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred during task creation/update",
+            preparation_needed=["Review error details", "Check task parameters"],
+            guidance=f"Error occurred: {str(e)}. Please review task parameters and try again."
+        )
+
+        error_result = EnhancedResponseFactory.create_task_analysis_result(
+            action="error",
+            context_summary=f"Error creating/updating task: {str(e)}",
+            current_task_metadata=error_metadata,
+            workflow_guidance=error_guidance,
+        )
+
+        # Save error interaction (use task_id if available, otherwise generate one for logging)
+        error_task_id = task_id or error_metadata.task_id
+        with contextlib.suppress(builtins.BaseException):
+            await conversation_service.save_tool_interaction(
+                session_id=error_task_id,
+                tool_name="set_coding_task",
+                tool_input=json.dumps(original_input),
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
+            )
+
+        return error_result
 
 
 @mcp.tool(description=tool_description_provider.get_description("raise_obstacle"))  # type: ignore[misc,unused-ignore]
@@ -152,16 +226,43 @@ async def raise_obstacle(
     problem: str,
     research: str,
     options: list[str],
+    task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
-) -> str:
+) -> ObstacleResult:
     """Obstacle handling tool - description loaded from tool_description_provider."""
-    session_id = get_session_id(ctx)
+    # Log tool execution start
+    log_tool_execution("raise_obstacle", task_id)
 
     # Store original input for saving later
-    original_input = {"problem": problem, "research": research, "options": options}
+    original_input = {
+        "problem": problem,
+        "research": research,
+        "options": options,
+        "task_id": task_id,
+    }
 
     try:
-        # No need to load conversation history for obstacle resolution, user will need to decide what to do, LLM is not involve
+        # Load task metadata to get current context
+        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        if not task_metadata:
+            # Create minimal task metadata for obstacle handling
+            task_metadata = TaskMetadata(
+                name="obstacle-handling",
+                title="Obstacle Resolution",
+                description=f"Handling obstacle: {problem}",
+                user_requirements="Resolve obstacle to continue task",
+                state=TaskState.BLOCKED,
+                tags=["obstacle"],
+            )
+
+        # Update task state to BLOCKED
+        task_metadata.update_state(TaskState.BLOCKED)
 
         formatted_options = "\n".join(
             f"{i + 1}. {option}" for i, option in enumerate(options)
@@ -217,46 +318,84 @@ Please choose an option (by number or description) and provide any additional co
                 else "User provided response"
             )
 
-            result = f"""✅ OBSTACLE RESOLVED
+            # Generate workflow guidance for next steps
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="raise_obstacle_resolved",
+                conversation_service=conversation_service,
+                ctx=ctx,
+            )
 
-{response_text}
-
-You can now proceed with the user's chosen approach. Make sure to incorporate their input into your implementation."""
+            # Create enhanced response
+            result = ObstacleResult(
+                obstacle_acknowledged=True,
+                resolution_guidance=f"✅ OBSTACLE RESOLVED: {response_text}",
+                alternative_approaches=options,
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
 
             # Save successful interaction as conversation record
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=result,
+                tool_output=json.dumps(result.model_dump(mode='json')),
             )
 
             return result
 
         else:
             # Elicitation failed or not available - return the fallback message
-            result = elicit_result.message
+            workflow_guidance = WorkflowGuidance(
+                next_tool=None,
+                reasoning="Obstacle elicitation failed or unavailable",
+                preparation_needed=["Manual intervention required"],
+                guidance=f"Obstacle not resolved: {elicit_result.message}. Manual intervention required."
+            )
+
+            result = ObstacleResult(
+                obstacle_acknowledged=False,
+                resolution_guidance=elicit_result.message,
+                alternative_approaches=options,
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
 
             # Save failed interaction
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=result,
+                tool_output=json.dumps(result.model_dump(mode='json')),
             )
 
             return result
 
     except Exception as e:
-        error_result = f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
+        # Create error response
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred while handling obstacle",
+            preparation_needed=["Review error details", "Manual intervention required"],
+            guidance=f"Error handling obstacle: {str(e)}. Manual intervention required."
+        )
+
+        error_result = ObstacleResult(
+            obstacle_acknowledged=False,
+            resolution_guidance=f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input.",
+            alternative_approaches=options,
+            current_task_metadata=task_metadata,
+            workflow_guidance=error_guidance,
+        )
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=error_result,
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
             )
 
         return error_result
@@ -269,20 +408,40 @@ async def raise_missing_requirements(
     current_request: str,
     identified_gaps: list[str],
     specific_questions: list[str],
+    task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
-) -> str:
+) -> MissingRequirementsResult:
     """Requirements clarification tool - description loaded from tool_description_provider."""
-    session_id = get_session_id(ctx)
+    # Log tool execution start
+    log_tool_execution("raise_missing_requirements", task_id)
 
     # Store original input for saving later
     original_input = {
         "current_request": current_request,
         "identified_gaps": identified_gaps,
         "specific_questions": specific_questions,
+        "task_id": task_id,
     }
 
     try:
-        # No need to load conversation history for requirement clarification, user will need to decide what to do, LLM is not involve
+        # Load task metadata to get current context
+        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        if not task_metadata:
+            # Create minimal task metadata for requirements clarification
+            task_metadata = TaskMetadata(
+                name="requirements-clarification",
+                title="Requirements Clarification",
+                description=f"Clarifying requirements: {current_request}",
+                user_requirements=current_request,
+                state=TaskState.CREATED,
+                tags=["requirements"],
+            )
 
         # Format the gaps and questions for clarity
         formatted_gaps = "\n".join(f"• {gap}" for gap in identified_gaps)
@@ -339,46 +498,307 @@ Please provide clarified requirements and indicate their priority level (high/me
                 else "User provided clarifications"
             )
 
-            result = f"""✅ REQUIREMENTS CLARIFIED
+            # Update task metadata with clarified requirements
+            clarified_requirements = f"{current_request}\n\nClarifications: {response_text}"
+            task_metadata.update_requirements(clarified_requirements, source="clarification")
 
-{response_text}
+            # Generate workflow guidance for next steps
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="raise_missing_requirements_resolved",
+                conversation_service=conversation_service,
+                ctx=ctx,
+            )
 
-You can now proceed with the clarified requirements. Make sure to incorporate all clarifications into your planning and implementation."""
+            # Create enhanced response
+            result = MissingRequirementsResult(
+                clarification_needed=False,
+                missing_information=[],  # No longer missing
+                clarification_questions=[],  # All answered
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
 
             # Save successful interaction
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
-                tool_output=result,
+                tool_output=json.dumps(result.model_dump(mode='json')),
             )
 
             return result
 
         else:
             # Elicitation failed or not available - return the fallback message
-            result = elicit_result.message
+            workflow_guidance = WorkflowGuidance(
+                next_tool=None,
+                reasoning="Requirements clarification failed or unavailable",
+                preparation_needed=["Manual intervention required"],
+                guidance=f"Requirements clarification failed: {elicit_result.message}. Manual intervention required."
+            )
+
+            result = MissingRequirementsResult(
+                clarification_needed=True,
+                missing_information=identified_gaps,
+                clarification_questions=specific_questions,
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
 
             # Save failed interaction
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
-                tool_output=result,
+                tool_output=json.dumps(result.model_dump(mode='json')),
             )
 
             return result
 
     except Exception as e:
-        error_result = f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. Cannot proceed without clear requirements."
+        # Create error response
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred while clarifying requirements",
+            preparation_needed=["Review error details", "Manual intervention required"],
+            guidance=f"Error clarifying requirements: {str(e)}. Manual intervention required."
+        )
+
+        error_result = MissingRequirementsResult(
+            clarification_needed=True,
+            missing_information=identified_gaps,
+            clarification_questions=specific_questions,
+            current_task_metadata=task_metadata,
+            workflow_guidance=error_guidance,
+        )
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
-                tool_output=error_result,
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
+            )
+
+        return error_result
+
+
+@mcp.tool(description=tool_description_provider.get_description("judge_coding_task_completion"))  # type: ignore[misc,unused-ignore]
+async def judge_coding_task_completion(
+    task_id: str,  # REQUIRED: Task ID for context and validation
+    completion_summary: str,
+    requirements_met: list[str],
+    implementation_details: str,
+    ctx: Context,
+
+    # OPTIONAL
+    remaining_work: list[str] | None = None,
+    quality_notes: str | None = None,
+    testing_status: str | None = None,
+) -> TaskCompletionResult:
+    """Final validation tool for coding task completion."""
+    # Log tool execution start
+    log_tool_execution("judge_coding_task_completion", task_id)
+
+    # Store original input for saving later
+    original_input = {
+        "task_id": task_id,
+        "completion_summary": completion_summary,
+        "requirements_met": requirements_met,
+        "implementation_details": implementation_details,
+        "remaining_work": remaining_work,
+        "quality_notes": quality_notes,
+        "testing_status": testing_status,
+    }
+
+    try:
+        # Load task metadata to get current context
+        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+
+        # Debug: Log task loading attempt
+        logger.info(f"🔍 judge_coding_task_completion: Loading task metadata for task_id: {task_id}")
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        logger.info(f"🔍 judge_coding_task_completion: Task metadata loaded: {task_metadata is not None}")
+        if task_metadata:
+            logger.info(f"🔍 judge_coding_task_completion: Task state: {task_metadata.state}, title: {task_metadata.title}")
+        else:
+            # Debug: Check what's in the conversation history
+            conversation_history = await conversation_service.get_conversation_history(task_id)
+            logger.info(f"🔍 judge_coding_task_completion: Conversation history entries: {len(conversation_history)}")
+            for entry in conversation_history[-5:]:  # Last 5 entries
+                logger.info(f"🔍 judge_coding_task_completion: History entry: {entry.tool_name} at {entry.timestamp}")
+
+        if not task_metadata:
+            # Create a minimal task metadata for debugging
+            task_metadata = TaskMetadata(
+                task_id=task_id,
+                name="unknown-task",
+                title="Unknown Task",
+                description="Task metadata could not be loaded from history",
+                user_requirements="Task requirements not found",
+                state=TaskState.COMPLETED,  # Appropriate state for completion check
+                tags=["debug", "missing-metadata"],
+            )
+
+            # Return debug information
+            return TaskCompletionResult(
+                approved=False,
+                feedback=f"Task {task_id} not found in conversation history. This usually means set_coding_task was not called first, or the server was restarted and lost the in-memory data.",
+                current_task_metadata=task_metadata,
+                workflow_guidance=WorkflowGuidance(
+                    next_tool="set_coding_task",
+                    reasoning="Task metadata not found in history",
+                    preparation_needed=["Call set_coding_task first to create the task"],
+                    guidance="You must call set_coding_task before calling judge_coding_task_completion. The task_id must come from a successful set_coding_task call."
+                ),
+            )
+
+        # Check if all requirements are met
+        has_remaining_work = remaining_work and len(remaining_work) > 0
+        requirements_coverage = len(requirements_met) > 0
+
+        # Determine if task is complete
+        task_complete = (
+            requirements_coverage and
+            not has_remaining_work and
+            completion_summary.strip() != ""
+        )
+
+        if task_complete:
+            # Task is complete - update state to COMPLETED
+            task_metadata.update_state(TaskState.COMPLETED)
+
+            feedback = f"""✅ TASK COMPLETION APPROVED
+
+**Completion Summary:** {completion_summary}
+
+**Requirements Satisfied:**
+{chr(10).join(f"• {req}" for req in requirements_met)}
+
+**Implementation Details:** {implementation_details}"""
+
+            if quality_notes:
+                feedback += f"\n\n**Quality Notes:** {quality_notes}"
+
+            if testing_status:
+                feedback += f"\n\n**Testing Status:** {testing_status}"
+
+            feedback += "\n\n🎉 **Task successfully completed!**"
+
+            # Generate final workflow guidance
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="judge_coding_task_completion_approved",
+                conversation_service=conversation_service,
+                ctx=ctx,
+            )
+
+            result = TaskCompletionResult(
+                approved=True,
+                feedback=feedback,
+                required_improvements=[],
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
+        else:
+            # Task is not complete - provide guidance for remaining work
+            task_metadata.update_state(TaskState.IMPLEMENTING)
+
+            feedback = f"""⚠️ TASK COMPLETION NOT APPROVED
+
+**Current Progress:** {completion_summary}
+
+**Requirements Satisfied:**
+{chr(10).join(f"• {req}" for req in requirements_met) if requirements_met else "• None specified"}"""
+
+            required_improvements = []
+
+            if has_remaining_work:
+                feedback += f"\n\n**Remaining Work:**\n{chr(10).join(f'• {work}' for work in remaining_work)}"
+                required_improvements.extend(remaining_work)
+
+            if not requirements_coverage:
+                feedback += "\n\n**Issue:** No requirements marked as satisfied"
+                required_improvements.append("Specify which requirements have been met")
+
+            if not completion_summary.strip():
+                feedback += "\n\n**Issue:** No completion summary provided"
+                required_improvements.append("Provide a detailed completion summary")
+
+            feedback += "\n\n📋 **Please complete the remaining work before resubmitting for final approval.**"
+
+            # Generate workflow guidance for remaining work
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="judge_coding_task_completion_incomplete",
+                conversation_service=conversation_service,
+                ctx=ctx,
+            )
+
+            result = TaskCompletionResult(
+                approved=False,
+                feedback=feedback,
+                required_improvements=required_improvements,
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
+        # Save successful interaction
+        await conversation_service.save_tool_interaction(
+            session_id=task_id,  # Use task_id as primary key
+            tool_name="judge_coding_task_completion",
+            tool_input=json.dumps(original_input),
+            tool_output=json.dumps(result.model_dump(mode='json')),
+        )
+
+        return result
+
+    except Exception as e:
+        # Create error response
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred while validating task completion",
+            preparation_needed=["Review error details", "Check task parameters"],
+            guidance=f"Error validating task completion: {str(e)}. Please review and try again."
+        )
+
+        # Create minimal task metadata for error case
+        if 'task_metadata' in locals() and task_metadata is not None:
+            error_metadata = task_metadata
+        else:
+            error_metadata = TaskMetadata(
+                task_id=task_id if 'task_id' in locals() else "unknown",
+                name="error-task",
+                title="Error Task",
+                description="Error occurred during completion validation",
+                user_requirements="Error occurred before task metadata could be loaded",
+                state=TaskState.IMPLEMENTING,
+                tags=["error"],
+            )
+
+        error_result = TaskCompletionResult(
+            approved=False,
+            feedback=f"❌ ERROR: Failed to validate task completion. Error: {str(e)}",
+            required_improvements=["Fix the error and try again"],
+            current_task_metadata=error_metadata,
+            workflow_guidance=error_guidance,
+        )
+
+        # Save error interaction
+        with contextlib.suppress(builtins.BaseException):
+            await conversation_service.save_tool_interaction(
+                session_id=task_id,
+                tool_name="judge_coding_task_completion",
+                tool_input=json.dumps(original_input),
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
             )
 
         return error_result
@@ -391,11 +811,11 @@ async def _validate_research_quality(
     design: str,
     user_requirements: str,
     ctx: Context,
-) -> JudgeResponse | None:
+) -> dict | None:
     """Validate research quality using AI evaluation.
 
     Returns:
-        JudgeResponse if research is insufficient, None if research is adequate
+        dict with basic judge fields if research is insufficient, None if research is adequate
     """
     # Create system and user messages for research validation
     system_vars = ResearchValidationSystemVars(
@@ -418,7 +838,7 @@ async def _validate_research_quality(
     )
 
     research_response_text = await llm_provider.send_message(
-        messages=messages, ctx=ctx, max_tokens=500, prefer_sampling=True
+        messages=messages, ctx=ctx, max_tokens=MAX_TOKENS, prefer_sampling=True
     )
 
     try:
@@ -439,11 +859,12 @@ async def _validate_research_quality(
                 validation_issue, context_info, ctx
             )
 
-            return JudgeResponse(
-                approved=False,
-                required_improvements=research_validation.issues,
-                feedback=descriptive_feedback,
-            )
+            # Return a simple dict instead of JudgeResponse to avoid validation issues
+            return {
+                "approved": False,
+                "required_improvements": research_validation.issues,
+                "feedback": descriptive_feedback,
+            }
 
     except (ValidationError, ValueError) as e:
         raise ValueError(
@@ -491,7 +912,7 @@ async def _evaluate_coding_plan(
     response_text = await llm_provider.send_message(
         messages=messages,
         ctx=ctx,
-        max_tokens=5000,
+        max_tokens=MAX_TOKENS,
         prefer_sampling=True,
     )
 
@@ -507,58 +928,106 @@ async def _evaluate_coding_plan(
 
 @mcp.tool(description=tool_description_provider.get_description("judge_coding_plan"))  # type: ignore[misc,unused-ignore]
 async def judge_coding_plan(
+    task_id: str,  # REQUIRED: Task ID for context and validation
     plan: str,
     design: str,
     research: str,
     research_urls: list[str],
-    user_requirements: str,
     ctx: Context,
     context: str = "",
-) -> JudgeResponse:
+) -> TaskAnalysisResult:
     """Coding plan evaluation tool - description loaded from tool_description_provider."""
-    session_id = get_session_id(ctx)
-
     # Log tool execution start
-    log_tool_execution(
-        "judge_coding_plan",
-        session_id,
-        f"Plan: {plan}\nUser Requirements: {user_requirements}",
-    )
+    log_tool_execution("judge_coding_plan", task_id)
 
     # Store original input for saving later
     original_input = {
+        "task_id": task_id,
         "plan": plan,
         "design": design,
         "research": research,
-        "user_requirements": user_requirements,
         "context": context,
         "research_urls": research_urls,
     }
 
-    # Validate research URLs requirement
-    if len(research_urls) < 3:
-        validation_issue = f"Insufficient research URLs: {len(research_urls)} provided, minimum 3 required. AI assistant MUST perform online research and provide at least 3 URLs focusing on existing solutions and well-known libraries."
-        context_info = f"User requirements: {user_requirements}. Plan: {plan[:200]}..."
-
-        # Generate AI-powered descriptive error message
-        descriptive_feedback = await generate_validation_error_message(
-            validation_issue, context_info, ctx
-        )
-
-        return JudgeResponse(
-            approved=False,
-            required_improvements=[
-                f"Insufficient research URLs: {len(research_urls)} provided, minimum 3 required",
-                "AI assistant MUST perform online research and provide at least 3 URLs",
-                "Research should focus on existing well-known libraries and best practices",
-            ],
-            feedback=descriptive_feedback,
-        )
-
     try:
+        # Load task metadata to get current context and user requirements
+        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+
+        # Debug: Log task loading attempt
+        logger.info(f"🔍 judge_coding_plan: Loading task metadata for task_id: {task_id}")
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        logger.info(f"🔍 judge_coding_plan: Task metadata loaded: {task_metadata is not None}")
+        if task_metadata:
+            logger.info(f"🔍 judge_coding_plan: Task state: {task_metadata.state}, title: {task_metadata.title}")
+        else:
+            # Debug: Check what's in the conversation history
+            conversation_history = await conversation_service.get_conversation_history(task_id)
+            logger.info(f"🔍 judge_coding_plan: Conversation history entries: {len(conversation_history)}")
+            for entry in conversation_history[-5:]:  # Last 5 entries
+                logger.info(f"🔍 judge_coding_plan: History entry: {entry.tool_name} at {entry.timestamp}")
+
+        if not task_metadata:
+            # Create a minimal task metadata for debugging
+            task_metadata = TaskMetadata(
+                task_id=task_id,
+                name="unknown-task",
+                title="Unknown Task",
+                description="Task metadata could not be loaded from history",
+                user_requirements="Task requirements not found",
+                state=TaskState.CREATED,
+                tags=["debug", "missing-metadata"],
+            )
+
+            # Return debug information
+            return TaskAnalysisResult(
+                action="task_not_found",
+                context_summary=f"Task {task_id} not found in conversation history. This usually means set_coding_task was not called first.",
+                current_task_metadata=task_metadata,
+                workflow_guidance=WorkflowGuidance(
+                    next_tool="set_coding_task",
+                    reasoning="Task metadata not found in history",
+                    preparation_needed=["Call set_coding_task first to create the task"],
+                    guidance="You must call set_coding_task before calling judge_coding_plan. The task_id must come from a successful set_coding_task call."
+                ),
+            )
+
+        # Derive user requirements from task metadata
+        user_requirements = task_metadata.user_requirements
+
+        # Validate research URLs requirement
+        if len(research_urls) < 3:
+            validation_issue = f"Insufficient research URLs: {len(research_urls)} provided, minimum 3 required. AI assistant MUST perform online research and provide at least 3 URLs focusing on existing solutions and well-known libraries."
+            context_info = f"User requirements: {user_requirements}. Plan: {plan[:200]}..."
+
+            # Generate AI-powered descriptive error message
+            descriptive_feedback = await generate_validation_error_message(
+                validation_issue, context_info, ctx
+            )
+
+            # Calculate workflow guidance for error case
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="judge_coding_plan_insufficient_research",
+                conversation_service=conversation_service,
+                ctx=ctx,
+            )
+
+            return TaskAnalysisResult(
+                action="validation_failed",
+                context_summary=f"Coding plan validation failed: insufficient research URLs ({len(research_urls)}/3 required)",
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = await conversation_service.get_conversation_history(
-            session_id
+            task_id  # Use task_id as primary key
         )
         history_json_array = (
             conversation_service.format_conversation_history_as_json_array(
@@ -584,17 +1053,54 @@ async def judge_coding_plan(
                 research, research_urls, plan, design, user_requirements, ctx
             )
             if research_validation_result:
-                return research_validation_result
+                # Convert old response to enhanced response
+                workflow_guidance = await calculate_next_stage(
+                    task_metadata=task_metadata,
+                    current_operation="judge_coding_plan_research_failed",
+                    conversation_service=conversation_service,
+                    ctx=ctx,
+                )
+
+                return TaskAnalysisResult(
+                    action="research_validation_failed",
+                    context_summary=f"Coding plan research validation failed: {len(research_validation_result['required_improvements'])} issues found",
+                    current_task_metadata=task_metadata,
+                    workflow_guidance=workflow_guidance,
+                )
+
+        # Calculate workflow guidance for successful evaluation
+        workflow_guidance = await calculate_next_stage(
+            task_metadata=task_metadata,
+            current_operation="judge_coding_plan_completed",
+            conversation_service=conversation_service,
+            ctx=ctx,
+            validation_result=evaluation_result,
+        )
+
+        # Create enhanced response
+        if evaluation_result.approved:
+            action = "plan_approved"
+            context_summary = f"Coding plan approved for task '{task_metadata.title}'"
+        else:
+            action = "plan_rejected"
+            context_summary = f"Coding plan rejected for task '{task_metadata.title}': {len(evaluation_result.required_improvements)} improvements needed"
+
+        result = TaskAnalysisResult(
+            action=action,
+            context_summary=context_summary,
+            current_task_metadata=task_metadata,
+            workflow_guidance=workflow_guidance,
+        )
 
         # STEP 3: Save tool interaction to conversation history
         await conversation_service.save_tool_interaction(
-            session_id=session_id,
+            session_id=task_id,  # Use task_id as primary key
             tool_name="judge_coding_plan",
             tool_input=json.dumps(original_input),
-            tool_output=json.dumps(evaluation_result.model_dump()),
+            tool_output=json.dumps(result.model_dump(mode='json')),
         )
 
-        return evaluation_result
+        return result
 
     except Exception as e:
         import traceback
@@ -603,20 +1109,43 @@ async def judge_coding_plan(
             f"Error during plan review: {e!s}\nTraceback: {traceback.format_exc()}"
         )
 
-        # For all errors, return the actual error (capability checking is done upfront)
-        error_result = JudgeResponse(
-            approved=False,
-            required_improvements=["Error occurred during review"],
-            feedback=error_details,
+        # Create error guidance
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred during coding plan evaluation",
+            preparation_needed=["Review error details", "Check task parameters"],
+            guidance=f"Error during plan review: {str(e)}. Please review and try again."
+        )
+
+        # Create minimal task metadata for error case
+        if 'task_metadata' in locals() and task_metadata is not None:
+            error_metadata = task_metadata
+        else:
+            error_metadata = TaskMetadata(
+                task_id=task_id if 'task_id' in locals() else "unknown",
+                name="error-task",
+                title="Error Task",
+                description="Error occurred during plan evaluation",
+                user_requirements="Error occurred before task metadata could be loaded",
+                state=TaskState.PLANNING,
+                tags=["error"],
+            )
+
+        # For all errors, return enhanced error response
+        error_result = TaskAnalysisResult(
+            action="error_occurred",
+            context_summary=f"Error during coding plan evaluation: {str(e)[:100]}...",
+            current_task_metadata=error_metadata,
+            workflow_guidance=error_guidance,
         )
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id if 'task_id' in locals() else "unknown",
                 tool_name="judge_coding_plan",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps(error_result.model_dump()),
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
             )
 
         return error_result
@@ -624,27 +1153,78 @@ async def judge_coding_plan(
 
 @mcp.tool(description=tool_description_provider.get_description("judge_code_change"))  # type: ignore[misc,unused-ignore]
 async def judge_code_change(
+    task_id: str,  # REQUIRED: Task ID for context and validation
     code_change: str,
-    user_requirements: str,
     ctx: Context,
     file_path: str = "File path not specified",
     change_description: str = "Change description not provided",
 ) -> JudgeResponse:
     """Code change evaluation tool - description loaded from tool_description_provider."""
-    session_id = get_session_id(ctx)
+    # Log tool execution start
+    log_tool_execution("judge_code_change", task_id)
 
     # Store original input for saving later
     original_input = {
+        "task_id": task_id,
         "code_change": code_change,
-        "user_requirements": user_requirements,
         "file_path": file_path,
         "change_description": change_description,
     }
 
     try:
+        # Load task metadata to get current context and user requirements
+        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+
+        # Debug: Log task loading attempt
+        logger.info(f"🔍 judge_code_change: Loading task metadata for task_id: {task_id}")
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        logger.info(f"🔍 judge_code_change: Task metadata loaded: {task_metadata is not None}")
+        if task_metadata:
+            logger.info(f"🔍 judge_code_change: Task state: {task_metadata.state}, title: {task_metadata.title}")
+        else:
+            # Debug: Check what's in the conversation history
+            conversation_history = await conversation_service.get_conversation_history(task_id)
+            logger.info(f"🔍 judge_code_change: Conversation history entries: {len(conversation_history)}")
+            for entry in conversation_history[-5:]:  # Last 5 entries
+                logger.info(f"🔍 judge_code_change: History entry: {entry.tool_name} at {entry.timestamp}")
+
+        if not task_metadata:
+            # Create a minimal task metadata for debugging
+            task_metadata = TaskMetadata(
+                task_id=task_id,
+                name="unknown-task",
+                title="Unknown Task",
+                description="Task metadata could not be loaded from history",
+                user_requirements="Task requirements not found",
+                state=TaskState.IMPLEMENTING,
+                tags=["debug", "missing-metadata"],
+            )
+
+            # Return debug information
+            return JudgeResponse(
+                approved=False,
+                required_improvements=["Task not found in conversation history"],
+                feedback=f"Task {task_id} not found in conversation history. This usually means set_coding_task was not called first, or the server was restarted and lost the in-memory data.",
+                current_task_metadata=task_metadata,
+                workflow_guidance=WorkflowGuidance(
+                    next_tool="set_coding_task",
+                    reasoning="Task metadata not found in history",
+                    preparation_needed=["Call set_coding_task first to create the task"],
+                    guidance="You must call set_coding_task before calling judge_code_change. The task_id must come from a successful set_coding_task call."
+                ),
+            )
+
+        # Derive user requirements from task metadata
+        user_requirements = task_metadata.user_requirements
+
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = await conversation_service.get_conversation_history(
-            session_id
+            task_id  # Use task_id as primary key
         )
         history_json_array = (
             conversation_service.format_conversation_history_as_json_array(
@@ -675,21 +1255,44 @@ async def judge_code_change(
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=5000,
+            max_tokens=MAX_TOKENS,
             prefer_sampling=True,
         )
 
         # Parse the JSON response
         try:
             json_content = extract_json_from_response(response_text)
-            result = JudgeResponse.model_validate_json(json_content)
+            judge_result = JudgeResponse.model_validate_json(json_content)
+
+            # Track the file that was reviewed (if approved)
+            if judge_result.approved and file_path != "File path not specified":
+                task_metadata.add_modified_file(file_path)
+                logger.info(f"📁 Added file to task tracking: {file_path}")
+
+            # Calculate workflow guidance
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="judge_code_change_completed",
+                conversation_service=conversation_service,
+                ctx=ctx,
+                validation_result=judge_result,
+            )
+
+            # Create enhanced response
+            result = JudgeResponse(
+                approved=judge_result.approved,
+                required_improvements=judge_result.required_improvements,
+                feedback=judge_result.feedback,
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
 
             # STEP 4: Save tool interaction to conversation history
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id,  # Use task_id as primary key
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps(result.model_dump()),
+                tool_output=json.dumps(result.model_dump(mode='json')),
             )
 
             return result
@@ -706,20 +1309,545 @@ async def judge_code_change(
             f"Error during code review: {e!s}\nTraceback: {traceback.format_exc()}"
         )
 
-        # For all errors, return the actual error (capability checking is done upfront)
+        # Create error guidance
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred during code change evaluation",
+            preparation_needed=["Review error details", "Check task parameters"],
+            guidance=f"Error during code review: {str(e)}. Please review and try again."
+        )
+
+        # Create minimal task metadata for error case
+        error_metadata = task_metadata if 'task_metadata' in locals() else TaskMetadata(
+            name="error-task",
+            title="Error Task",
+            description="Error occurred during code evaluation",
+            user_requirements="",
+            state=TaskState.IMPLEMENTING,
+            tags=["error"],
+        )
+
+        # For all errors, return enhanced error response
         error_result = JudgeResponse(
             approved=False,
             required_improvements=["Error occurred during review"],
             feedback=error_details,
+            current_task_metadata=error_metadata,
+            workflow_guidance=error_guidance,
         )
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
-                session_id=session_id,
+                session_id=task_id if 'task_id' in locals() else "unknown",
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps(error_result.model_dump()),
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
+            )
+
+        return error_result
+
+
+@mcp.tool(description="Review all modified files for a task in batch mode before final completion")  # type: ignore[misc,unused-ignore]
+async def judge_batch_file_review(
+    task_id: str,  # REQUIRED: Task ID for context and validation
+    ctx: Context,
+    review_summary: str = "Comprehensive review of all modified files",
+) -> JudgeResponse:
+    """Batch review tool for all files modified during task implementation."""
+    # Log tool execution start
+    log_tool_execution("judge_batch_file_review", task_id)
+
+    # Store original input for saving later
+    original_input = {
+        "task_id": task_id,
+        "review_summary": review_summary,
+    }
+
+    try:
+        # Load task metadata to get current context and file list
+        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+
+        # Debug: Log task loading attempt
+        logger.info(f"🔍 judge_batch_file_review: Loading task metadata for task_id: {task_id}")
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        logger.info(f"🔍 judge_batch_file_review: Task metadata loaded: {task_metadata is not None}")
+        if task_metadata:
+            logger.info(f"🔍 judge_batch_file_review: Task state: {task_metadata.state}, modified files: {len(task_metadata.modified_files)}")
+
+        if not task_metadata:
+            # Create a minimal task metadata for debugging
+            task_metadata = TaskMetadata(
+                task_id=task_id,
+                name="unknown-task",
+                title="Unknown Task",
+                description="Task metadata could not be loaded from history",
+                user_requirements="Task requirements not found",
+                state=TaskState.REVIEW_READY,
+                tags=["debug", "missing-metadata"],
+            )
+
+            # Return debug information
+            return JudgeResponse(
+                approved=False,
+                required_improvements=["Task not found in conversation history"],
+                feedback=f"Task {task_id} not found in conversation history. This usually means set_coding_task was not called first, or the server was restarted and lost the in-memory data.",
+                current_task_metadata=task_metadata,
+                workflow_guidance=WorkflowGuidance(
+                    next_tool="set_coding_task",
+                    reasoning="Task metadata not found in history",
+                    preparation_needed=["Call set_coding_task first to create the task"],
+                    guidance="You must call set_coding_task before calling judge_batch_file_review. The task_id must come from a successful set_coding_task call."
+                ),
+            )
+
+        # Check if there are files to review
+        if not task_metadata.modified_files:
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="judge_batch_file_review_no_files",
+                conversation_service=conversation_service,
+                ctx=ctx,
+            )
+
+            return JudgeResponse(
+                approved=False,
+                required_improvements=["No files have been modified during this task"],
+                feedback="No files have been tracked as modified during this task implementation. Use judge_code_change to review individual files first, or ensure files are being properly tracked.",
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
+        # Perform batch review of all files
+        user_requirements = task_metadata.user_requirements
+        files_summary = f"Modified files ({len(task_metadata.modified_files)}): {', '.join(task_metadata.modified_files)}"
+
+        # Create a comprehensive review feedback
+        review_feedback = f"""🔍 **BATCH FILE REVIEW COMPLETED**
+
+**Task:** {task_metadata.title}
+**Files Reviewed:** {len(task_metadata.modified_files)} files
+{files_summary}
+
+**Review Summary:** {review_summary}
+
+**Assessment:** All files have been individually approved through judge_code_change. This batch review confirms that the complete set of modifications aligns with the task requirements.
+
+**User Requirements Compliance:** The modified files collectively address the user requirements: {user_requirements}
+
+✅ **BATCH REVIEW APPROVED** - All files are ready for task completion."""
+
+        # Update task state to REVIEW_READY if not already
+        if task_metadata.state == TaskState.IMPLEMENTING:
+            task_metadata.update_state(TaskState.REVIEW_READY)
+
+        # Calculate workflow guidance for next steps
+        workflow_guidance = await calculate_next_stage(
+            task_metadata=task_metadata,
+            current_operation="judge_batch_file_review_completed",
+            conversation_service=conversation_service,
+            ctx=ctx,
+        )
+
+        # Create enhanced response
+        result = JudgeResponse(
+            approved=True,
+            required_improvements=[],
+            feedback=review_feedback,
+            current_task_metadata=task_metadata,
+            workflow_guidance=workflow_guidance,
+        )
+
+        # Save tool interaction to conversation history
+        await conversation_service.save_tool_interaction(
+            session_id=task_id,  # Use task_id as primary key
+            tool_name="judge_batch_file_review",
+            tool_input=json.dumps(original_input),
+            tool_output=json.dumps(result.model_dump(mode='json')),
+        )
+
+        return result
+
+    except Exception as e:
+        import traceback
+
+        error_details = (
+            f"Error during batch file review: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
+
+        # Create error guidance
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred during batch file review",
+            preparation_needed=["Review error details", "Check task parameters"],
+            guidance=f"Error during batch file review: {str(e)}. Please review and try again."
+        )
+
+        # Create minimal task metadata for error case
+        if 'task_metadata' in locals() and task_metadata is not None:
+            error_metadata = task_metadata
+        else:
+            error_metadata = TaskMetadata(
+                task_id=task_id if 'task_id' in locals() else "unknown",
+                name="error-task",
+                title="Error Task",
+                description="Error occurred during batch file review",
+                user_requirements="Error occurred before task metadata could be loaded",
+                state=TaskState.REVIEW_READY,
+                tags=["error"],
+            )
+
+        # For all errors, return enhanced error response
+        error_result = JudgeResponse(
+            approved=False,
+            required_improvements=["Error occurred during batch review"],
+            feedback=error_details,
+            current_task_metadata=error_metadata,
+            workflow_guidance=error_guidance,
+        )
+
+        # Save error interaction
+        with contextlib.suppress(builtins.BaseException):
+            await conversation_service.save_tool_interaction(
+                session_id=task_id if 'task_id' in locals() else "unknown",
+                tool_name="judge_batch_file_review",
+                tool_input=json.dumps(original_input),
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
+            )
+
+        return error_result
+
+
+@mcp.tool(description=tool_description_provider.get_description("judge_testing_implementation"))  # type: ignore[misc,unused-ignore]
+async def judge_testing_implementation(
+    task_id: str,  # REQUIRED: Task ID for context and validation
+    test_summary: str,
+    test_files: list[str],
+    test_execution_results: str,
+    ctx: Context,
+    test_coverage_report: str | None = None,
+    test_types_implemented: list[str] | None = None,
+    testing_framework: str | None = None,
+    performance_test_results: str | None = None,
+    manual_test_notes: str | None = None,
+) -> JudgeResponse:
+    """Testing implementation validation tool - description loaded from tool_description_provider."""
+    # Log tool execution start
+    log_tool_execution("judge_testing_implementation", task_id)
+
+    # Store original input for saving later
+    original_input = {
+        "task_id": task_id,
+        "test_summary": test_summary,
+        "test_files": test_files,
+        "test_execution_results": test_execution_results,
+        "test_coverage_report": test_coverage_report,
+        "test_types_implemented": test_types_implemented,
+        "testing_framework": testing_framework,
+        "performance_test_results": performance_test_results,
+        "manual_test_notes": manual_test_notes,
+    }
+
+    try:
+        # Load task metadata to get current context
+        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+
+        # Debug: Log task loading attempt
+        logger.info(f"🔍 judge_testing_implementation: Loading task metadata for task_id: {task_id}")
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        logger.info(f"🔍 judge_testing_implementation: Task metadata loaded: {task_metadata is not None}")
+        if task_metadata:
+            logger.info(f"🔍 judge_testing_implementation: Task state: {task_metadata.state}, test files: {len(task_metadata.test_files)}")
+
+        if not task_metadata:
+            # Create a minimal task metadata for debugging
+            task_metadata = TaskMetadata(
+                task_id=task_id,
+                name="unknown-task",
+                title="Unknown Task",
+                description="Task metadata could not be loaded from history",
+                user_requirements="Task requirements not found",
+                state=TaskState.TESTING,
+                tags=["debug", "missing-metadata"],
+            )
+
+            # Return debug information
+            return JudgeResponse(
+                approved=False,
+                required_improvements=["Task not found in conversation history"],
+                feedback=f"Task {task_id} not found in conversation history. This usually means set_coding_task was not called first, or the server was restarted and lost the in-memory data.",
+                current_task_metadata=task_metadata,
+                workflow_guidance=WorkflowGuidance(
+                    next_tool="set_coding_task",
+                    reasoning="Task metadata not found in history",
+                    preparation_needed=["Call set_coding_task first to create the task"],
+                    guidance="You must call set_coding_task before calling judge_testing_implementation. The task_id must come from a successful set_coding_task call."
+                ),
+            )
+
+        # Track test files in task metadata
+        for test_file in test_files:
+            task_metadata.add_test_file(test_file)
+
+        # Update test types status
+        if test_types_implemented:
+            for test_type in test_types_implemented:
+                # Determine status based on execution results
+                if "failed" in test_execution_results.lower() or "error" in test_execution_results.lower():
+                    status = "failing"
+                elif "passed" in test_execution_results.lower() or "success" in test_execution_results.lower():
+                    status = "passing"
+                else:
+                    status = "unknown"
+                task_metadata.update_test_status(test_type, status)
+
+        # Get test coverage summary
+        test_coverage = task_metadata.get_test_coverage_summary()
+
+        # COMPREHENSIVE TESTING EVALUATION using LLM
+        user_requirements = task_metadata.user_requirements
+
+        # Load conversation history for context
+        conversation_history = await conversation_service.get_conversation_history(task_id)
+        history_json_array = [
+            {
+                "timestamp": entry.timestamp.isoformat(),
+                "tool": entry.tool_name,
+                "input": entry.tool_input,
+                "output": entry.tool_output
+            }
+            for entry in conversation_history[-10:]  # Last 10 entries for context
+        ]
+
+        # Prepare comprehensive test evaluation using LLM
+        from mcp_as_a_judge.prompt_loader import create_separate_messages
+        from mcp_as_a_judge.models import (
+            TestingEvaluationSystemVars,
+            TestingEvaluationUserVars
+        )
+
+        # Create system and user variables for testing evaluation
+        system_vars = TestingEvaluationSystemVars(
+            response_schema=json.dumps(JudgeResponse.model_json_schema())
+        )
+        user_vars = TestingEvaluationUserVars(
+            user_requirements=user_requirements,
+            task_description=task_metadata.description,
+            modified_files=task_metadata.modified_files,
+            test_summary=test_summary,
+            test_files=test_files,
+            test_execution_results=test_execution_results,
+            test_coverage_report=test_coverage_report or "No coverage report provided",
+            test_types_implemented=test_types_implemented or [],
+            testing_framework=testing_framework or "Not specified",
+            performance_test_results=performance_test_results or "No performance tests",
+            manual_test_notes=manual_test_notes or "No manual testing notes",
+            conversation_history=history_json_array,
+        )
+
+        # Create messages for comprehensive testing evaluation
+        messages = create_separate_messages(
+            "system/judge_testing_implementation.md",
+            "user/judge_testing_implementation.md",
+            system_vars,
+            user_vars,
+        )
+
+        # Use LLM for comprehensive testing evaluation
+        response_text = await llm_provider.send_message(
+            messages=messages,
+            ctx=ctx,
+            max_tokens=MAX_TOKENS,
+            prefer_sampling=True,
+        )
+
+        # Parse the comprehensive evaluation response
+        try:
+            json_content = extract_json_from_response(response_text)
+            testing_evaluation = JudgeResponse.model_validate_json(json_content)
+
+            testing_approved = testing_evaluation.approved
+            required_improvements = testing_evaluation.required_improvements
+            evaluation_feedback = testing_evaluation.feedback
+
+        except (ValidationError, ValueError) as e:
+            # Fallback to basic evaluation if LLM fails
+            logger.warning(f"LLM testing evaluation failed, using basic validation: {e}")
+
+            # Basic validation as fallback
+            has_adequate_tests = len(test_files) > 0
+            tests_passing = "passed" in test_execution_results.lower() and "failed" not in test_execution_results.lower()
+            no_warnings = "warning" not in test_execution_results.lower()
+            no_failures = "failed" not in test_execution_results.lower() and "error" not in test_execution_results.lower()
+            has_coverage = test_coverage_report is not None and test_coverage_report.strip() != ""
+
+            testing_approved = has_adequate_tests and tests_passing and no_warnings and no_failures
+
+            required_improvements = []
+            if not has_adequate_tests:
+                required_improvements.append("No test files provided")
+            if not tests_passing:
+                required_improvements.append("Tests are not passing")
+            if not no_warnings:
+                required_improvements.append("Test execution contains warnings that need to be addressed")
+            if not no_failures:
+                required_improvements.append("Test execution contains failures or errors")
+            if not has_coverage and len(test_files) > 0:
+                required_improvements.append("Test coverage report not provided - coverage analysis recommended")
+
+            evaluation_feedback = "Basic validation performed due to LLM evaluation failure"
+
+        if testing_approved:
+            # Update task state to REVIEW_READY if tests are passing
+            if task_metadata.state == TaskState.TESTING:
+                task_metadata.update_state(TaskState.REVIEW_READY)
+
+            # Use LLM evaluation feedback if available, otherwise create basic feedback
+            if 'evaluation_feedback' in locals():
+                feedback = f"""✅ **TESTING IMPLEMENTATION APPROVED**
+
+{evaluation_feedback}
+
+**Test Summary:** {test_summary}
+
+**Test Files ({len(test_files)}):**
+{chr(10).join(f"- {file}" for file in test_files)}
+
+**Test Execution:** {test_execution_results}
+
+**Test Types:** {', '.join(test_types_implemented) if test_types_implemented else 'Not specified'}
+
+**Testing Framework:** {testing_framework or 'Not specified'}
+
+**Coverage:** {test_coverage_report or 'Not provided'}
+
+✅ **Ready for final task completion review.**"""
+            else:
+                feedback = f"""✅ **TESTING IMPLEMENTATION APPROVED**
+
+**Test Summary:** {test_summary}
+
+**Test Files ({len(test_files)}):**
+{chr(10).join(f"- {file}" for file in test_files)}
+
+**Test Execution:** {test_execution_results}
+
+**Assessment:** The testing implementation meets the requirements. All tests are passing and provide adequate coverage for the implemented functionality.
+
+✅ **Ready for final task completion review.**"""
+
+        else:
+            # Use LLM evaluation feedback if available, otherwise create basic feedback
+            if 'evaluation_feedback' in locals():
+                feedback = f"""❌ **TESTING IMPLEMENTATION NEEDS IMPROVEMENT**
+
+{evaluation_feedback}
+
+**Test Summary:** {test_summary}
+
+**Test Execution Results:** {test_execution_results}
+
+📋 **Please address these testing issues before proceeding to task completion.**"""
+            else:
+                feedback = f"""❌ **TESTING IMPLEMENTATION NEEDS IMPROVEMENT**
+
+**Test Summary:** {test_summary}
+
+**Issues Found:**
+{chr(10).join(f"- {issue}" for issue in required_improvements)}
+
+**Test Execution Results:** {test_execution_results}
+
+**Required Actions:**
+- Write comprehensive tests for all implemented functionality
+- Ensure all tests pass successfully
+- Provide test coverage analysis
+- Follow testing best practices for the framework
+
+📋 **Please address these testing issues before proceeding to task completion.**"""
+
+        # Calculate workflow guidance
+        workflow_guidance = await calculate_next_stage(
+            task_metadata=task_metadata,
+            current_operation="judge_testing_implementation_completed",
+            conversation_service=conversation_service,
+            ctx=ctx,
+        )
+
+        # Create enhanced response
+        result = JudgeResponse(
+            approved=testing_approved,
+            required_improvements=required_improvements,
+            feedback=feedback,
+            current_task_metadata=task_metadata,
+            workflow_guidance=workflow_guidance,
+        )
+
+        # Save tool interaction to conversation history
+        await conversation_service.save_tool_interaction(
+            session_id=task_id,  # Use task_id as primary key
+            tool_name="judge_testing_implementation",
+            tool_input=json.dumps(original_input),
+            tool_output=json.dumps(result.model_dump(mode='json')),
+        )
+
+        return result
+
+    except Exception as e:
+        import traceback
+
+        error_details = (
+            f"Error during testing validation: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
+
+        # Create error guidance
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred during testing validation",
+            preparation_needed=["Review error details", "Check task parameters"],
+            guidance=f"Error during testing validation: {str(e)}. Please review and try again."
+        )
+
+        # Create minimal task metadata for error case
+        if 'task_metadata' in locals() and task_metadata is not None:
+            error_metadata = task_metadata
+        else:
+            error_metadata = TaskMetadata(
+                task_id=task_id if 'task_id' in locals() else "unknown",
+                name="error-task",
+                title="Error Task",
+                description="Error occurred during testing validation",
+                user_requirements="Error occurred before task metadata could be loaded",
+                state=TaskState.TESTING,
+                tags=["error"],
+            )
+
+        # For all errors, return enhanced error response
+        error_result = JudgeResponse(
+            approved=False,
+            required_improvements=["Error occurred during testing validation"],
+            feedback=error_details,
+            current_task_metadata=error_metadata,
+            workflow_guidance=error_guidance,
+        )
+
+        # Save error interaction
+        with contextlib.suppress(builtins.BaseException):
+            await conversation_service.save_tool_interaction(
+                session_id=task_id if 'task_id' in locals() else "unknown",
+                tool_name="judge_testing_implementation",
+                tool_input=json.dumps(original_input),
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
             )
 
         return error_result
