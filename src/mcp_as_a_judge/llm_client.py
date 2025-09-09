@@ -10,6 +10,7 @@ from typing import Any
 
 import litellm
 
+from mcp_as_a_judge.constants import DEFAULT_REASONING_EFFORT
 from mcp_as_a_judge.llm_integration import LLMConfig, LLMVendor
 
 # Set global drop_params to handle model-specific parameter restrictions
@@ -156,6 +157,7 @@ class LLMClient:
                 "api_key": self.config.api_key,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
+                "reasoning_effort": DEFAULT_REASONING_EFFORT,  # Set reasoning to lowest level
                 **kwargs,
             }
 

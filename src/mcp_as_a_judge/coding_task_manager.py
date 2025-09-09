@@ -7,7 +7,7 @@ including creation, updates, state transitions, and persistence.
 
 import json
 import logging
-from datetime import datetime
+import time
 from typing import Optional
 
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 async def create_new_coding_task(
     user_request: str,
-    task_name: str,
     task_title: str,
     task_description: str,
     user_requirements: str,
@@ -28,16 +27,15 @@ async def create_new_coding_task(
 ) -> TaskMetadata:
     """
     Create a new coding task with auto-generated task_id.
-    
+
     Args:
         user_request: Original user request
-        task_name: Human-readable task name
         task_title: Display title
         task_description: Detailed description
         user_requirements: Initial requirements
         tags: Task tags
         conversation_service: Conversation service
-        
+
     Returns:
         New TaskMetadata instance
     """
@@ -45,7 +43,6 @@ async def create_new_coding_task(
     
     # Create new TaskMetadata with auto-generated UUID
     task_metadata = TaskMetadata(
-        name=task_name,
         title=task_title,
         description=task_description,
         user_requirements=user_requirements,
@@ -64,7 +61,6 @@ async def create_new_coding_task(
 async def update_existing_coding_task(
     task_id: str,
     user_request: str,
-    task_name: str,
     task_title: str,
     task_description: str,
     user_requirements: Optional[str],
@@ -74,21 +70,20 @@ async def update_existing_coding_task(
 ) -> TaskMetadata:
     """
     Update an existing coding task.
-    
+
     Args:
         task_id: Immutable task ID
         user_request: Original user request
-        task_name: Updated task name
         task_title: Updated title
         task_description: Updated description
         user_requirements: Updated requirements
-        state: Updated state
+        state: Updated state (None to skip state update)
         tags: Updated tags
         conversation_service: Conversation service
-        
+
     Returns:
         Updated TaskMetadata instance
-        
+
     Raises:
         ValueError: If task not found or invalid state transition
     """
@@ -104,11 +99,10 @@ async def update_existing_coding_task(
         raise ValueError(f"Task not found: {task_id}")
     
     # Update mutable fields
-    existing_metadata.name = task_name
     existing_metadata.title = task_title
     existing_metadata.description = task_description
     existing_metadata.tags = tags
-    existing_metadata.updated_at = datetime.now()
+    existing_metadata.updated_at = int(time.time())
     
     # Update requirements if provided
     if user_requirements is not None:
@@ -183,7 +177,7 @@ async def save_task_metadata_to_history(
             tool_output=json.dumps({
                 "action": action,
                 "current_task_metadata": task_metadata.model_dump(mode='json'),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": int(time.time()),
             }),
         )
         

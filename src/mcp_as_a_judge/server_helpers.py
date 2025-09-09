@@ -55,12 +55,10 @@ def extract_json_from_response(response_text: str) -> str:
     Raises:
         ValueError: If no JSON object is found in the response
     """
-    # Find the first opening brace and last closing brace
     first_brace = response_text.find("{")
     last_brace = response_text.rfind("}")
 
     if first_brace == -1 or last_brace == -1 or first_brace >= last_brace:
-        # Provide more detailed error information for debugging
         response_info = {
             "length": len(response_text),
             "is_empty": len(response_text.strip()) == 0,
@@ -73,7 +71,6 @@ def extract_json_from_response(response_text: str) -> str:
             f"Full response: '{response_text}'"
         )
 
-    # Extract the JSON content
     json_content = response_text[first_brace : last_brace + 1]
     return json_content
 
@@ -85,19 +82,16 @@ async def generate_validation_error_message(
 ) -> str:
     """Generate a descriptive error message using AI sampling for validation failures."""
     try:
-        # Import the models here to avoid circular imports
         from mcp_as_a_judge.models import (
             ValidationErrorSystemVars,
             ValidationErrorUserVars,
         )
 
-        # Create system and user variables
         system_vars = ValidationErrorSystemVars()
         user_vars = ValidationErrorUserVars(
             validation_issue=validation_issue, context=context
         )
 
-        # Create messages using the established pattern
         messages = create_separate_messages(
             "system/validation_error.md",
             "user/validation_error.md",
@@ -105,7 +99,6 @@ async def generate_validation_error_message(
             user_vars,
         )
 
-        # Use sampling to generate descriptive error message
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
@@ -115,7 +108,6 @@ async def generate_validation_error_message(
         return response_text.strip()
 
     except Exception:
-        # Fallback to the original validation issue if AI generation fails
         return validation_issue
 
 
@@ -140,10 +132,8 @@ async def generate_dynamic_elicitation_model(
         Dynamically created Pydantic BaseModel class
     """
     try:
-        # Import the models here to avoid circular imports
         from mcp_as_a_judge.models import DynamicSchemaSystemVars, DynamicSchemaUserVars
 
-        # Create system and user variables for field generation
         system_vars = DynamicSchemaSystemVars()
         user_vars = DynamicSchemaUserVars(
             context=context,
@@ -151,7 +141,6 @@ async def generate_dynamic_elicitation_model(
             current_understanding=current_understanding,
         )
 
-        # Create messages using the established pattern
         messages = create_separate_messages(
             "system/dynamic_schema.md", "user/dynamic_schema.md", system_vars, user_vars
         )

@@ -6,7 +6,7 @@ must implement for storing and retrieving conversation history.
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+import time
 
 from sqlmodel import Field, SQLModel
 
@@ -21,9 +21,9 @@ class ConversationRecord(SQLModel, table=True):
     source: str  # tool name
     input: str  # tool input query
     output: str  # tool output string
-    timestamp: datetime = Field(
-        default_factory=datetime.utcnow, index=True
-    )  # when the record was created
+    timestamp: int = Field(
+        default_factory=lambda: int(time.time()), index=True
+    )  # when the record was created (epoch seconds)
 
 
 class ConversationHistoryDB(ABC):

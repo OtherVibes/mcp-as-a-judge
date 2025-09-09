@@ -22,6 +22,9 @@ from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskState
 logger = logging.getLogger(__name__)
 
 
+
+
+
 class WorkflowGuidance(BaseModel):
     """
     LLM-generated workflow guidance from shared calculate_next_stage method.
@@ -118,6 +121,10 @@ async def calculate_next_stage(
         # Format conversation history for LLM context
         conversation_context = _format_conversation_for_llm(conversation_history)
 
+        # Research requirements are determined by LLM through prompts when needed
+        # For now, we'll let the calling tools handle research requirement setting
+        # TODO: Add proper LLM-based research inference using create_separate_messages pattern
+
         # Get tool descriptions and state info for the prompt
         tool_descriptions = await _get_tool_descriptions()
         state_info = task_metadata.get_current_state_info()
@@ -135,12 +142,12 @@ async def calculate_next_stage(
         if task_metadata.modified_files:
             operation_context.append(f"- Modified Files ({len(task_metadata.modified_files)}): {', '.join(task_metadata.modified_files)}")
 
-            # Check if we should trigger testing or batch review
+            # Check implementation progress (code review comes AFTER tests are written and passing)
             if len(task_metadata.modified_files) > 0 and task_metadata.state == TaskState.IMPLEMENTING:
                 if len(task_metadata.test_files) == 0:
-                    operation_context.append("- TESTING TRIGGER: Implementation files have been modified and approved. Consider transitioning to TESTING state to validate test coverage.")
+                    operation_context.append("- IMPLEMENTATION PROGRESS: Implementation files have been created. Continue implementing ALL code AND write tests. Ensure tests are passing before calling judge_code_change.")
                 else:
-                    operation_context.append("- BATCH REVIEW TRIGGER: Multiple files have been modified and approved individually. Consider transitioning to REVIEW_READY state and performing comprehensive review of all files.")
+                    operation_context.append("- IMPLEMENTATION + TESTS: Both implementation and test files exist. Ensure ALL tests are passing, then call judge_code_change for code review.")
 
         # Add testing information
         if task_metadata.test_files:
@@ -148,9 +155,18 @@ async def calculate_next_stage(
             test_coverage = task_metadata.get_test_coverage_summary()
             operation_context.append(f"- Test Status: {test_coverage['test_status']} (All passing: {test_coverage['all_tests_passing']})")
 
-            # Check if testing is complete
+            # Check if testing validation is complete
             if task_metadata.state == TaskState.TESTING and test_coverage['all_tests_passing']:
-                operation_context.append("- TESTING COMPLETE: All tests are passing. Ready to transition to REVIEW_READY state.")
+                operation_context.append("- TESTING VALIDATION READY: All tests are passing. Ready for judge_testing_implementation to validate test results.")
+
+        # Add research guidance based on requirements
+        if task_metadata.research_required is True:
+            research_status = "completed" if task_metadata.research_completed else "pending"
+            operation_context.append(f"- RESEARCH REQUIRED (scope: {task_metadata.research_scope}, status: {research_status}): Focus on authoritative, domain-relevant sources. Rationale: {task_metadata.research_rationale}")
+        elif task_metadata.research_required is False:
+            operation_context.append("- RESEARCH OPTIONAL: Research is optional for this task. If provided, prioritize domain-relevant, authoritative sources.")
+        else:
+            operation_context.append("- RESEARCH STATUS: Research requirements not yet determined (will be inferred for new tasks).")
 
         operation_context_str = "\n".join(operation_context) if operation_context else "- No additional context"
 
@@ -173,7 +189,7 @@ async def calculate_next_stage(
             current_state=task_metadata.state.value,
             state_description=state_info['description'],
             current_operation=current_operation,
-            state_transitions="CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → COMPLETED",
+            state_transitions="CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED",
             tool_descriptions=tool_descriptions,
             conversation_context=conversation_context,
             operation_context=operation_context_str,
@@ -282,7 +298,7 @@ def _format_conversation_for_llm(conversation_history) -> str:
     formatted_lines = []
     for record in conversation_history[-10:]:  # Last 10 records
         formatted_lines.append(
-            f"[{record.timestamp.isoformat()}] {record.source}:\n"
+            f"[{record.timestamp}] {record.source}:\n"
             f"Input: {record.input}\n"
             f"Output: {record.output}\n"
         )
@@ -325,9 +341,11 @@ async def _get_tool_descriptions() -> str:
         logger.warning(f"⚠️ Failed to get tool descriptions programmatically: {e}")
         # Fallback to static descriptions
         return """
-- **build_workflow**: Analyze task and provide workflow guidance
+- **set_coding_task**: Create or update task metadata (entry point for all coding work)
 - **judge_coding_plan**: Validate coding plan with mandatory code analysis requirements
-- **judge_code_change**: Validate individual code changes and accumulate diff context
+- **judge_testing_implementation**: Validate testing implementation and test coverage (mandatory after implementation)
+- **judge_code_change**: Validate COMPLETE code implementations (only when all code is ready for review)
+- **judge_coding_task_completion**: Final validation of task completion against requirements
 - **raise_obstacle**: Handle obstacles that prevent task completion
 - **raise_missing_requirements**: Handle unclear or incomplete requirements
 """

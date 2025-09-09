@@ -11,14 +11,23 @@ This tool creates new coding tasks or updates existing ones, providing intellige
 ## When to Call This Tool
 
 **ALWAYS call this tool first when:**
-- User requests any coding, development, or implementation work
-- User asks to build, create, modify, or fix code
-- User requests features, bug fixes, or code improvements
-- User asks for code reviews, refactoring, or optimization
-- User requests API development, database changes, or system modifications
-- ANY request that involves writing, editing, or analyzing code
+- User requests NEW features, functionality, or components to be built
+- User asks to MODIFY existing code logic, algorithms, or business rules
+- User requests bug fixes that require CODE CHANGES (not just configuration)
+- User asks for code refactoring, optimization, or architectural changes
+- User requests NEW API endpoints, database schema changes, or system integrations
+- User wants to ADD, REMOVE, or CHANGE application behavior through code
 
-**Do NOT proceed with coding work without calling this tool first.**
+**Do NOT call this tool for:**
+- Simple operational tasks (start/stop servers, run commands, install packages)
+- Configuration changes (environment variables, config files, settings)
+- Documentation updates or README changes
+- Running tests, builds, or deployment commands
+- File system operations (create directories, move files)
+- Debugging or troubleshooting existing functionality
+- Questions about existing code (use direct analysis instead)
+
+**Key principle: Only use for tasks that require LOGICAL CODE CHANGES**
 
 ## Dynamic Workflow System
 
@@ -103,7 +112,6 @@ Returns `TaskAnalysisResult` containing:
 ```python
 result = await set_coding_task(
     user_request="I need to add user authentication to my app",
-    task_name="implement-user-auth",
     task_title="Implement User Authentication",
     task_description="Add secure user authentication with JWT tokens",
     user_requirements="Users should be able to register, login, and logout securely",
@@ -126,14 +134,14 @@ instructions = result.workflow_guidance.guidance  # Detailed next steps
 ```python
 result = await set_coding_task(
     user_request="Update requirements for authentication task",
-    task_name="implement-user-auth",
     task_title="Implement User Authentication",
     task_description="Add secure user authentication with JWT tokens",
     task_id="550e8400-e29b-41d4-a716-446655440000",
-    user_requirements="Updated: Add password reset functionality",
-    state=TaskState.PLANNING
+    user_requirements="Updated: Add password reset functionality"
 )
 ```
+
+**Note**: Task state transitions are managed automatically by the workflow system. The `set_coding_task` tool only allows updating task title, description, and user requirements.
 
 ## ⚠️ CRITICAL WORKFLOW REQUIREMENTS
 

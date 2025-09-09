@@ -6,8 +6,8 @@ the foundation of the enhanced workflow v3 system.
 """
 
 import uuid
-from datetime import datetime
-from typing import List, Dict, Any
+import time
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -51,35 +51,48 @@ class TaskState(str, Enum):
     CANCELLED = "cancelled"          # Task cancelled
 
 
+class ResearchScope(str, Enum):
+    """
+    Research scope enum for workflow-driven research validation.
+
+    Determines the depth and requirements for research validation:
+    - NONE: No research required for this task complexity
+    - LIGHT: Light research required (1+ authoritative domain source)
+    - DEEP: Deep research required (2+ authoritative domain sources)
+    """
+    NONE = "none"    # No research required
+    LIGHT = "light"  # Light research required
+    DEEP = "deep"    # Deep research required
+
+
 class RequirementsVersion(BaseModel):
     """A version of user requirements with timestamp and source."""
     content: str
     source: str  # "initial", "clarification", "update"
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: int = Field(default_factory=lambda: int(time.time()))
 
 
 class TaskMetadata(BaseModel):
     """
     Lightweight metadata for coding tasks that flows with memory layer.
-    
+
     This model serves as the foundation for the enhanced workflow v3 system,
     replacing session-based tracking with task-centric approach.
     """
+
+
     
     # IMMUTABLE FIELDS - Never change after creation
     task_id: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
         description="IMMUTABLE: Auto-generated UUID, primary key for memory storage"
     )
-    created_at: datetime = Field(
-        default_factory=datetime.now,
-        description="IMMUTABLE: Task creation timestamp"
+    created_at: int = Field(
+        default_factory=lambda: int(time.time()),
+        description="IMMUTABLE: Task creation timestamp (epoch seconds)"
     )
     
     # MUTABLE FIELDS - Can be updated via set_coding_task
-    name: str = Field(
-        description="Human-readable slug for coding task (updatable)"
-    )
     title: str = Field(
         description="Display title for coding task (updatable)"
     )
@@ -116,15 +129,57 @@ class TaskMetadata(BaseModel):
         default_factory=dict,
         description="Status of different test types (unit, integration, e2e, etc.)"
     )
-    updated_at: datetime = Field(
-        default_factory=datetime.now,
-        description="Last update timestamp"
+    updated_at: int = Field(
+        default_factory=lambda: int(time.time()),
+        description="Last update timestamp (epoch seconds)"
     )
     tags: List[str] = Field(
         default_factory=list,
         description="Coding-related tags"
     )
-    
+
+    # RESEARCH TRACKING FIELDS - Added for workflow-driven research validation
+    research_required: Optional[bool] = Field(
+        default=None,
+        description="Whether research is required by workflow guidance (None=undetermined, True=required, False=optional)"
+    )
+    research_scope: ResearchScope = Field(
+        default=ResearchScope.NONE,
+        description="Research scope determined by workflow: none|light|deep"
+    )
+    research_completed: Optional[int] = Field(
+        default=None,
+        description="Epoch seconds when research validation passed"
+    )
+    research_rationale: str = Field(
+        default="",
+        description="Explanation of why research was required and how the scope was determined"
+    )
+
+    # INTERNAL RESEARCH FIELDS - For code snippet analysis
+    internal_research_required: Optional[bool] = Field(
+        default=None,
+        description="Whether internal codebase research is needed (None=undetermined, True=required, False=not needed)"
+    )
+    related_code_snippets: List[str] = Field(
+        default_factory=list,
+        description="Related code snippets from the codebase that are relevant to this task"
+    )
+
+    # RISK ASSESSMENT FIELDS - For identifying potential harm areas
+    risk_assessment_required: Optional[bool] = Field(
+        default=None,
+        description="Whether risk assessment is needed (None=undetermined, True=required, False=not needed)"
+    )
+    identified_risks: List[str] = Field(
+        default_factory=list,
+        description="Areas that could be harmed by the proposed changes"
+    )
+    risk_mitigation_strategies: List[str] = Field(
+        default_factory=list,
+        description="Strategies to mitigate identified risks"
+    )
+
     def update_requirements(self, new_requirements: str, source: str = "update") -> None:
         """
         Update user requirements and add to history.
@@ -145,8 +200,8 @@ class TaskMetadata(BaseModel):
             
             # Update current requirements
             self.user_requirements = new_requirements
-            self.updated_at = datetime.now()
-            
+            self.updated_at = int(time.time())
+
             # Add new version to history
             new_version = RequirementsVersion(
                 content=new_requirements,
@@ -164,7 +219,7 @@ class TaskMetadata(BaseModel):
         """
         if file_path not in self.modified_files:
             self.modified_files.append(file_path)
-            self.updated_at = datetime.now()
+            self.updated_at = int(time.time())
 
     def add_test_file(self, test_file_path: str) -> None:
         """
@@ -175,7 +230,7 @@ class TaskMetadata(BaseModel):
         """
         if test_file_path not in self.test_files:
             self.test_files.append(test_file_path)
-            self.updated_at = datetime.now()
+            self.updated_at = int(time.time())
 
     def update_test_status(self, test_type: str, status: str) -> None:
         """
@@ -186,7 +241,7 @@ class TaskMetadata(BaseModel):
             status: Status (passing, failing, not_implemented, etc.)
         """
         self.test_status[test_type] = status
-        self.updated_at = datetime.now()
+        self.updated_at = int(time.time())
 
     def get_test_coverage_summary(self) -> Dict[str, Any]:
         """
@@ -212,7 +267,7 @@ class TaskMetadata(BaseModel):
         """
         if self.state != new_state:
             self.state = new_state
-            self.updated_at = datetime.now()
+            self.updated_at = int(time.time())
     
     def add_accumulated_change(self, file_path: str, change_data: Dict[str, Any]) -> None:
         """
@@ -227,10 +282,10 @@ class TaskMetadata(BaseModel):
         
         change_entry = {
             **change_data,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": int(time.time())
         }
         self.accumulated_diff[file_path].append(change_entry)
-        self.updated_at = datetime.now()
+        self.updated_at = int(time.time())
     
     def get_current_state_info(self) -> Dict[str, str]:
         """

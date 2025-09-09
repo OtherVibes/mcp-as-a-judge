@@ -5,7 +5,7 @@ This service handles time-based cleanup operations for conversation history reco
 removing records older than the retention period (default: 1 day).
 """
 
-from datetime import datetime, timedelta
+import time
 
 from sqlalchemy import Engine
 from sqlmodel import Session, select
@@ -35,7 +35,7 @@ class ConversationCleanupService:
         """
         self.engine = engine
         self.retention_days = RECORD_RETENTION_DAYS
-        self.last_cleanup_time = datetime.utcnow()
+        self.last_cleanup_time = int(time.time())
 
     def cleanup_old_records(self) -> int:
         """
@@ -45,16 +45,17 @@ class ConversationCleanupService:
         Returns:
             Number of records deleted
         """
-        # Only run cleanup once per day
-        if (datetime.utcnow() - self.last_cleanup_time).days < 1:
+        # Only run cleanup once per day (86400 seconds)
+        current_time = int(time.time())
+        if (current_time - self.last_cleanup_time) < 86400:
             return 0
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.retention_days)
+        cutoff_timestamp = current_time - (self.retention_days * 86400)
 
         with Session(self.engine) as session:
             # Count old records
             old_count_stmt = select(ConversationRecord).where(
-                ConversationRecord.timestamp < cutoff_date
+                ConversationRecord.timestamp < cutoff_timestamp
             )
             old_records = session.exec(old_count_stmt).all()
             old_count = len(old_records)
@@ -63,7 +64,7 @@ class ConversationCleanupService:
                 logger.info(
                     f"🧹 Daily cleanup: No records older than {self.retention_days} days"
                 )
-                self.last_cleanup_time = datetime.utcnow()
+                self.last_cleanup_time = int(time.time())
                 return 0
 
             # Delete old records
@@ -73,7 +74,7 @@ class ConversationCleanupService:
             session.commit()
 
             # Reset cleanup tracking
-            self.last_cleanup_time = datetime.utcnow()
+            self.last_cleanup_time = int(time.time())
 
             logger.info(
                 f"🧹 Daily cleanup: Deleted {old_count} records older than {self.retention_days} days"

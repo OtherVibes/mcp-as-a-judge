@@ -1,4 +1,16 @@
-DYNAMIC WORKFLOW: This tool is called when the workflow guidance indicates `next_tool: "judge_code_change"` or after writing/editing a code file during implementation.
+DYNAMIC WORKFLOW: This tool is called when the workflow guidance indicates `next_tool: "judge_code_change"` and ALL implementation work is complete.
+
+**IMPORTANT: Only use when ALL code is ready for comprehensive review**
+
+This tool should be called when:
+- ALL implementation files AND tests have been written/modified
+- ALL tests are passing with good coverage
+- The complete implementation is ready for code review
+- Task is transitioning from IMPLEMENTING to REVIEW_READY state
+- You need validation of implementation code (NOT tests - tests are reviewed separately)
+
+Do NOT use for individual file changes during implementation.
+Do NOT include test files in the code review - only implementation code.
 
 Args:
     task_id: Task UUID for context and validation (REQUIRED)

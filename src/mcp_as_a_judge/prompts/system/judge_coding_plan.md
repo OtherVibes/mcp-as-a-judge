@@ -32,14 +32,26 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - **DRY Principle**: Does it avoid duplication and promote reusability?
 - **Orthogonality**: Are components independent and loosely coupled?
 
-### 2. Research Thoroughness
+### 2. Independent Research Types Evaluation
 
-- Has the agent researched existing solutions and alternatives?
-- Are appropriate libraries, frameworks, and tools identified?
+**🔍 External Research (ONLY evaluate if Status: REQUIRED):**
+- Validate that appropriate external research has been conducted
+- Are authoritative sources and documentation referenced?
 - Is there evidence of understanding industry best practices?
 - Are trade-offs between different approaches analyzed?
 - Does the research demonstrate avoiding reinventing the wheel?
-- **"Use the Source, Luke"**: Are authoritative sources and documentation referenced?
+
+**🏗️ Internal Codebase Analysis (ONLY evaluate if Status: REQUIRED):**
+- Validate that existing codebase patterns are properly considered
+- Are existing utilities, helpers, and patterns referenced?
+- Does the plan follow established architectural patterns?
+- Are opportunities to reuse existing components identified?
+
+**IMPORTANT:** External and internal research are completely independent. A task may require:
+- External research only
+- Internal analysis only
+- Both external research AND internal analysis
+- Neither (simple tasks)
 
 ### 3. Architecture & Implementation Plan
 
@@ -84,7 +96,16 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - **Good Enough Software**: Is the solution appropriately scoped for current needs?
 - **Refactoring Strategy**: Is there a plan for continuous improvement?
 
-### 8. Communication & Documentation
+### 8. Risk Assessment (ONLY evaluate if Status: REQUIRED)
+
+**⚠️ Risk Analysis:**
+- Validate that potential risks are properly identified and addressed
+- Are identified risks realistic and comprehensive?
+- Do mitigation strategies adequately address the risks?
+- Does the plan include appropriate safeguards and rollback mechanisms?
+- Are there additional risks that should be considered?
+
+### 9. Communication & Documentation
 
 - Are requirements clearly understood and documented?
 - Is the design communicated effectively to stakeholders?
@@ -147,17 +168,51 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - Are they solving the root problem or just patching symptoms?
 - Flag solutions that seem like workarounds
 
-### 4. Force Deep Research - MANDATORY VALIDATION
+### 4. Research Quality Assessment
 
-- **CURRENT REPO FIRST**: Has research analyzed existing codebase, current libraries, and established patterns?
-- **RESEARCH FOUNDATION**: Is research based on current repo state + user requirements + online investigation?
-- **EXISTING SOLUTIONS PRIORITY**: Does research prioritize current repo capabilities and well-known libraries?
+{% if research_required %}
+**🔍 External Research Evaluation (REQUIRED - Scope: {{ research_scope }})**
+- **Rationale**: {{ research_rationale }}
+- **AUTHORITATIVE SOURCES**: Are standards, specifications, and official domain authorities referenced?
 - **COMPREHENSIVE ANALYSIS**: Have they analyzed multiple approaches and alternatives from existing solutions?
 - **DOMAIN EXPERTISE**: Are best practices from the problem domain clearly identified?
-- **🌐 MANDATORY: Online Research URLs** - Are research URLs provided? Online research is MANDATORY.
-- **REJECT IF MISSING**: No URLs provided means no online research was performed - REJECT immediately
-- **URL QUALITY**: Do URLs show research into current repo analysis, implementation approaches, and existing libraries?
-- **REJECT IMMEDIATELY**: Missing URLs, insufficient online research, or failure to investigate existing solutions
+- **QUALITY OVER QUANTITY**: Do URLs demonstrate authoritative, domain-relevant research rather than just framework documentation?
+{% endif %}
+
+{% if internal_research_required %}
+**🏗️ Internal Codebase Analysis Evaluation (REQUIRED)**
+- **EXISTING PATTERNS**: Does the plan follow established architectural patterns in the codebase?
+- **COMPONENT REUSE**: Are existing utilities, helpers, and patterns properly referenced?
+- **CONSISTENCY**: Does the approach maintain consistency with current codebase standards?
+- **INTEGRATION**: Are opportunities to reuse existing components identified?
+{% endif %}
+
+{% if risk_assessment_required %}
+**⚠️ Risk Assessment Evaluation (REQUIRED)**
+- **RISK IDENTIFICATION**: Are potential risks realistic and comprehensive?
+- **MITIGATION STRATEGIES**: Do proposed strategies adequately address the identified risks?
+- **SAFEGUARDS**: Does the plan include appropriate safeguards and rollback mechanisms?
+- **IMPACT ANALYSIS**: Are all areas that could be affected properly considered?
+{% endif %}
+
+## Conditional Feature Analysis
+
+As part of your evaluation, analyze the task requirements and determine:
+
+### External Research Requirements
+- **Analyze** if the task involves specialized domains, protocols, standards, or complex technologies
+- **Determine** if external research is needed (security, APIs, frameworks, best practices)
+- **Set** research_required, research_scope ("none", "light", "deep"), and research_rationale in task metadata
+
+### Internal Codebase Analysis
+- **Analyze** if the task requires understanding existing codebase patterns or components
+- **Determine** if internal research is needed (extending existing functionality, following patterns)
+- **Set** internal_research_required and related_code_snippets in task metadata
+
+### Risk Assessment
+- **Analyze** if the task could impact existing functionality, security, or system stability
+- **Determine** if risk assessment is needed (breaking changes, security implications, data integrity)
+- **Set** risk_assessment_required, identified_risks, and risk_mitigation_strategies in task metadata
 
 ## Response Requirements
 

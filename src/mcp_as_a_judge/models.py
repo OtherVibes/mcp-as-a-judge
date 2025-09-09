@@ -136,11 +136,49 @@ class JudgeCodingPlanUserVars(BaseModel):
     research: str = Field(description="Research findings and analysis")
     research_urls: list[str] = Field(
         default_factory=list,
-        description="URLs from MANDATORY online research - minimum 3 URLs required",
+        description="URLs from online research (conditional based on task needs)",
     )
     conversation_history: list = Field(
         default_factory=list,
         description="Previous conversation history as JSON array with timestamps",
+    )
+
+    # Conditional research fields
+    research_required: bool = Field(
+        default=False,
+        description="Whether external research is required for this task"
+    )
+    research_scope: str = Field(
+        default="none",
+        description="Scope of research required (none, light, deep)"
+    )
+    research_rationale: str = Field(
+        default="",
+        description="Explanation of why research is or isn't required"
+    )
+
+    # Conditional internal research fields
+    internal_research_required: bool = Field(
+        default=False,
+        description="Whether internal codebase research is needed"
+    )
+    related_code_snippets: list[str] = Field(
+        default_factory=list,
+        description="Related code snippets from the codebase"
+    )
+
+    # Conditional risk assessment fields
+    risk_assessment_required: bool = Field(
+        default=False,
+        description="Whether risk assessment is needed"
+    )
+    identified_risks: list[str] = Field(
+        default_factory=list,
+        description="Areas that could be harmed by the changes"
+    )
+    risk_mitigation_strategies: list[str] = Field(
+        default_factory=list,
+        description="Strategies to mitigate identified risks"
     )
 
 

@@ -134,10 +134,10 @@ The workflow guidance considers task states:
 ## File Tracking Integration
 
 The system tracks modified files and can:
-- Suggest batch review when multiple files are ready
-- Guide to completion when all files are approved
+- Guide to testing validation when implementation is complete
+- Guide to completion when all files are approved and tested
 - Recommend additional file reviews if needed
-- Transition between individual and batch review modes
+- Transition between implementation, testing, and review phases
 
 ## Conclusion
 

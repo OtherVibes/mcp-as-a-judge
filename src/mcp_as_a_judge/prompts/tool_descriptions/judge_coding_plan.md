@@ -7,17 +7,22 @@ The AI assistant should follow the dynamic workflow by:
 
 BEFORE calling this tool, ensure you have:
 1. Analyzed the user requirements thoroughly
-2. Performed ONLINE research on existing solutions and well-known libraries
-3. Analyzed the repository code for existing patterns and components
-4. Created a comprehensive system design
-5. Developed a detailed implementation plan
+2. Created a comprehensive system design
+3. Developed a detailed implementation plan
+
+CONDITIONAL ANALYSIS (automatically determined by the system):
+- **External Research**: System determines if online research is needed based on task complexity
+- **Internal Research**: System identifies if existing codebase patterns should be analyzed
+- **Risk Assessment**: System evaluates if the change poses risks to existing functionality
+
+NOTE: These are independent - a task may require external research only, internal analysis only, both, or neither.
 
 Args:
     task_id: Task UUID for context and validation (REQUIRED)
     plan: The detailed coding plan to be reviewed (REQUIRED)
     design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
-    research: Research findings on existing solutions, libraries, frameworks, and best practices (REQUIRED)
-    research_urls: 🌐 URLs from MANDATORY online research - AI assistant MUST provide at least 3 URLs from research (REQUIRED)
+    research: Research findings on existing solutions, libraries, frameworks, and best practices (provide if you have research)
+    research_urls: 🌐 URLs from online research (only required if system determines external research is needed)
     context: Additional context about the project, requirements, or constraints
 
 Returns:

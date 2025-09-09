@@ -25,8 +25,9 @@ Each state has specific requirements and valid next steps:
 - **CREATED**: Task just created, needs detailed planning with code analysis
 - **PLANNING**: Planning phase in progress, awaiting plan validation
 - **PLAN_APPROVED**: Plan validated and approved, ready for implementation
-- **IMPLEMENTING**: Implementation phase in progress, code changes being made
-- **REVIEW_READY**: Implementation complete, ready for final validation
+- **IMPLEMENTING**: Implementation phase in progress, code and tests being written
+- **REVIEW_READY**: Implementation and tests complete and passing, ready for code review
+- **TESTING**: Code review approved, validating test results and coverage
 - **COMPLETED**: Task completed successfully, workflow finished
 - **BLOCKED**: Task blocked by external dependencies, needs resolution
 - **CANCELLED**: Task cancelled, workflow terminated
@@ -42,6 +43,19 @@ Each state has specific requirements and valid next steps:
 ## Current Operation Context
 
 {{ operation_context }}
+
+### Test Status Validation
+
+**CRITICAL**: Before recommending judge_code_change, verify:
+- Test coverage summary shows all_tests_passing: true
+- If all_tests_passing is false, tests are failing
+- **NEVER** proceed to code review with failing tests
+
+**When tests are failing:**
+- Set next_tool to null (do not proceed to code review)
+- Provide specific guidance to fix test failures
+- Include details about which tests are failing and why
+- Guide the AI to install missing dependencies, fix imports, or correct test logic
 
 ## Navigation Analysis
 
@@ -64,10 +78,44 @@ Based on the current state ({{ current_state }}) and conversation history, analy
 
 - If state is **CREATED** → Next tool should be planning-related
 - If state is **PLANNING** → Next tool should validate the plan
-- If state is **PLAN_APPROVED** → Next tool should start implementation
-- If state is **IMPLEMENTING** → Next tool should continue implementation or move to review
-- If state is **REVIEW_READY** → Next tool should validate completion
+- If state is **PLAN_APPROVED** → Next tool should start implementation (code AND tests)
+- If state is **IMPLEMENTING** → Next tool should continue implementation until ALL code AND tests are complete and passing, then call judge_code_change
+  - **CRITICAL**: If tests are failing, next_tool should be null with guidance to fix test failures
+  - **ONLY** call judge_code_change when all_tests_passing is true
+- If state is **REVIEW_READY** → Next tool should validate implementation code (judge_code_change for code review only)
+- If state is **TESTING** → Next tool should validate test results (judge_testing_implementation for test validation, then judge_coding_task_completion)
 - If state is **COMPLETED** → Workflow is finished (next_tool: null)
+
+### CRITICAL RULE: judge_code_change Usage
+
+**NEVER recommend judge_code_change unless:**
+- Task state is REVIEW_READY
+- ALL implementation work AND tests are complete and passing
+- Ready for code review (implementation code only, not tests)
+- Tests have been written and are passing before code review
+- **MANDATORY**: all_tests_passing must be true in test coverage summary
+
+**If tests are failing:**
+- Set next_tool to null
+- Provide guidance to fix test failures first
+- Do NOT proceed to code review until all tests pass
+
+### TASK COMPLETION RULE
+
+**When judge_code_change is approved:**
+- Task should transition to TESTING state
+- next_tool should be judge_testing_implementation
+- Test validation required before completion
+
+**When judge_testing_implementation is approved:**
+- Task should remain in TESTING state
+- next_tool should be judge_coding_task_completion
+- Final validation required before completion
+
+**When judge_coding_task_completion is approved:**
+- Task should transition to COMPLETED state
+- next_tool should be null (workflow finished)
+- No additional tools needed in the main workflow
 
 ## Response Requirements
 
@@ -98,17 +146,31 @@ You MUST respond with ONLY a valid JSON object in this exact format:
 }
 ```
 
-**Implementation Phase**:
+**Testing Phase**:
+```json
+{
+  "next_tool": "judge_testing_implementation",
+  "reasoning": "Implementation is complete and task needs testing validation before final review",
+  "preparation_needed": [
+    "Write comprehensive tests for all implemented functionality",
+    "Execute all tests and ensure they pass",
+    "Generate test coverage report"
+  ],
+  "guidance": "Validate the testing implementation for the user authentication module. Ensure tests cover registration, login, logout, JWT validation, and error cases. All tests must pass before proceeding to final code review."
+}
+```
+
+**Code Review Phase**:
 ```json
 {
   "next_tool": "judge_code_change",
-  "reasoning": "Plan has been approved and task is ready for implementation phase",
+  "reasoning": "Testing has been validated and task is ready for comprehensive code review",
   "preparation_needed": [
-    "Review the approved implementation plan",
-    "Set up development environment",
-    "Create backup of files to be modified"
+    "Ensure all tests are passing",
+    "Review all modified files",
+    "Prepare complete implementation summary"
   ],
-  "guidance": "Implement the user authentication module as outlined in the approved plan. Start with the User model modifications in src/models/user.py. Include password hashing functionality and update the save method as specified."
+  "guidance": "Perform comprehensive review of all implementation files. Validate that the complete user authentication system meets requirements and follows best practices."
 }
 ```
 

@@ -1,8 +1,8 @@
 # Judge Testing Implementation
 
-DYNAMIC WORKFLOW: This tool is called when the workflow guidance indicates `next_tool: "judge_testing_implementation"`.
+DYNAMIC WORKFLOW: This tool is called when the workflow guidance indicates `next_tool: "judge_testing_implementation"` and code review is complete.
 
-Comprehensive testing validation tool for evaluating test coverage, quality, and execution results during the testing phase.
+Comprehensive testing validation tool for evaluating test coverage, quality, and execution results during the testing phase. **IMPORTANT: Only use after judge_code_change has been approved.**
 
 ## Purpose
 
@@ -55,10 +55,10 @@ The tool validates testing based on:
 
 ## Task State Transitions
 
-- **IMPLEMENTING → TESTING**: Implementation complete, start testing phase
-- **TESTING → TESTING**: Iterative test development and execution
-- **TESTING → REVIEW_READY**: All tests passing, ready for final review
-- **TESTING → IMPLEMENTING**: Tests reveal issues, return to implementation
+- **REVIEW_READY → TESTING**: Code review complete, start testing validation phase
+- **TESTING → TESTING**: Iterative test validation and improvement
+- **TESTING → COMPLETED**: All tests validated, ready for final task completion
+- **TESTING → REVIEW_READY**: Tests reveal code issues, return to code review
 
 ## Response
 
@@ -111,16 +111,16 @@ result = await judge_testing_implementation(
 ## Workflow Context
 
 This tool is typically called when:
-- Implementation phase is complete (task state IMPLEMENTING)
-- Code has been written and approved via `judge_code_change`
-- It's time to validate that appropriate tests exist and pass
+- Code review phase is complete (task state REVIEW_READY)
+- Implementation code has been reviewed and approved via `judge_code_change`
+- It's time to validate that test results, coverage, and testing approach are adequate
 - The workflow guidance indicates testing validation is needed
 
 The response will guide whether testing is adequate or if additional testing work is needed.
 
 ## Integration with Other Tools
 
-- **Follows**: `judge_code_change` (after implementation complete)
-- **Precedes**: `judge_coding_task_completion` (when all tests pass)
-- **May Loop**: Back to implementation if tests reveal issues
-- **Tracks**: Test files in task metadata for comprehensive review
+- **Follows**: `judge_code_change` (after code review complete)
+- **Precedes**: `judge_coding_task_completion` (when all tests validated)
+- **May Loop**: Back to code review if tests reveal code issues
+- **Tracks**: Test files and results in task metadata for comprehensive validation
