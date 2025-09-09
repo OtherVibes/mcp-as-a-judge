@@ -7,19 +7,18 @@ and current state.
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
-import logging
-
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
+from mcp_as_a_judge.logging_config import get_logger
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskState
 
-# Set up logger directly to avoid circular imports
-logger = logging.getLogger(__name__)
+# Set up logger using custom get_logger function
+logger = get_logger(__name__)
 
 
 
@@ -34,7 +33,7 @@ class WorkflowGuidance(BaseModel):
 
     Compatible with the original WorkflowGuidance model from models.py.
     """
-    next_tool: Optional[str] = Field(
+    next_tool: str | None = Field(
         description="Next tool to call, or None if workflow complete"
     )
     reasoning: str = Field(
@@ -84,10 +83,10 @@ async def calculate_next_stage(
     task_metadata: TaskMetadata,
     current_operation: str,
     conversation_service: ConversationHistoryService,
-    ctx: Optional[Any] = None,  # MCP Context for llm_provider
-    validation_result: Optional[Any] = None,
-    completion_result: Optional[Any] = None,
-    accumulated_changes: Optional[Dict] = None,
+    ctx: Any | None = None,  # MCP Context for llm_provider
+    validation_result: Any | None = None,
+    completion_result: Any | None = None,
+    accumulated_changes: dict | None = None,
 ) -> WorkflowGuidance:
     """
     SHARED METHOD used by all tools to calculate next_tool and instructions.
@@ -110,14 +109,14 @@ async def calculate_next_stage(
         Exception: If LLM fails to generate valid navigation
     """
     logger.info(f"🧠 Calculating next stage for task {task_metadata.task_id}")
-    
+
     try:
         # Load conversation history using task_id as primary key
         # Note: For now we'll use task_id as session_id until we update the DB schema
         conversation_history = await conversation_service.get_conversation_history(
             session_id=task_metadata.task_id
         )
-        
+
         # Format conversation history for LLM context
         conversation_context = _format_conversation_for_llm(conversation_history)
 
@@ -174,8 +173,9 @@ async def calculate_next_stage(
         logger.info(f"📤 Sending navigation request to LLM for task {task_metadata.task_id}")
 
         # Use the same messaging pattern as other tools
-        from mcp_as_a_judge.prompt_loader import create_separate_messages
         from mcp.types import SamplingMessage
+
+        from mcp_as_a_judge.prompt_loader import create_separate_messages
 
         # Create system and user variables for the workflow guidance
         system_vars = WorkflowGuidanceSystemVars(
@@ -227,7 +227,7 @@ async def calculate_next_stage(
         except (ValueError, json.JSONDecodeError) as e:
             logger.error(f"❌ Failed to parse LLM response: {e}")
             logger.error(f"❌ Raw response: {response[:500]}...")
-            raise ValueError(f"Failed to parse workflow guidance response: {e}")
+            raise ValueError(f"Failed to parse workflow guidance response: {e}") from e
 
         # Validate required fields
         required_fields = ["next_tool", "reasoning", "preparation_needed", "guidance"]
@@ -278,23 +278,23 @@ async def calculate_next_stage(
             next_tool=None,
             reasoning="Error occurred during workflow calculation",
             preparation_needed=["Review the error and task state"],
-            guidance=f"Error calculating next stage: {str(e)}. Please review task manually."
+            guidance=f"Error calculating next stage: {e!s}. Please review task manually."
         )
 
 
 def _format_conversation_for_llm(conversation_history) -> str:
     """
     Format conversation history for LLM context.
-    
+
     Args:
         conversation_history: List of conversation records
-        
+
     Returns:
         Formatted string for LLM prompt
     """
     if not conversation_history:
         return "No previous conversation history."
-    
+
     formatted_lines = []
     for record in conversation_history[-10:]:  # Last 10 records
         formatted_lines.append(
@@ -302,7 +302,7 @@ def _format_conversation_for_llm(conversation_history) -> str:
             f"Input: {record.input}\n"
             f"Output: {record.output}\n"
         )
-    
+
     return "\n".join(formatted_lines)
 
 

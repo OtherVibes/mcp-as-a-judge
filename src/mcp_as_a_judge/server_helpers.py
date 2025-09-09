@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.llm_client import llm_manager
 from mcp_as_a_judge.llm_integration import load_llm_config_from_env
+from mcp_as_a_judge.logging_config import get_logger
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.prompt_loader import create_separate_messages
 
@@ -27,17 +28,18 @@ def initialize_llm_configuration() -> None:
 
     This function loads LLM configuration from environment variables and
     configures the LLM manager if a valid configuration is found.
-    Prints status messages to inform users about the configuration state.
+    Logs status messages to inform users about the configuration state.
     """
+    logger = get_logger(__name__)
     llm_config = load_llm_config_from_env()
     if llm_config:
         llm_manager.configure(llm_config)
         vendor_name = llm_config.vendor.value if llm_config.vendor else "unknown"
-        print(
-            f"LLM fallback configured: {vendor_name} with model {llm_config.model_name}"
+        logger.info(
+            f"🔧 LLM fallback configured: {vendor_name} with model {llm_config.model_name}"
         )
     else:
-        print("No LLM API key found in environment. MCP sampling will be required.")
+        logger.info("🔧 No LLM API key found in environment. MCP sampling will be required.")
 
 
 def extract_json_from_response(response_text: str) -> str:

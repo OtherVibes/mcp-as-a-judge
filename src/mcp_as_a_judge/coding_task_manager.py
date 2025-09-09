@@ -6,15 +6,14 @@ including creation, updates, state transitions, and persistence.
 """
 
 import json
-import logging
 import time
-from typing import Optional
 
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
+from mcp_as_a_judge.logging_config import get_logger
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskState
 
-# Set up logger directly to avoid circular imports
-logger = logging.getLogger(__name__)
+# Set up logger using custom get_logger function
+logger = get_logger(__name__)
 
 
 async def create_new_coding_task(
@@ -40,7 +39,7 @@ async def create_new_coding_task(
         New TaskMetadata instance
     """
     logger.info(f"📝 Creating new coding task: {task_title}")
-    
+
     # Create new TaskMetadata with auto-generated UUID
     task_metadata = TaskMetadata(
         title=task_title,
@@ -49,11 +48,11 @@ async def create_new_coding_task(
         state=TaskState.CREATED,  # Default state for new tasks
         tags=tags,
     )
-    
+
     # Add initial requirements to history if provided
     if user_requirements:
         task_metadata.update_requirements(user_requirements, source="initial")
-    
+
     logger.info(f"✅ Created new task metadata: {task_metadata.task_id}")
     return task_metadata
 
@@ -63,8 +62,8 @@ async def update_existing_coding_task(
     user_request: str,
     task_title: str,
     task_description: str,
-    user_requirements: Optional[str],
-    state: Optional[TaskState],
+    user_requirements: str | None,
+    state: TaskState | None,
     tags: list[str],
     conversation_service: ConversationHistoryService,
 ) -> TaskMetadata:
@@ -88,31 +87,31 @@ async def update_existing_coding_task(
         ValueError: If task not found or invalid state transition
     """
     logger.info(f"📝 Updating existing coding task: {task_id}")
-    
+
     # Load existing task metadata from conversation history
     existing_metadata = await load_task_metadata_from_history(
         task_id=task_id,
         conversation_service=conversation_service,
     )
-    
+
     if not existing_metadata:
         raise ValueError(f"Task not found: {task_id}")
-    
+
     # Update mutable fields
     existing_metadata.title = task_title
     existing_metadata.description = task_description
     existing_metadata.tags = tags
     existing_metadata.updated_at = int(time.time())
-    
+
     # Update requirements if provided
     if user_requirements is not None:
         existing_metadata.update_requirements(user_requirements, source="update")
-    
+
     # Update state if provided (with validation)
     if state is not None:
         validate_state_transition(existing_metadata.state, state)
         existing_metadata.update_state(state)
-    
+
     logger.info(f"✅ Updated task metadata: {task_id}")
     return existing_metadata
 
@@ -120,14 +119,14 @@ async def update_existing_coding_task(
 async def load_task_metadata_from_history(
     task_id: str,
     conversation_service: ConversationHistoryService,
-) -> Optional[TaskMetadata]:
+) -> TaskMetadata | None:
     """
     Load TaskMetadata from conversation history using task_id as primary key.
-    
+
     Args:
         task_id: Task ID to load
         conversation_service: Conversation service
-        
+
     Returns:
         TaskMetadata if found, None otherwise
     """
@@ -136,7 +135,7 @@ async def load_task_metadata_from_history(
         conversation_history = await conversation_service.get_conversation_history(
             session_id=task_id
         )
-        
+
         # Look for the most recent task metadata record
         for record in reversed(conversation_history):
             if record.source == "set_coding_task" and "task_metadata" in record.output:
@@ -145,9 +144,9 @@ async def load_task_metadata_from_history(
                 if "current_task_metadata" in output_data:
                     metadata_dict = output_data["current_task_metadata"]
                     return TaskMetadata.model_validate(metadata_dict)
-        
+
         return None
-        
+
     except Exception as e:
         logger.warning(f"⚠️ Failed to load task metadata from history: {e}")
         return None
@@ -161,7 +160,7 @@ async def save_task_metadata_to_history(
 ) -> None:
     """
     Save TaskMetadata to conversation history using task_id as primary key.
-    
+
     Args:
         task_metadata: Task metadata to save
         user_request: Original user request
@@ -180,9 +179,9 @@ async def save_task_metadata_to_history(
                 "timestamp": int(time.time()),
             }),
         )
-        
+
         logger.info(f"💾 Saved task metadata to conversation history: {task_metadata.task_id}")
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to save task metadata to history: {e}")
         # Don't raise - this is not critical for tool operation
@@ -191,11 +190,11 @@ async def save_task_metadata_to_history(
 def validate_state_transition(current_state: TaskState, new_state: TaskState) -> None:
     """
     Validate that the state transition is allowed.
-    
+
     Args:
         current_state: Current TaskState
         new_state: Requested new TaskState
-        
+
     Raises:
         ValueError: If transition is not allowed
     """
@@ -210,7 +209,7 @@ def validate_state_transition(current_state: TaskState, new_state: TaskState) ->
         TaskState.BLOCKED: [TaskState.CREATED, TaskState.PLANNING, TaskState.PLAN_APPROVED, TaskState.IMPLEMENTING, TaskState.REVIEW_READY, TaskState.CANCELLED],
         TaskState.CANCELLED: [],  # No transitions from cancelled state
     }
-    
+
     if new_state not in valid_transitions.get(current_state, []):
         raise ValueError(
             f"Invalid state transition: {current_state.value} → {new_state.value}. "
