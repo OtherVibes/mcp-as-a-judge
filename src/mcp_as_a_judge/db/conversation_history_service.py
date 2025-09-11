@@ -14,7 +14,7 @@ from mcp_as_a_judge.db import (
 )
 from mcp_as_a_judge.db.db_config import Config
 from mcp_as_a_judge.logging_config import get_logger
-from mcp_as_a_judge.utils.token_utils import filter_records_by_token_limit
+from mcp_as_a_judge.db.token_utils import filter_records_by_token_limit
 
 # Set up logger
 logger = get_logger(__name__)
@@ -36,18 +36,17 @@ class ConversationHistoryService:
         self.config = config
         self.db = db_provider or create_database_provider(config)
 
-    async def load_context_for_enrichment(
-        self, session_id: str
-    ) -> list[ConversationRecord]:
+    async def load_context_for_enrichment(self, session_id: str, current_prompt: str = "") -> list[ConversationRecord]:
         """
         Load recent conversation records for LLM context enrichment.
 
         Two-level filtering approach:
         1. Database already enforces storage limits (record count + token limits)
-        2. Load-time filtering ensures history + current fits within LLM context limits
+        2. Load-time filtering ensures history + current prompt fits within LLM context limits
 
         Args:
             session_id: Session identifier
+            current_prompt: Current prompt that will be sent to LLM (for token calculation)
 
         Returns:
             List of conversation records for LLM context (filtered for LLM limits)
@@ -62,18 +61,23 @@ class ConversationHistoryService:
 
         # Apply LLM context filtering: ensure history + current prompt will fit within token limit
         # This filters the list without modifying the database (only token limit matters for LLM)
-        filtered_records = filter_records_by_token_limit(recent_records)
+        filtered_records = filter_records_by_token_limit(recent_records, current_prompt=current_prompt)
 
         logger.info(
             f"✅ Returning {len(filtered_records)} conversation records for LLM context"
         )
         return filtered_records
 
-    async def save_tool_interaction(
+    async def save_tool_interaction_and_cleanup(
         self, session_id: str, tool_name: str, tool_input: str, tool_output: str
     ) -> str:
         """
-        Save a tool interaction as a conversation record.
+        Save a tool interaction as a conversation record and perform automatic cleanup.in the provider layer
+
+        After saving, the database provider automatically performs cleanup to enforce limits:
+        - Removes old records if session exceeds MAX_SESSION_RECORDS (20)
+        - Removes old records if session exceeds MAX_CONTEXT_TOKENS (50,000)
+        - Removes least recently used sessions if total sessions exceed MAX_TOTAL_SESSIONS (50)
 
         Args:
             session_id: Session identifier from AI agent
@@ -98,31 +102,23 @@ class ConversationHistoryService:
         logger.info(f"✅ Saved conversation record with ID: {record_id}")
         return record_id
 
-    async def get_conversation_history(
-        self, session_id: str
-    ) -> list[ConversationRecord]:
+    async def save_tool_interaction(
+        self, session_id: str, tool_name: str, tool_input: str, tool_output: str
+    ) -> str:
         """
-        Get conversation history for a session to be injected into user prompts.
+        Save a tool interaction as a conversation record.
 
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            List of conversation records for the session (most recent first)
+        DEPRECATED: Use save_tool_interaction_and_cleanup() instead.
+        This method is kept for backward compatibility.
         """
-        logger.info(f"🔄 Loading conversation history for session {session_id}")
-
-        context_records = await self.load_context_for_enrichment(session_id)
-
-        logger.info(
-            f"📝 Retrieved {len(context_records)} conversation records for session {session_id}"
+        logger.warning(
+            "save_tool_interaction() is deprecated. Use save_tool_interaction_and_cleanup() instead."
+        )
+        return await self.save_tool_interaction_and_cleanup(
+            session_id, tool_name, tool_input, tool_output
         )
 
-        return context_records
-
-    def format_conversation_history_as_json_array(
-        self, conversation_history: list[ConversationRecord]
-    ) -> list[dict]:
+    def format_conversation_history_as_json_array( self, conversation_history: list[ConversationRecord]) -> list[dict]:
         """
         Convert conversation history list to JSON array for prompt injection.
 

@@ -7,6 +7,8 @@ using the approximation that 1 token ≈ 4 characters of English text.
 
 from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
 
+from mcp_as_a_judge.db.interface import ConversationRecord
+
 
 def calculate_tokens(text: str) -> int:
     """
@@ -31,20 +33,18 @@ def calculate_tokens(text: str) -> int:
 
 def calculate_record_tokens(input_text: str, output_text: str) -> int:
     """
-    Calculate total token count for a conversation record.
+    Calculate total token count for input and output text.
 
     Combines the token counts of input and output text.
 
     Args:
-        input_text: Tool input text
-        output_text: Tool output text
+       input_text: Input text string
+       output_text: Output text string
 
     Returns:
         Combined token count for both input and output
     """
-    input_tokens = calculate_tokens(input_text)
-    output_tokens = calculate_tokens(output_text)
-    return input_tokens + output_tokens
+    return calculate_tokens(input_text) + calculate_tokens(output_text)
 
 
 def calculate_total_tokens(records: list) -> int:
@@ -61,7 +61,7 @@ def calculate_total_tokens(records: list) -> int:
 
 
 def filter_records_by_token_limit(
-    records: list, max_tokens: int | None = None, max_records: int | None = None
+    records: list, current_prompt: str = ""
 ) -> list:
     """
     Filter conversation records to stay within token and record limits.
@@ -71,8 +71,8 @@ def filter_records_by_token_limit(
 
     Args:
         records: List of ConversationRecord objects (assumed to be in reverse chronological order)
-        max_tokens: Maximum allowed token count (defaults to MAX_CONTEXT_TOKENS from constants)
         max_records: Maximum number of records to keep (optional)
+        current_prompt: Current prompt that will be sent to LLM (for token calculation)
 
     Returns:
         Filtered list of records that fit within the limits
@@ -80,27 +80,25 @@ def filter_records_by_token_limit(
     if not records:
         return []
 
-    # Use default token limit if not specified
-    if max_tokens is None:
-        max_tokens = MAX_CONTEXT_TOKENS
+    # Calculate current prompt tokens
+    current_prompt_tokens = calculate_record_tokens(current_prompt, "") if current_prompt else 0
 
-    # Apply record count limit first if specified
-    if max_records is not None and len(records) > max_records:
-        records = records[:max_records]
+    # Calculate total tokens including current prompt
+    history_tokens = calculate_total_tokens(records)
+    total_tokens = history_tokens + current_prompt_tokens
 
-    # If total tokens are within limit, return all records
-    total_tokens = calculate_total_tokens(records)
-    if total_tokens <= max_tokens:
+    # If total tokens (history + current prompt) are within limit, return all records
+    if total_tokens <= MAX_CONTEXT_TOKENS:
         return records
 
     # Remove oldest records (from the end since records are in reverse chronological order)
-    # until we're within the token limit
+    # until history + current prompt fit within the token limit
     filtered_records = records.copy()
-    current_tokens = total_tokens
+    current_history_tokens = history_tokens
 
-    while current_tokens > max_tokens and len(filtered_records) > 1:
+    while (current_history_tokens + current_prompt_tokens) > MAX_CONTEXT_TOKENS and len(filtered_records) > 1:
         # Remove the oldest record (last in the list)
         removed_record = filtered_records.pop()
-        current_tokens -= getattr(removed_record, "tokens", 0)
+        current_history_tokens -= getattr(removed_record, "tokens", 0)
 
     return filtered_records

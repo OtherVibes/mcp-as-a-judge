@@ -15,7 +15,7 @@ from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.db.cleanup_service import ConversationCleanupService
 from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
 from mcp_as_a_judge.logging_config import get_logger
-from mcp_as_a_judge.utils.token_utils import calculate_record_tokens
+from mcp_as_a_judge.db.token_utils import calculate_record_tokens
 
 # Set up logger
 logger = get_logger(__name__)
@@ -101,12 +101,15 @@ class SQLiteProvider(ConversationHistoryDB):
         Two-step process:
         1. If record count > max_records, remove oldest record
         2. If total tokens > max_tokens, remove oldest records until within limit
+
+        Optimization: Single DB query with ORDER BY, then in-memory list operations.
+        Eliminates 2 extra database queries compared to naive implementation.
         """
         with Session(self.engine) as session:
-            # Get current record count
+            # Get current records ordered by timestamp DESC (newest first for token calculation)
             count_stmt = select(ConversationRecord).where(
                 ConversationRecord.session_id == session_id
-            )
+            ).order_by(desc(ConversationRecord.timestamp))
             current_records = session.exec(count_stmt).all()
             current_count = len(current_records)
 
@@ -121,37 +124,25 @@ class SQLiteProvider(ConversationHistoryDB):
             if current_count > self._max_session_records:
                 logger.info("   📊 Record limit exceeded, removing 1 oldest record")
 
-                # Get the oldest record to remove (since we add one by one, only need to remove one)
-                oldest_stmt = (
-                    select(ConversationRecord)
-                    .where(ConversationRecord.session_id == session_id)
-                    .order_by(asc(ConversationRecord.timestamp))
-                    .limit(1)
+                # Take the last record (oldest) since list is sorted by timestamp DESC (newest first)
+                oldest_record = current_records[-1]
+
+                logger.info(
+                    f"   🗑️ Removing oldest record: {oldest_record.source} | {oldest_record.tokens} tokens | {oldest_record.timestamp}"
                 )
-                oldest_record = session.exec(oldest_stmt).first()
+                session.delete(oldest_record)
+                removed_count += 1
+                session.commit()
+                logger.info("   ✅ Removed 1 record due to record limit")
 
-                if oldest_record:
-                    logger.info(
-                        f"   🗑️ Removing oldest record: {oldest_record.source} | {oldest_record.tokens} tokens | {oldest_record.timestamp}"
-                    )
-                    session.delete(oldest_record)
-                    removed_count += 1
-                    session.commit()
-                    logger.info("   ✅ Removed 1 record due to record limit")
+                # Update our in-memory list to reflect the deletion
+                current_records.remove(oldest_record)
 
-            # STEP 2: Handle token limit (check remaining records after step 1)
-            remaining_stmt = (
-                select(ConversationRecord)
-                .where(ConversationRecord.session_id == session_id)
-                .order_by(
-                    desc(ConversationRecord.timestamp)
-                )  # Newest first for token calculation
-            )
-            remaining_records = session.exec(remaining_stmt).all()
-            current_tokens = sum(record.tokens for record in remaining_records)
+            # STEP 2: Handle token limit (list is already sorted newest first - perfect for token calculation)
+            current_tokens = sum(record.tokens for record in current_records)
 
             logger.info(
-                f"   🔢 {len(remaining_records)} records, {current_tokens} tokens "
+                f"   🔢 {len(current_records)} records, {current_tokens} tokens "
                 f"(max: {MAX_CONTEXT_TOKENS})"
             )
 
@@ -164,7 +155,7 @@ class SQLiteProvider(ConversationHistoryDB):
                 records_to_keep = []
                 running_tokens = 0
 
-                for record in remaining_records:  # Already ordered newest first
+                for record in current_records:  # Already ordered newest first
                     if running_tokens + record.tokens <= MAX_CONTEXT_TOKENS:
                         records_to_keep.append(record)
                         running_tokens += record.tokens
@@ -172,7 +163,7 @@ class SQLiteProvider(ConversationHistoryDB):
                         break
 
                 # Remove records that didn't make the cut
-                records_to_remove_for_tokens = remaining_records[len(records_to_keep) :]
+                records_to_remove_for_tokens = current_records[len(records_to_keep) :]
 
                 if records_to_remove_for_tokens:
                     logger.info(

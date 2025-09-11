@@ -117,7 +117,7 @@ class TestTokenBasedHistory:
             )
 
         # Load context - should be limited by record count (20), not tokens
-        context_records = await service.load_context_for_enrichment(session_id)
+        context_records = await service.load_filtered_context_for_enrichment(session_id)
 
         assert len(context_records) == 20  # Limited by MAX_SESSION_RECORDS
         print(f"✅ Record limit applied: {len(context_records)} records returned")
@@ -151,7 +151,7 @@ class TestTokenBasedHistory:
             )
 
         # Load context - should be limited by token count (50K), not record count
-        context_records = await service.load_context_for_enrichment(session_id)
+        context_records = await service.load_filtered_context_for_enrichment(session_id)
 
         # Should get ~10 records (10 * 5000 = 50K tokens)
         assert len(context_records) <= 10
@@ -254,7 +254,7 @@ class TestTokenBasedHistory:
             )
 
         # Load context
-        context_records = await service.load_context_for_enrichment(session_id)
+        context_records = await service.load_filtered_context_for_enrichment(session_id)
 
         # Should get recent records that fit within token limit
         total_tokens = sum(r.tokens for r in context_records)

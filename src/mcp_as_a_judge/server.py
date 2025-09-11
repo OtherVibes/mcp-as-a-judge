@@ -48,6 +48,8 @@ from mcp_as_a_judge.tool_description_provider import (
     tool_description_provider,
 )
 
+from src.mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
+
 # Initialize centralized logging
 setup_logging()
 
@@ -88,14 +90,9 @@ async def build_workflow(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.get_conversation_history(
-            session_id
-        )
-        history_json_array = (
-            conversation_service.format_conversation_history_as_json_array(
-                conversation_history
-            )
-        )
+        conversation_history = await conversation_service.load_filtered_context_for_enrichment(session_id, json.dumps(original_input))
+        history_json_array = conversation_service.format_conversation_history_as_json_array(conversation_history)
+        
 
         # STEP 2: Create system and user messages with separate context and conversation history
         system_vars = WorkflowGuidanceSystemVars(
@@ -117,7 +114,7 @@ async def build_workflow(
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=5000,
+            max_tokens=MAX_CONTEXT_TOKENS,
             prefer_sampling=True,
         )
 
@@ -125,7 +122,7 @@ async def build_workflow(
         result = WorkflowGuidance.model_validate_json(json_content)
 
         # STEP 4: Save tool interaction to conversation history
-        await conversation_service.save_tool_interaction(
+        await conversation_service.save_tool_interaction_and_cleanup(
             session_id=session_id,
             tool_name="build_workflow",
             tool_input=json.dumps(original_input),
@@ -224,7 +221,7 @@ Please choose an option (by number or description) and provide any additional co
 You can now proceed with the user's chosen approach. Make sure to incorporate their input into your implementation."""
 
             # Save successful interaction as conversation record
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
@@ -238,7 +235,7 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
             result = elicit_result.message
 
             # Save failed interaction
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
@@ -252,7 +249,7 @@ You can now proceed with the user's chosen approach. Make sure to incorporate th
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
@@ -346,7 +343,7 @@ Please provide clarified requirements and indicate their priority level (high/me
 You can now proceed with the clarified requirements. Make sure to incorporate all clarifications into your planning and implementation."""
 
             # Save successful interaction
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
@@ -360,7 +357,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
             result = elicit_result.message
 
             # Save failed interaction
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
@@ -374,7 +371,7 @@ You can now proceed with the clarified requirements. Make sure to incorporate al
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
@@ -491,7 +488,7 @@ async def _evaluate_coding_plan(
     response_text = await llm_provider.send_message(
         messages=messages,
         ctx=ctx,
-        max_tokens=5000,
+        max_tokens=MAX_CONTEXT_TOKENS,
         prefer_sampling=True,
     )
 
@@ -561,14 +558,9 @@ async def judge_coding_plan(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.get_conversation_history(
-            session_id
-        )
-        history_json_array = (
-            conversation_service.format_conversation_history_as_json_array(
-                conversation_history
-            )
-        )
+        conversation_history = await conversation_service.load_filtered_context_for_enrichment(session_id, json.dumps(original_input))
+        history_json_array = conversation_service.format_conversation_history_as_json_array(conversation_history)
+        
 
         # STEP 2: Use helper function for main evaluation with JSON array conversation history
         evaluation_result = await _evaluate_coding_plan(
@@ -591,7 +583,7 @@ async def judge_coding_plan(
                 return research_validation_result
 
         # STEP 3: Save tool interaction to conversation history
-        await conversation_service.save_tool_interaction(
+        await conversation_service.save_tool_interaction_and_cleanup(
             session_id=session_id,
             tool_name="judge_coding_plan",
             tool_input=json.dumps(original_input),
@@ -616,7 +608,7 @@ async def judge_coding_plan(
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="judge_coding_plan",
                 tool_input=json.dumps(original_input),
@@ -647,14 +639,8 @@ async def judge_code_change(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.get_conversation_history(
-            session_id
-        )
-        history_json_array = (
-            conversation_service.format_conversation_history_as_json_array(
-                conversation_history
-            )
-        )
+        conversation_history = await conversation_service.load_filtered_context_for_enrichment(session_id,json.dumps(original_input))
+        history_json_array = conversation_service.format_conversation_history_as_json_array(conversation_history)
 
         # STEP 2: Create system and user messages with separate context and conversation history
         system_vars = JudgeCodeChangeSystemVars(
@@ -679,7 +665,7 @@ async def judge_code_change(
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=5000,
+            max_tokens=MAX_CONTEXT_TOKENS,
             prefer_sampling=True,
         )
 
@@ -689,7 +675,7 @@ async def judge_code_change(
             result = JudgeResponse.model_validate_json(json_content)
 
             # STEP 4: Save tool interaction to conversation history
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
@@ -719,7 +705,7 @@ async def judge_code_change(
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
