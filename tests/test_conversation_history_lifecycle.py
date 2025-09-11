@@ -158,45 +158,53 @@ class TestConversationHistoryLifecycle:
         print(f"   Session B: {sources_b}")
 
     @pytest.mark.asyncio
-    async def test_time_based_cleanup_integration(self):
-        """Test integration of FIFO cleanup with time-based cleanup."""
+    async def test_immediate_cleanup_integration(self):
+        """Test integration of FIFO cleanup with immediate LRU session cleanup."""
         db = SQLiteProvider(max_session_records=5)
+        # Set a small session limit for testing
+        db._cleanup_service.max_total_sessions = 2
 
-        print("\n🔄 TESTING TIME-BASED CLEANUP INTEGRATION")
+        print("\n🔄 TESTING IMMEDIATE CLEANUP INTEGRATION")
         print("=" * 60)
 
-        # Add some records
+        # Add records to first session
         for i in range(3):
             await db.save_conversation(
-                session_id="time_test_session",
+                session_id="session_1",
                 source=f"tool_{i}",
                 input_data=f"Input {i}",
                 output=f"Output {i}",
             )
 
         # Verify records exist
-        records_before = await db.get_session_conversations("time_test_session")
+        records_before = await db.get_session_conversations("session_1")
         assert len(records_before) == 3
-        print(f"✅ Before cleanup: {len(records_before)} records")
+        print(f"✅ Session 1 records: {len(records_before)}")
 
-        # Force time-based cleanup by mocking old cleanup time
-        old_time = datetime.now(UTC) - timedelta(days=2)
-        db._last_cleanup_time = old_time
-
-        # Trigger cleanup by adding another record
+        # Create second session (should not trigger session cleanup yet)
         await db.save_conversation(
-            session_id="time_test_session",
-            source="tool_trigger",
-            input_data="Trigger cleanup",
-            output="Cleanup triggered",
+            session_id="session_2",
+            source="tool_1",
+            input_data="Input 1",
+            output="Output 1",
         )
 
-        # Records should still exist (within retention period)
-        records_after = await db.get_session_conversations("time_test_session")
-        assert len(records_after) == 4
-        print(
-            f"✅ After time-based cleanup: {len(records_after)} records (within retention)"
+        # Both sessions should exist
+        assert db._cleanup_service.get_session_count() == 2
+        print("✅ Both sessions exist (at limit)")
+
+        # Create third session (should trigger LRU session cleanup)
+        await db.save_conversation(
+            session_id="session_3",
+            source="tool_1",
+            input_data="Input 1",
+            output="Output 1",
         )
+
+        # Should still have only 2 sessions (LRU cleanup triggered)
+        final_count = db._cleanup_service.get_session_count()
+        assert final_count == 2
+        print(f"✅ After immediate LRU cleanup: {final_count} sessions (limit maintained)")
 
     @pytest.mark.asyncio
     async def test_lru_session_cleanup_lifecycle(self):
@@ -225,61 +233,59 @@ class TestConversationHistoryLifecycle:
         await db.save_conversation("session_C", "tool1", "input1", "output1")
         print("   Session C: Created")
 
-        # Session D: Created fourth
-        await db.save_conversation("session_D", "tool1", "input1", "output1")
-        print("   Session D: Created")
-
-        # Session E: Created fifth
-        await db.save_conversation("session_E", "tool1", "input1", "output1")
-        print("   Session E: Created")
-
-        # Add recent activity to Session A (making it most recently used)
+        # Add recent activity to Session A BEFORE creating more sessions
+        # This ensures Session A becomes most recently used before cleanup
         await db.save_conversation(
             session_id="session_A",
             source="tool2",
             input_data="recent_input",
             output="recent_output",
         )
-        print("   Session A: Updated with recent activity (most recently used)")
+        print("   Session A: Updated with recent activity (now most recently used)")
 
-        # Verify all sessions exist
+        # Session D: Created fourth (should trigger cleanup, but Session A should be preserved)
+        await db.save_conversation("session_D", "tool1", "input1", "output1")
+        print("   Session D: Created (cleanup triggered)")
+
+        # Session E: Created fifth (should trigger cleanup again)
+        await db.save_conversation("session_E", "tool1", "input1", "output1")
+        print("   Session E: Created (cleanup triggered again)")
+
+        # Verify automatic LRU cleanup happened (should be at limit of 3)
         current_count = db._cleanup_service.get_session_count()
-        assert current_count == 5, f"Expected 5 sessions, got {current_count}"
-        print(f"✅ Phase 1: {current_count} sessions created successfully")
+        assert current_count == 3, f"Expected 3 sessions after automatic cleanup, got {current_count}"
+        print(f"✅ Phase 1: Automatic LRU cleanup maintained limit - {current_count} sessions remain")
 
-        # PHASE 2: Test LRU detection
-        print("\n🔍 PHASE 2: Testing LRU detection...")
+        # PHASE 2: Verify which sessions remain after automatic cleanup
+        print("\n🔍 PHASE 2: Verifying remaining sessions after automatic cleanup...")
 
-        # Get least recently used sessions (should be B, C - oldest last activity)
-        lru_sessions = db._cleanup_service.get_least_recently_used_sessions(2)
-        print(f"   LRU sessions to remove: {lru_sessions}")
+        # Check which sessions still exist
+        remaining_sessions = []
+        for session_id in ["session_A", "session_B", "session_C", "session_D", "session_E"]:
+            records = await db.get_session_conversations(session_id)
+            if records:
+                remaining_sessions.append(session_id)
 
-        # Should be sessions B and C (oldest last activity)
-        assert "session_B" in lru_sessions, "Session B should be LRU"
-        assert "session_C" in lru_sessions, "Session C should be LRU"
-        assert "session_A" not in lru_sessions, (
-            "Session A should NOT be LRU (recent activity)"
-        )
-        print("✅ Phase 2: LRU detection working correctly")
+        print(f"   Remaining sessions: {remaining_sessions}")
+        assert len(remaining_sessions) == 3, f"Expected 3 remaining sessions, got {len(remaining_sessions)}"
 
-        # PHASE 3: Trigger LRU cleanup
-        print("\n🧹 PHASE 3: Triggering LRU session cleanup...")
+        # Session A should remain initially (preserved due to recent activity)
+        assert "session_A" in remaining_sessions, "Session A should remain initially (most recently used)"
+        print("✅ Phase 2: Session A initially preserved due to recent activity")
 
-        # Force cleanup by mocking old cleanup time
-        old_time = datetime.now(UTC) - timedelta(days=2)
-        db._cleanup_service.last_session_cleanup_time = old_time
+        # PHASE 3: Test that cleanup maintains the limit
+        print("\n🧹 PHASE 3: Testing that limit is maintained...")
 
-        # Trigger cleanup
-        deleted_count = db._cleanup_service.cleanup_excess_sessions()
-        print(f"   Deleted {deleted_count} records")
+        # Try to create another session - should trigger cleanup again
+        await db.save_conversation("session_F", "tool1", "input1", "output1")
 
-        # Verify session count is now at limit
+        # Should still be at limit
         final_count = db._cleanup_service.get_session_count()
-        assert final_count == 3, f"Expected 3 sessions after cleanup, got {final_count}"
-        print(f"✅ Phase 3: Session count reduced to {final_count}")
+        assert final_count == 3, f"Expected 3 sessions after adding new session, got {final_count}"
+        print(f"✅ Phase 3: Session limit maintained at {final_count} after adding new session")
 
-        # PHASE 4: Verify which sessions remain
-        print("\n🔍 PHASE 4: Verifying remaining sessions...")
+        # PHASE 4: Verify which sessions remain after adding session_F
+        print("\n🔍 PHASE 4: Verifying final remaining sessions...")
 
         sessions_to_check = [
             "session_A",
@@ -287,59 +293,53 @@ class TestConversationHistoryLifecycle:
             "session_C",
             "session_D",
             "session_E",
+            "session_F",
         ]
-        remaining_sessions = []
-        deleted_sessions = []
+        final_remaining_sessions = []
+        final_deleted_sessions = []
 
         for session_id in sessions_to_check:
             records = await db.get_session_conversations(session_id)
             if records:
-                remaining_sessions.append(session_id)
+                final_remaining_sessions.append(session_id)
                 last_activity = max(r.timestamp for r in records)
                 print(
                     f"   ✅ {session_id}: {len(records)} records, last activity: {last_activity}"
                 )
             else:
-                deleted_sessions.append(session_id)
+                final_deleted_sessions.append(session_id)
                 print(f"   ❌ {session_id}: DELETED (was least recently used)")
 
-        # Verify correct sessions were kept/deleted
-        assert "session_A" in remaining_sessions, (
-            "Session A should remain (most recent activity)"
-        )
-        assert "session_D" in remaining_sessions, (
-            "Session D should remain (recent creation)"
-        )
-        assert "session_E" in remaining_sessions, (
-            "Session E should remain (most recent creation)"
-        )
-        assert "session_B" in deleted_sessions, "Session B should be deleted (LRU)"
-        assert "session_C" in deleted_sessions, "Session C should be deleted (LRU)"
+        # Verify we have exactly 3 sessions
+        assert len(final_remaining_sessions) == 3, f"Expected 3 remaining sessions, got {len(final_remaining_sessions)}"
 
-        print("✅ Phase 4: LRU cleanup preserved active sessions correctly")
-
-        # PHASE 5: Verify Session A has both records (original + recent activity)
-        print("\n📊 PHASE 5: Verifying session record preservation...")
-
-        session_a_records = await db.get_session_conversations("session_A")
-        assert len(session_a_records) == 2, (
-            f"Session A should have 2 records, got {len(session_a_records)}"
+        # The 3 most recently used sessions should remain (D, E, F)
+        # Session A gets removed because even though it was updated,
+        # sessions D and E were created after A's update, making them more recent
+        expected_remaining = {"session_D", "session_E", "session_F"}
+        actual_remaining = set(final_remaining_sessions)
+        assert actual_remaining == expected_remaining, (
+            f"Expected {expected_remaining}, got {actual_remaining}"
         )
 
-        # Check that both records exist
-        sources = [r.source for r in session_a_records]
-        assert "tool1" in sources, "Session A should have original tool1 record"
-        assert "tool2" in sources, "Session A should have recent tool2 record"
+        print("✅ Phase 4: LRU cleanup working correctly - most recent sessions preserved")
 
-        print(f"   Session A has {len(session_a_records)} records: {sources}")
-        print("✅ Phase 5: Session record preservation working correctly")
+        # PHASE 5: Verify that LRU cleanup works correctly over time
+        print("\n📊 PHASE 5: Verifying LRU behavior over time...")
 
-        print("\n🎯 LRU CLEANUP SUMMARY:")
-        print("   - Sessions B, C deleted (least recently used)")
-        print("   - Sessions A, D, E preserved (most recently used)")
-        print("   - Session A preserved despite being oldest (recent activity)")
-        print("   - LRU provides better UX than FIFO!")
-        print("✅ LRU session cleanup lifecycle test PASSED!")
+        # Session A was initially preserved but then removed when Session F was created
+        # This demonstrates that LRU is based on actual timestamps, not update sequence
+        print("   - Session A was initially preserved due to recent activity")
+        print("   - Session A was later removed when newer sessions (D, E, F) became more recent")
+        print("   - This shows LRU is working correctly based on actual timestamps")
+
+        print("\n🎯 IMMEDIATE LRU CLEANUP SUMMARY:")
+        print("   - Cleanup happens immediately when new sessions are created")
+        print("   - Session limit is maintained at all times (no daily delay)")
+        print("   - Most recently used sessions are preserved based on actual timestamps")
+        print("   - LRU correctly removes sessions with older last activity times")
+        print("   - LRU provides better UX than FIFO by preserving active sessions!")
+        print("✅ Immediate LRU session cleanup lifecycle test PASSED!")
 
         print("✅ Time-based cleanup integration working correctly")
 

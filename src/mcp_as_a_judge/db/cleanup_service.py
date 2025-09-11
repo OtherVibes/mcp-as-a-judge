@@ -1,16 +1,16 @@
 """
 Database cleanup service for conversation history records.
 
-This service handles time-based cleanup operations for conversation history records,
-removing records older than the retention period (default: 1 day).
+This service handles LRU-based cleanup operations for conversation history records,
+removing least recently used sessions when session limits are exceeded.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from sqlalchemy import Engine, func
 from sqlmodel import Session, select
 
-from mcp_as_a_judge.constants import MAX_TOTAL_SESSIONS, RECORD_RETENTION_DAYS
+from mcp_as_a_judge.constants import MAX_TOTAL_SESSIONS
 from mcp_as_a_judge.db.interface import ConversationRecord
 from mcp_as_a_judge.logging_config import get_logger
 
@@ -20,11 +20,11 @@ logger = get_logger(__name__)
 
 class ConversationCleanupService:
     """
-    Service for cleaning up old conversation history records.
+    Service for cleaning up conversation history records.
 
     Implements session-based LRU cleanup strategy:
-    - Maintains max 2000 sessions by removing least recently used sessions
-    - Runs once per day to avoid performance overhead
+    - Maintains session limit by removing least recently used sessions
+    - Runs immediately when new sessions are created and limit is exceeded
 
     LRU vs FIFO for Better User Experience:
     - LRU (Least Recently Used): Keeps sessions that users are actively using,
@@ -45,53 +45,8 @@ class ConversationCleanupService:
         """
         self.engine = engine
         self.max_total_sessions = MAX_TOTAL_SESSIONS
-        self.retention_days = RECORD_RETENTION_DAYS
-        self.last_cleanup_time = datetime.now(UTC)
-        self.last_session_cleanup_time = datetime.now(UTC)
 
-    def cleanup_old_records(self) -> int:
-        """
-        Remove records older than retention_days.
-        This runs once per day to avoid excessive cleanup operations.
 
-        Returns:
-            Number of records deleted
-        """
-        # Only run cleanup once per day
-        if (datetime.now(UTC) - self.last_cleanup_time).days < 1:
-            return 0
-
-        cutoff_date = datetime.now(UTC) - timedelta(days=self.retention_days)
-
-        with Session(self.engine) as session:
-            # Count old records
-            old_count_stmt = select(ConversationRecord).where(
-                ConversationRecord.timestamp < cutoff_date
-            )
-            old_records = session.exec(old_count_stmt).all()
-            old_count = len(old_records)
-
-            if old_count == 0:
-                logger.info(
-                    f"🧹 Daily cleanup: No records older than {self.retention_days} days"
-                )
-                self.last_cleanup_time = datetime.now(UTC)
-                return 0
-
-            # Delete old records
-            for record in old_records:
-                session.delete(record)
-
-            session.commit()
-
-            # Reset cleanup tracking
-            self.last_cleanup_time = datetime.now(UTC)
-
-            logger.info(
-                f"🧹 Daily cleanup: Deleted {old_count} records older than "
-                f"{self.retention_days} days"
-            )
-            return old_count
 
     def get_session_count(self) -> int:
         """
@@ -178,34 +133,27 @@ class ConversationCleanupService:
 
         This implements LRU (Least Recently Used) cleanup strategy:
         - Keeps sessions that users are actively using (better UX than FIFO)
-        - Only runs once per day to avoid excessive cleanup operations
-        - During the day, session count can exceed limit
-          (e.g., 5000 sessions is not a memory issue)
-        - Daily cleanup brings it back to the target limit (2000 sessions)
+        - Runs immediately when session limit is exceeded (no daily restriction)
         - Removes entire sessions (all records for those session_ids)
+        - Called every time a new session is created to maintain session limit
 
         Returns:
             Number of records deleted
         """
-        # Only run session cleanup once per day
-        if (datetime.now(UTC) - self.last_session_cleanup_time).days < 1:
-            return 0
-
         current_session_count = self.get_session_count()
 
         if current_session_count <= self.max_total_sessions:
             logger.info(
-                f"🧹 Daily session LRU cleanup: {current_session_count} sessions "
+                f"🧹 Session LRU cleanup: {current_session_count} sessions "
                 f"(max: {self.max_total_sessions}) - no cleanup needed"
             )
-            self.last_session_cleanup_time = datetime.now(UTC)
             return 0
 
         # Calculate how many sessions to remove
         sessions_to_remove = current_session_count - self.max_total_sessions
 
         logger.info(
-            f"🧹 Daily session LRU cleanup: {current_session_count} sessions exceeds limit "
+            f"🧹 Session LRU cleanup: {current_session_count} sessions exceeds limit "
             f"({self.max_total_sessions}), removing {sessions_to_remove} "
             f"least recently used sessions"
         )
@@ -215,17 +163,13 @@ class ConversationCleanupService:
 
         if not lru_session_ids:
             logger.warning("🧹 No sessions found for LRU cleanup")
-            self.last_session_cleanup_time = datetime.now(UTC)
             return 0
 
         # Delete all records for these sessions
         deleted_count = self.delete_sessions(lru_session_ids)
 
-        # Reset cleanup tracking
-        self.last_session_cleanup_time = datetime.now(UTC)
-
         logger.info(
-            f"✅ Daily session LRU cleanup completed: removed {sessions_to_remove} sessions, "
+            f"✅ Session LRU cleanup completed: removed {sessions_to_remove} sessions, "
             f"deleted {deleted_count} records"
         )
 
