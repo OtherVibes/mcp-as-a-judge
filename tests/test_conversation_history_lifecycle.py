@@ -10,6 +10,7 @@ import pytest
 
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
 
+
 class TestConversationHistoryLifecycle:
     """Test the complete lifecycle of conversation history records."""
 
