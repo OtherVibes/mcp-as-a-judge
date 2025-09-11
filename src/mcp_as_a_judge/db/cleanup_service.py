@@ -15,7 +15,6 @@ from mcp_as_a_judge.logging_config import get_logger
 # Set up logger
 logger = get_logger(__name__)
 
-
 class ConversationCleanupService:
     """
     Service for cleaning up conversation history records.
@@ -74,7 +73,8 @@ class ConversationCleanupService:
         """
         with Session(self.engine) as session:
             # Find sessions with oldest last activity (LRU)
-            # GROUP BY session_id, ORDER BY MAX(timestamp) ASC to get least recently used
+            # GROUP BY session_id, ORDER BY MAX(timestamp) ASC to get least
+            # recently used
             lru_stmt = (
                 select(
                     ConversationRecord.session_id,
@@ -104,7 +104,9 @@ class ConversationCleanupService:
         with Session(self.engine) as session:
             # Count records before deletion for logging
             count_stmt = select(ConversationRecord).where(
-                ConversationRecord.session_id.in_(session_ids)  # type: ignore[attr-defined]
+                ConversationRecord.session_id.in_(  # type: ignore[attr-defined]
+                    session_ids
+                )
             )
             records_to_delete = session.exec(count_stmt).all()
             delete_count = len(records_to_delete)

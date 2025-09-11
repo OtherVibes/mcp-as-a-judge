@@ -10,7 +10,6 @@ import pytest
 
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
 
-
 class TestConversationHistoryLifecycle:
     """Test the complete lifecycle of conversation history records."""
 
@@ -302,7 +301,8 @@ class TestConversationHistoryLifecycle:
             f"Expected 3 sessions after adding new session, got {final_count}"
         )
         print(
-            f"✅ Phase 3: Session limit maintained at {final_count} after adding new session"
+            f"✅ Phase 3: Session limit maintained at {final_count} "
+            f"after adding new session"
         )
 
         # PHASE 4: Verify which sessions remain after adding session_F
@@ -431,7 +431,6 @@ class TestConversationHistoryLifecycle:
         print("✅ Large data handling: Correct storage and retrieval")
 
         print("✅ All edge cases handled correctly")
-
 
 if __name__ == "__main__":
     # Run tests directly for development
