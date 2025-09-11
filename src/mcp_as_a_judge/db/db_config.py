@@ -8,7 +8,7 @@ and configuration classes.
 from mcp_as_a_judge.constants import (
     DATABASE_URL,
     MAX_SESSION_RECORDS,
-    RECORD_RETENTION_DAYS,
+    MAX_TOTAL_SESSIONS,
 )
 
 
@@ -61,7 +61,7 @@ class DatabaseConfig:
     def __init__(self) -> None:
         self.url = DATABASE_URL
         self.max_session_records = MAX_SESSION_RECORDS
-        self.record_retention_days = RECORD_RETENTION_DAYS
+        self.max_total_sessions = MAX_TOTAL_SESSIONS
 
 
 class Config:

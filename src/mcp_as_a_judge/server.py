@@ -194,7 +194,7 @@ async def set_coding_task(
             workflow_guidance=workflow_guidance,
         )
 
-        await conversation_service.save_tool_interaction(
+        await conversation_service.save_tool_interaction_and_cleanup(
             session_id=task_metadata.task_id,
             tool_name="set_coding_task",
             tool_input=json.dumps(original_input),
@@ -231,7 +231,7 @@ async def set_coding_task(
         # Save error interaction (use task_id if available, otherwise generate one for logging)
         error_task_id = task_id or error_metadata.task_id
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=error_task_id,
                 tool_name="set_coding_task",
                 tool_input=json.dumps(original_input),
@@ -360,9 +360,9 @@ Please choose an option (by number or description) and provide any additional co
             )
 
             # Save successful interaction as conversation record
-            await conversation_service.save_tool_interaction(
-                session_id=task_id,  # Use task_id as primary key
-                tool_name="raise_obstacle",
+        await conversation_service.save_tool_interaction_and_cleanup(
+            session_id=task_id,  # Use task_id as primary key
+            tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
                     result.model_dump(mode="json", exclude_none=True)
@@ -389,7 +389,7 @@ Please choose an option (by number or description) and provide any additional co
             )
 
             # Save failed interaction
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
@@ -419,7 +419,7 @@ Please choose an option (by number or description) and provide any additional co
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
@@ -538,7 +538,7 @@ Please provide clarified requirements and indicate their priority level (high/me
             # HITL tools should always direct to set_coding_task to update requirements
 
             # Save successful interaction
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
@@ -558,7 +558,7 @@ Please provide clarified requirements and indicate their priority level (high/me
             # Elicitation failed or not available - return the fallback message
 
             # Save failed interaction
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
@@ -579,7 +579,7 @@ Please provide clarified requirements and indicate their priority level (high/me
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_missing_requirements",
                 tool_input=json.dumps(original_input),
@@ -648,8 +648,8 @@ async def judge_coding_task_completion(
                 f"🔍 judge_coding_task_completion: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
-            conversation_history = await conversation_service.get_conversation_history(
-                task_id
+            conversation_history = await conversation_service.load_filtered_context_for_enrichment(
+                task_id, "", ctx
             )
             logger.info(
                 f"🔍 judge_coding_task_completion: Conversation history entries: {len(conversation_history)}"
@@ -807,7 +807,7 @@ async def judge_coding_task_completion(
             )
 
         # Save successful interaction
-        await conversation_service.save_tool_interaction(
+        await conversation_service.save_tool_interaction_and_cleanup(
             session_id=task_id,  # Use task_id as primary key
             tool_name="judge_coding_task_completion",
             tool_input=json.dumps(original_input),
@@ -848,7 +848,7 @@ async def judge_coding_task_completion(
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id,
                 tool_name="judge_coding_task_completion",
                 tool_input=json.dumps(original_input),
@@ -1050,8 +1050,8 @@ async def judge_coding_plan(
                 f"🔍 judge_coding_plan: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
-            conversation_history = await conversation_service.get_conversation_history(
-                task_id or "test_task"
+            conversation_history = await conversation_service.load_filtered_context_for_enrichment(
+                task_id or "test_task", "", ctx
             )
             logger.info(
                 f"🔍 judge_coding_plan: Conversation history entries: {len(conversation_history)}"
@@ -1215,8 +1215,8 @@ async def judge_coding_plan(
                 logger.info(f"Optional research provided: {len(research_urls)} URLs")
 
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.get_conversation_history(
-            task_id or "test_task"  # Use task_id as primary key
+        conversation_history = await conversation_service.load_filtered_context_for_enrichment(
+            task_id or "test_task", "", ctx
         )
         history_json_array = (
             conversation_service.format_conversation_history_as_json_array(
@@ -1289,7 +1289,7 @@ async def judge_coding_plan(
         )
 
         # STEP 3: Save tool interaction to conversation history
-        await conversation_service.save_tool_interaction(
+        await conversation_service.save_tool_interaction_and_cleanup(
             session_id=task_id or "test_task",  # Use task_id as primary key
             tool_name="judge_coding_plan",
             tool_input=json.dumps(original_input),
@@ -1338,7 +1338,7 @@ async def judge_coding_plan(
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=(task_id or "unknown")
                 if "task_id" in locals()
                 else "unknown",
@@ -1395,8 +1395,8 @@ async def judge_code_change(
                 f"🔍 judge_code_change: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
-            conversation_history = await conversation_service.get_conversation_history(
-                task_id or "test_task"
+            conversation_history = await conversation_service.load_filtered_context_for_enrichment(
+                task_id or "test_task", "", ctx
             )
             logger.info(
                 f"🔍 judge_code_change: Conversation history entries: {len(conversation_history)}"
@@ -1445,8 +1445,8 @@ async def judge_code_change(
         )
 
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.get_conversation_history(
-            task_id or "test_task"  # Use task_id as primary key
+        conversation_history = await conversation_service.load_filtered_context_for_enrichment(
+            task_id or "test_task", "", ctx
         )
         history_json_array = (
             conversation_service.format_conversation_history_as_json_array(
@@ -1523,7 +1523,7 @@ async def judge_code_change(
             )
 
             # STEP 4: Save tool interaction to conversation history
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id or "test_task",  # Use task_id as primary key
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
@@ -1579,7 +1579,7 @@ async def judge_code_change(
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id or "unknown",
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
@@ -1702,8 +1702,8 @@ async def judge_testing_implementation(
         user_requirements = task_metadata.user_requirements
 
         # Load conversation history for context
-        conversation_history = await conversation_service.get_conversation_history(
-            task_id
+        conversation_history = await conversation_service.load_filtered_context_for_enrichment(
+            task_id, "", ctx
         )
         history_json_array = [
             {
@@ -1903,7 +1903,7 @@ async def judge_testing_implementation(
         )
 
         # Save tool interaction to conversation history
-        await conversation_service.save_tool_interaction(
+        await conversation_service.save_tool_interaction_and_cleanup(
             session_id=task_id,  # Use task_id as primary key
             tool_name="judge_testing_implementation",
             tool_input=json.dumps(original_input),
@@ -1949,7 +1949,7 @@ async def judge_testing_implementation(
 
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
-            await conversation_service.save_tool_interaction(
+            await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_id if "task_id" in locals() else "unknown",
                 tool_name="judge_testing_implementation",
                 tool_input=json.dumps(original_input),
