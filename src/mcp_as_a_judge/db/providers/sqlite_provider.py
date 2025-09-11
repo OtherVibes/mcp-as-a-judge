@@ -6,7 +6,7 @@ It supports both in-memory (:memory:) and file-based SQLite storage.
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, asc, desc, select
@@ -29,8 +29,10 @@ class SQLiteProvider(ConversationHistoryDB):
     Features:
     - SQLModel with SQLAlchemy for type safety
     - In-memory or file-based SQLite storage
-    - LRU cleanup per session
-    - Time-based cleanup (configurable retention)
+    - Two-level cleanup strategy:
+      1. Session-based LRU cleanup (runs when new sessions are created,
+         removes least recently used)
+      2. Per-session FIFO cleanup (max 20 records per session, runs on every save)
     - Session-based conversation retrieval
     """
 
@@ -50,7 +52,7 @@ class SQLiteProvider(ConversationHistoryDB):
 
         self._max_session_records = max_session_records
 
-        # Initialize cleanup service for time-based cleanup
+        # Initialize cleanup service for LRU session cleanup
         self._cleanup_service = ConversationCleanupService(engine=self.engine)
 
         # Create tables
@@ -58,7 +60,8 @@ class SQLiteProvider(ConversationHistoryDB):
 
         logger.info(
             f"🗄️ SQLModel SQLite provider initialized: {connection_string}, "
-            f"max_records={max_session_records}, retention_days={self._cleanup_service.retention_days}"
+            f"max_records_per_session={max_session_records}, "
+            f"max_total_sessions={self._cleanup_service.max_total_sessions}"
         )
 
     def _parse_sqlite_url(self, url: str) -> str:
@@ -79,12 +82,14 @@ class SQLiteProvider(ConversationHistoryDB):
         SQLModel.metadata.create_all(self.engine)
         logger.info("📋 Created conversation_history table with SQLModel")
 
-    def _cleanup_old_records(self) -> int:
+    def _cleanup_excess_sessions(self) -> int:
         """
-        Remove records older than retention_days using the cleanup service.
-        This runs once per day to avoid excessive cleanup operations.
+        Remove least recently used sessions when total sessions exceed limit.
+        This implements LRU cleanup to maintain session limit for better memory
+        management.
+        Runs immediately when new sessions are created and limit is exceeded.
         """
-        return self._cleanup_service.cleanup_old_records()
+        return self._cleanup_service.cleanup_excess_sessions()
 
     def _cleanup_old_messages(self, session_id: str) -> int:
         """
@@ -100,8 +105,8 @@ class SQLiteProvider(ConversationHistoryDB):
             current_count = len(current_records)
 
             logger.info(
-                f"🧹 FIFO cleanup check for session {session_id}: {current_count} records "
-                f"(max: {self._max_session_records})"
+                f"🧹 FIFO cleanup check for session {session_id}: "
+                f"{current_count} records (max: {self._max_session_records})"
             )
 
             if current_count <= self._max_session_records:
@@ -132,21 +137,35 @@ class SQLiteProvider(ConversationHistoryDB):
             session.commit()
 
             logger.info(
-                f"✅ LRU cleanup completed: removed {len(old_records)} records from session {session_id}"
+                f"✅ LRU cleanup completed: removed {len(old_records)} records "
+                f"from session {session_id}"
             )
             return len(old_records)
+
+    def _is_new_session(self, session_id: str) -> bool:
+        """Check if this is a new session (no existing records)."""
+        with Session(self.engine) as session:
+            existing_record = session.exec(
+                select(ConversationRecord)
+                .where(ConversationRecord.session_id == session_id)
+                .limit(1)
+            ).first()
+            return existing_record is None
 
     async def save_conversation(
         self, session_id: str, source: str, input_data: str, output: str
     ) -> str:
         """Save a conversation record to SQLite database with LRU cleanup."""
         record_id = str(uuid.uuid4())
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(UTC)
 
         logger.info(
             f"💾 Saving conversation to SQLModel SQLite DB: record {record_id} "
             f"for session {session_id}, source {source} at {timestamp}"
         )
+
+        # Check if this is a new session before saving
+        is_new_session = self._is_new_session(session_id)
 
         # Create new record
         record = ConversationRecord(
@@ -164,10 +183,13 @@ class SQLiteProvider(ConversationHistoryDB):
 
         logger.info("✅ Successfully inserted record into conversation_history table")
 
-        # Daily cleanup: run once per day to remove old records
-        self._cleanup_old_records()
+        # Session LRU cleanup: only run when a new session is created
+        if is_new_session:
+            logger.info(f"🆕 New session detected: {session_id}, running LRU cleanup")
+            self._cleanup_excess_sessions()
 
-        # Always perform LRU cleanup for this session (lightweight)
+        # Per-session FIFO cleanup: maintain max 20 records per session
+        # (runs on every save)
         self._cleanup_old_messages(session_id)
 
         return record_id
