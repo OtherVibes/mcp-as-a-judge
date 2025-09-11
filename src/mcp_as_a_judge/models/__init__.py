@@ -55,7 +55,11 @@ __all__ = [
     "WorkflowGuidanceSystemVars",
     "WorkflowGuidanceUserVars",
     "DynamicSchemaSystemVars",
-    "DynamicSchemaUserVars",
+    "ResearchComplexityFactors",
+    "ResearchRequirementsAnalysis",
+    "ResearchRequirementsAnalysisSystemVars",
+    "ResearchRequirementsAnalysisUserVars",
+    "URLValidationResult",
 ]
 
 # Import additional models from the original models.py file
@@ -88,6 +92,78 @@ try:
         DynamicSchemaSystemVars = models_py.DynamicSchemaSystemVars
         DynamicSchemaUserVars = models_py.DynamicSchemaUserVars
 
+        # Import research-related models
+        ResearchComplexityFactors = models_py.ResearchComplexityFactors
+        ResearchRequirementsAnalysis = models_py.ResearchRequirementsAnalysis
+        ResearchRequirementsAnalysisSystemVars = models_py.ResearchRequirementsAnalysisSystemVars
+        ResearchRequirementsAnalysisUserVars = models_py.ResearchRequirementsAnalysisUserVars
+        URLValidationResult = models_py.URLValidationResult
+
 except Exception:
     # Fallback if models.py doesn't exist or has issues
-    pass
+    # Create minimal fallback classes to prevent import errors
+    from pydantic import BaseModel, Field
+
+    class ElicitationFallbackUserVars(BaseModel):
+        pass
+
+    class JudgeCodeChangeSystemVars(BaseModel):
+        pass
+
+    class JudgeCodeChangeUserVars(BaseModel):
+        pass
+
+    class JudgeCodingPlanSystemVars(BaseModel):
+        pass
+
+    class JudgeCodingPlanUserVars(BaseModel):
+        pass
+
+    class ResearchValidationResponse(BaseModel):
+        pass
+
+    class ResearchValidationSystemVars(BaseModel):
+        pass
+
+    class ResearchValidationUserVars(BaseModel):
+        pass
+
+    class WorkflowGuidanceSystemVars(BaseModel):
+        pass
+
+    class WorkflowGuidanceUserVars(BaseModel):
+        pass
+
+    class DynamicSchemaSystemVars(BaseModel):
+        pass
+
+    class DynamicSchemaUserVars(BaseModel):
+        pass
+
+    class ResearchComplexityFactors(BaseModel):
+        domain_specialization: str = Field(default="general")
+        technology_maturity: str = Field(default="established")
+        integration_scope: str = Field(default="moderate")
+        existing_solutions: str = Field(default="limited")
+        risk_level: str = Field(default="medium")
+
+    class ResearchRequirementsAnalysis(BaseModel):
+        expected_url_count: int = Field(default=3)
+        minimum_url_count: int = Field(default=2)
+        reasoning: str = Field(default="Fallback analysis")
+        complexity_factors: ResearchComplexityFactors = Field(default_factory=ResearchComplexityFactors)
+        quality_requirements: list[str] = Field(default_factory=list)
+
+    class ResearchRequirementsAnalysisSystemVars(BaseModel):
+        pass
+
+    class ResearchRequirementsAnalysisUserVars(BaseModel):
+        pass
+
+    class URLValidationResult(BaseModel):
+        adequate: bool = Field(default=False)
+        provided_count: int = Field(default=0)
+        expected_count: int = Field(default=3)
+        minimum_count: int = Field(default=2)
+        feedback: str = Field(default="Fallback validation")
+        meets_quality_standards: bool = Field(default=False)
