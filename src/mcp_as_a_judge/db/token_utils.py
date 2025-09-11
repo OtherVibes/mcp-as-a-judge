@@ -6,10 +6,7 @@ using LiteLLM's token_counter for accurate model-specific token counting,
 with fallback to character-based approximation.
 """
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from mcp_as_a_judge.db import ConversationRecord
+from typing import Any
 
 from mcp_as_a_judge.db.dynamic_token_limits import get_llm_input_limit
 from mcp_as_a_judge.logging_config import get_logger

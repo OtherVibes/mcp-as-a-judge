@@ -9,6 +9,7 @@ import builtins
 import contextlib
 import json
 
+from authlib.common.encoding import json_dumps
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
@@ -90,9 +91,10 @@ async def build_workflow(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
+        current_prompt = f"task_description: {task_description}, context: {context}"
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, current_prompt, ctx
+                session_id, json_dumps(current_prompt), ctx
             )
         )
         history_json_array = (
@@ -570,9 +572,10 @@ async def judge_coding_plan(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
+        current_prompt = f"plan: {plan}, user_requirements: {user_requirements}"
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, current_prompt, ctx
+                session_id, json.dumps(current_prompt), ctx
             )
         )
         history_json_array = (
@@ -658,9 +661,12 @@ async def judge_code_change(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
+        current_prompt = (
+            f"code_change: {code_change}, user_requirements: {user_requirements}"
+        )
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, current_prompt, ctx
+                session_id, json.dumps(current_prompt), ctx
             )
         )
         history_json_array = (
