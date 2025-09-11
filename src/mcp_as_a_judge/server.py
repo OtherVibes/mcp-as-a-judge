@@ -165,41 +165,6 @@ async def set_coding_task(
             if workflow_guidance.risk_assessment_required is not None:
                 task_metadata.risk_assessment_required = workflow_guidance.risk_assessment_required
 
-            # Use LLM-based research requirements analysis for precise URL count determination
-            if task_metadata.research_required is True:
-                try:
-                    logger.info(f"🔍 Analyzing research requirements for task: {task_metadata.title}")
-                    research_analysis = await analyze_research_requirements(
-                        task_metadata=task_metadata,
-                        user_requirements=user_requirements or "",
-                        ctx=ctx
-                    )
-
-                    # Update task metadata with detailed LLM analysis
-                    update_task_metadata_with_analysis(task_metadata, research_analysis)
-
-                    logger.info(
-                        f"✅ Research analysis complete: Expected URLs={task_metadata.expected_url_count}, "
-                        f"Minimum URLs={task_metadata.minimum_url_count}"
-                    )
-
-                except Exception as e:
-                    logger.error(f"❌ Failed to analyze research requirements: {e}")
-                    # Fallback to basic scope-based URL counts
-                    scope_to_urls = {
-                        ResearchScope.NONE: (0, 0),
-                        ResearchScope.LIGHT: (2, 1),
-                        ResearchScope.DEEP: (4, 2),
-                    }
-                    expected, minimum = scope_to_urls.get(task_metadata.research_scope, (0, 0))
-                    task_metadata.expected_url_count = expected
-                    task_metadata.minimum_url_count = minimum
-                    task_metadata.url_requirement_reasoning = (
-                        task_metadata.research_rationale or
-                        f"Fallback expectations based on research scope '{task_metadata.research_scope.value}' "
-                        f"(LLM analysis failed: {e})"
-                    )
-
             # Update timestamp to reflect changes
             task_metadata.updated_at = int(time.time())
 
@@ -272,15 +237,12 @@ async def raise_obstacle(
     problem: str,
     research: str,
     options: list[str],
+    task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
-    task_id: str | None = None,  # OPTIONAL for tests when no task context
-) -> str:
+) -> ObstacleResult:
     """Obstacle handling tool - description loaded from tool_description_provider."""
     # Log tool execution start
-    log_tool_execution("raise_obstacle", task_id or "test_task")
-
-    # Ensure we have a session id for logging/saving
-    task_id = task_id or "test_task"
+    log_tool_execution("raise_obstacle", task_id)
 
     # Store original input for saving later
     original_input = {
@@ -374,17 +336,24 @@ Please choose an option (by number or description) and provide any additional co
                 guidance="Call set_coding_task to update the task with any new requirements or clarifications from the obstacle resolution. Then continue with the workflow."
             )
 
+            # Create enhanced response
+            result = ObstacleResult(
+                obstacle_acknowledged=True,
+                resolution_guidance=f"✅ OBSTACLE RESOLVED: {response_text}",
+                alternative_approaches=options,
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
             # Save successful interaction as conversation record
             await conversation_service.save_tool_interaction(
                 session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps({
-                    "obstacle_acknowledged": True,
-                    "resolution_guidance": f"✅ OBSTACLE RESOLVED: {response_text}",
-                }),
+                tool_output=json.dumps(result.model_dump(mode='json')),
             )
-            return f"✅ OBSTACLE RESOLVED: {response_text}"
+
+            return result
 
         else:
             # Elicitation failed or not available - return the fallback message
@@ -395,17 +364,23 @@ Please choose an option (by number or description) and provide any additional co
                 guidance=f"Obstacle not resolved: {elicit_result.message}. Manual intervention required."
             )
 
+            result = ObstacleResult(
+                obstacle_acknowledged=False,
+                resolution_guidance=elicit_result.message,
+                alternative_approaches=options,
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
             # Save failed interaction
             await conversation_service.save_tool_interaction(
                 session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps({
-                    "obstacle_acknowledged": False,
-                    "resolution_guidance": elicit_result.message,
-                }),
+                tool_output=json.dumps(result.model_dump(mode='json')),
             )
-            return elicit_result.message
+
+            return result
 
     except Exception as e:
         # Create error response
@@ -416,18 +391,24 @@ Please choose an option (by number or description) and provide any additional co
             guidance=f"Error handling obstacle: {e!s}. Manual intervention required."
         )
 
+        error_result = ObstacleResult(
+            obstacle_acknowledged=False,
+            resolution_guidance=f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input.",
+            alternative_approaches=options,
+            current_task_metadata=task_metadata,
+            workflow_guidance=error_guidance,
+        )
+
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction(
                 session_id=task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
-                tool_output=json.dumps({
-                    "obstacle_acknowledged": False,
-                    "resolution_guidance": f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input.",
-                }),
+                tool_output=json.dumps(error_result.model_dump(mode='json')),
             )
-        return f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input."
+
+        return error_result
 
 
 @mcp.tool(
@@ -437,15 +418,14 @@ async def raise_missing_requirements(
     current_request: str,
     identified_gaps: list[str],
     specific_questions: list[str],
+    task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
-    task_id: str | None = None,  # OPTIONAL for tests when no task context
-) -> str:
+) -> MissingRequirementsResult:
     """Requirements clarification tool - description loaded from tool_description_provider."""
     # Log tool execution start
-    log_tool_execution("raise_missing_requirements", task_id or "test_task")
+    log_tool_execution("raise_missing_requirements", task_id)
 
     # Store original input for saving later
-    task_id = task_id or "test_task"
     original_input = {
         "current_request": current_request,
         "identified_gaps": identified_gaps,
@@ -1424,7 +1404,7 @@ async def judge_code_change(
 
             # STEP 4: Save tool interaction to conversation history
             await conversation_service.save_tool_interaction(
-                session_id=task_id or "test_task",  # Use task_id as primary key
+                session_id=task_id,  # Use task_id as primary key
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(result.model_dump(mode='json')),
