@@ -33,14 +33,14 @@ class TestConversationHistoryServiceIntegration:
         # PHASE 1: Save conversation records through service
         print("📝 PHASE 1: Saving records through service...")
 
-        record_id1 = await service.save_tool_interaction(
+        record_id1 = await service.save_tool_interaction_and_cleanup(
             session_id=session_id,
             tool_name="judge_coding_plan",
             tool_input="Please review this coding plan for authentication",
             tool_output="The plan looks good. Consider adding 2FA support.",
         )
 
-        record_id2 = await service.save_tool_interaction(
+        record_id2 = await service.save_tool_interaction_and_cleanup(
             session_id=session_id,
             tool_name="judge_code_change",
             tool_input="Review this JWT implementation",
@@ -53,7 +53,9 @@ class TestConversationHistoryServiceIntegration:
         # PHASE 2: Retrieve conversation history
         print("\n📖 PHASE 2: Retrieving conversation history...")
 
-        conversation_history = await service.get_conversation_history(session_id)
+        conversation_history = await service.load_filtered_context_for_enrichment(
+            session_id
+        )
         assert len(conversation_history) == 2, (
             f"Expected 2 records, got {len(conversation_history)}"
         )
@@ -93,7 +95,7 @@ class TestConversationHistoryServiceIntegration:
 
         # Add more records to test limit (we already have 2, so add 25 more to exceed the 20 limit)
         for i in range(25):  # Add many records to test limit
-            await service.save_tool_interaction(
+            await service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name=f"test_tool_{i}",
                 tool_input=f"Test input {i}",
@@ -101,7 +103,7 @@ class TestConversationHistoryServiceIntegration:
             )
 
         # Should only get max_session_records (20) records
-        limited_history = await service.get_conversation_history(session_id)
+        limited_history = await service.load_filtered_context_for_enrichment(session_id)
         expected_count = service.config.database.max_session_records
         assert len(limited_history) == expected_count, (
             f"Expected {expected_count} records, got {len(limited_history)}"
@@ -127,7 +129,7 @@ class TestConversationHistoryServiceIntegration:
         print("=" * 60)
 
         # Save first record
-        await service.save_tool_interaction(
+        await service.save_tool_interaction_and_cleanup(
             session_id=session_id,
             tool_name="workflow_guidance",
             tool_input="Help me plan a web application",
@@ -135,7 +137,7 @@ class TestConversationHistoryServiceIntegration:
         )
 
         # Save second record with context reference
-        await service.save_tool_interaction(
+        await service.save_tool_interaction_and_cleanup(
             session_id=session_id,
             tool_name="judge_coding_plan",
             tool_input="Review this authentication plan",
@@ -143,7 +145,7 @@ class TestConversationHistoryServiceIntegration:
         )
 
         # Save third record with multiple context references
-        await service.save_tool_interaction(
+        await service.save_tool_interaction_and_cleanup(
             session_id=session_id,
             tool_name="judge_code_change",
             tool_input="Review authentication implementation",
@@ -151,7 +153,7 @@ class TestConversationHistoryServiceIntegration:
         )
 
         # Retrieve and verify
-        history = await service.get_conversation_history(session_id)
+        history = await service.load_filtered_context_for_enrichment(session_id)
         assert len(history) == 3
 
         # Verify the conversation flow makes sense
@@ -168,7 +170,9 @@ class TestConversationHistoryServiceIntegration:
         print("=" * 60)
 
         # Test empty session
-        empty_history = await service.get_conversation_history("nonexistent_session")
+        empty_history = await service.load_filtered_context_for_enrichment(
+            "nonexistent_session"
+        )
         assert len(empty_history) == 0
         print("✅ Empty session handled correctly")
 
@@ -180,14 +184,16 @@ class TestConversationHistoryServiceIntegration:
 
         # Test with special characters in data
         special_session = "special_chars_session"
-        await service.save_tool_interaction(
+        await service.save_tool_interaction_and_cleanup(
             session_id=special_session,
             tool_name="test_tool",
             tool_input="Input with 'quotes' and \"double quotes\" and \n newlines",
             tool_output="Result with émojis 🎉 and unicode ñ characters",
         )
 
-        special_history = await service.get_conversation_history(special_session)
+        special_history = await service.load_filtered_context_for_enrichment(
+            special_session
+        )
         assert len(special_history) == 1
 
         special_json = service.format_conversation_history_as_json_array(
@@ -211,7 +217,7 @@ class TestConversationHistoryServiceIntegration:
         start_time = datetime.now()
 
         for i in range(50):
-            await service.save_tool_interaction(
+            await service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name=f"perf_tool_{i % 5}",  # Vary tool names
                 tool_input=f"Performance test input {i}",
@@ -223,7 +229,7 @@ class TestConversationHistoryServiceIntegration:
 
         # Retrieve records
         start_time = datetime.now()
-        history = await service.get_conversation_history(session_id)
+        history = await service.load_filtered_context_for_enrichment(session_id)
         retrieve_time = datetime.now() - start_time
 
         print(

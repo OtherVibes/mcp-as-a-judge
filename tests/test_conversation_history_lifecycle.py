@@ -429,9 +429,72 @@ class TestConversationHistoryLifecycle:
         assert len(large_records) == 1
         assert len(large_records[0].input) > 1000
         assert len(large_records[0].output) > 1000
-        print("✅ Large data handling: Correct storage and retrieval")
+
+        # Verify token calculation for large data
+        expected_tokens = (
+            len(large_input) + len(large_output) + 3
+        ) // 4  # Ceiling division
+        assert large_records[0].tokens == expected_tokens
+        print(
+            f"✅ Large data handling: Correct storage, retrieval, and token calculation ({expected_tokens} tokens)"
+        )
 
         print("✅ All edge cases handled correctly")
+
+    @pytest.mark.asyncio
+    async def test_token_calculation_integration(self):
+        """Test that token calculations are correctly integrated into the lifecycle."""
+        print("\n🧮 TESTING TOKEN CALCULATION INTEGRATION")
+        print("=" * 60)
+
+        db = SQLiteProvider(max_session_records=5)
+        session_id = "token_integration_test"
+
+        # Test records with known token counts
+        test_cases = [
+            ("tool_1", "Hi", "Hello", 3),  # 1 token (Hi) + 2 tokens (Hello) = 3 tokens
+            (
+                "tool_2",
+                "Test input",
+                "Test output",
+                6,
+            ),  # 3 tokens + 3 tokens = 6 tokens
+            ("tool_3", "A" * 20, "B" * 20, 10),  # 5 tokens + 5 tokens = 10 tokens
+        ]
+
+        record_ids = []
+        for source, input_data, output, expected_tokens in test_cases:
+            record_id = await db.save_conversation(
+                session_id=session_id,
+                source=source,
+                input_data=input_data,
+                output=output,
+            )
+            record_ids.append(record_id)
+            print(f"   Saved {source}: expected {expected_tokens} tokens")
+
+        # Retrieve and verify token calculations
+        records = await db.get_session_conversations(session_id)
+        assert len(records) == 3
+
+        # Verify each record has correct token count (records are in reverse order)
+        for i, (source, input_data, output, expected_tokens) in enumerate(
+            reversed(test_cases)
+        ):
+            record = records[i]
+            assert record.source == source
+            assert record.tokens == expected_tokens
+            assert record.input == input_data
+            assert record.output == output
+            print(f"✅ {source}: {record.tokens} tokens (expected {expected_tokens})")
+
+        # Verify total token count
+        total_tokens = sum(r.tokens for r in records)
+        expected_total = sum(expected for _, _, _, expected in test_cases)
+        assert total_tokens == expected_total
+        print(f"✅ Total tokens: {total_tokens} (expected {expected_total})")
+
+        print("✅ Token calculation integration verified")
 
 
 if __name__ == "__main__":
@@ -443,6 +506,7 @@ if __name__ == "__main__":
         await test_instance.test_time_based_cleanup_integration()
         await test_instance.test_lru_session_cleanup_lifecycle()
         await test_instance.test_edge_cases_and_error_handling()
+        await test_instance.test_token_calculation_integration()
         print("\n🎉 ALL CONVERSATION HISTORY LIFECYCLE TESTS PASSED!")
 
     asyncio.run(run_tests())

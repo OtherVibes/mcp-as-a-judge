@@ -21,6 +21,9 @@ class ConversationRecord(SQLModel, table=True):
     source: str  # tool name
     input: str  # tool input query
     output: str  # tool output string
+    tokens: int = Field(
+        default=0
+    )  # combined token count for input + output (1 token ≈ 4 characters)
     timestamp: datetime = Field(
         default_factory=datetime.utcnow, index=True
     )  # when the record was created
