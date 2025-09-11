@@ -5,8 +5,6 @@ This service handles LRU-based cleanup operations for conversation history recor
 removing least recently used sessions when session limits are exceeded.
 """
 
-
-
 from sqlalchemy import Engine, func
 from sqlmodel import Session, select
 
@@ -45,8 +43,6 @@ class ConversationCleanupService:
         """
         self.engine = engine
         self.max_total_sessions = MAX_TOTAL_SESSIONS
-
-
 
     def get_session_count(self) -> int:
         """

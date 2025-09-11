@@ -30,7 +30,8 @@ class SQLiteProvider(ConversationHistoryDB):
     - SQLModel with SQLAlchemy for type safety
     - In-memory or file-based SQLite storage
     - Two-level cleanup strategy:
-      1. Session-based LRU cleanup (runs when new sessions are created, removes least recently used)
+      1. Session-based LRU cleanup (runs when new sessions are created,
+         removes least recently used)
       2. Per-session FIFO cleanup (max 20 records per session, runs on every save)
     - Session-based conversation retrieval
     """
@@ -81,12 +82,11 @@ class SQLiteProvider(ConversationHistoryDB):
         SQLModel.metadata.create_all(self.engine)
         logger.info("📋 Created conversation_history table with SQLModel")
 
-
-
     def _cleanup_excess_sessions(self) -> int:
         """
         Remove least recently used sessions when total sessions exceed limit.
-        This implements LRU cleanup to maintain session limit for better memory management.
+        This implements LRU cleanup to maintain session limit for better memory
+        management.
         Runs immediately when new sessions are created and limit is exceeded.
         """
         return self._cleanup_service.cleanup_excess_sessions()
@@ -105,8 +105,8 @@ class SQLiteProvider(ConversationHistoryDB):
             current_count = len(current_records)
 
             logger.info(
-                f"🧹 FIFO cleanup check for session {session_id}: {current_count} records "
-                f"(max: {self._max_session_records})"
+                f"🧹 FIFO cleanup check for session {session_id}: "
+                f"{current_count} records (max: {self._max_session_records})"
             )
 
             if current_count <= self._max_session_records:
@@ -137,7 +137,8 @@ class SQLiteProvider(ConversationHistoryDB):
             session.commit()
 
             logger.info(
-                f"✅ LRU cleanup completed: removed {len(old_records)} records from session {session_id}"
+                f"✅ LRU cleanup completed: removed {len(old_records)} records "
+                f"from session {session_id}"
             )
             return len(old_records)
 
@@ -187,7 +188,8 @@ class SQLiteProvider(ConversationHistoryDB):
             logger.info(f"🆕 New session detected: {session_id}, running LRU cleanup")
             self._cleanup_excess_sessions()
 
-        # Per-session FIFO cleanup: maintain max 20 records per session (runs on every save)
+        # Per-session FIFO cleanup: maintain max 20 records per session
+        # (runs on every save)
         self._cleanup_old_messages(session_id)
 
         return record_id
