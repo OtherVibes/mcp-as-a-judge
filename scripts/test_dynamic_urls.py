@@ -5,18 +5,22 @@ This tests the new LLM-driven research requirements analysis.
 """
 
 import asyncio
+
 from src.mcp_as_a_judge.models import (
     ResearchComplexityFactors,
     ResearchRequirementsAnalysis,
-    URLValidationResult
+    URLValidationResult,
 )
 from src.mcp_as_a_judge.models.task_metadata import TaskMetadata
-from src.mcp_as_a_judge.research_requirements_analyzer import ResearchRequirementsAnalyzer
+from src.mcp_as_a_judge.research_requirements_analyzer import (
+    ResearchRequirementsAnalyzer,
+)
+
 
 def test_models():
     """Test that our new models can be created and work correctly."""
     print("🧪 Testing new data models...")
-    
+
     # Test ResearchComplexityFactors
     factors = ResearchComplexityFactors(
         technical_complexity="high",
@@ -26,7 +30,7 @@ def test_models():
         innovation_level="cutting_edge"
     )
     print(f"✅ ResearchComplexityFactors created: {factors.technical_complexity}")
-    
+
     # Test ResearchRequirementsAnalysis
     analysis = ResearchRequirementsAnalysis(
         complexity_factors=factors,
@@ -36,7 +40,7 @@ def test_models():
         quality_criteria=["security best practices", "proven implementation patterns"]
     )
     print(f"✅ ResearchRequirementsAnalysis created: {analysis.expected_url_count} URLs expected")
-    
+
     # Test URLValidationResult
     validation = URLValidationResult(
         is_adequate=True,
@@ -47,7 +51,7 @@ def test_models():
         quality_assessment="High quality sources from established authorities"
     )
     print(f"✅ URLValidationResult created: adequate={validation.is_adequate}")
-    
+
     # Test TaskMetadata with new fields
     metadata = TaskMetadata(
         task_id="test-123",
@@ -61,29 +65,29 @@ def test_models():
         research_complexity_analysis=analysis
     )
     print(f"✅ TaskMetadata with dynamic URLs: {metadata.expected_url_count}/{metadata.minimum_url_count}")
-    
+
     print("🎉 All model tests passed!")
 
 async def test_analyzer_mock():
     """Test the ResearchRequirementsAnalyzer with a mock scenario."""
     print("\n🧪 Testing ResearchRequirementsAnalyzer...")
-    
+
     analyzer = ResearchRequirementsAnalyzer()
-    
+
     # Test scenario
     task_title = "Implement JWT Authentication System"
     task_description = "Build secure user authentication with JWT tokens, password hashing, and session management"
     user_requirements = "Users should be able to register, login, logout securely with proper token validation"
-    
+
     print(f"📋 Task: {task_title}")
     print(f"📋 Description: {task_description}")
-    
+
     # Note: This would normally call the LLM, but we can test the structure
     try:
         # In a real scenario, this would make an LLM call
         # For now, we'll test the fallback logic
         print("⚠️  LLM call would happen here (skipped in test)")
-        
+
         # Test fallback logic
         fallback_analysis = ResearchRequirementsAnalysis(
             complexity_factors=ResearchComplexityFactors(
@@ -99,16 +103,16 @@ async def test_analyzer_mock():
             quality_criteria=["security best practices", "JWT standards", "authentication patterns"]
         )
         print(f"✅ Fallback analysis: {fallback_analysis.expected_url_count} URLs expected")
-        
+
     except Exception as e:
         print(f"❌ Error in analyzer test: {e}")
-    
+
     print("🎉 Analyzer structure test passed!")
 
 def test_url_validation():
     """Test URL validation logic."""
     print("\n🧪 Testing URL validation...")
-    
+
     # Test scenarios
     test_cases = [
         {
@@ -130,31 +134,31 @@ def test_url_validation():
             "minimum": 2
         }
     ]
-    
+
     for case in test_cases:
         provided_count = len(case["provided"])
         is_adequate = provided_count >= case["minimum"]
         meets_expected = provided_count >= case["expected"]
-        
+
         print(f"📊 {case['name']}: {provided_count} URLs (min: {case['minimum']}, expected: {case['expected']})")
         print(f"   Adequate: {is_adequate}, Meets Expected: {meets_expected}")
-    
+
     print("✅ URL validation logic tests passed!")
 
 def main():
     """Run all tests."""
     print("🚀 Testing Dynamic URL Validation System")
     print("=" * 50)
-    
+
     try:
         test_models()
         asyncio.run(test_analyzer_mock())
         test_url_validation()
-        
+
         print("\n" + "=" * 50)
         print("🎉 ALL TESTS PASSED! 🎉")
         print("The dynamic URL validation system is working correctly.")
-        
+
     except Exception as e:
         print(f"\n❌ TEST FAILED: {e}")
         import traceback

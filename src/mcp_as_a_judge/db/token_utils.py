@@ -8,8 +8,8 @@ with fallback to character-based approximation.
 
 from typing import Any
 
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.db.dynamic_token_limits import get_llm_input_limit
-from mcp_as_a_judge.logging_config import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
@@ -35,7 +35,7 @@ async def detect_model_name(ctx: Any = None) -> str | None:
     """
     # Try LLM config first (reuse messaging module logic)
     try:
-        from mcp_as_a_judge.llm_client import llm_manager
+        from mcp_as_a_judge.llm.llm_client import llm_manager
 
         client = llm_manager.get_client()
         if client and hasattr(client, "config") and client.config.model_name:

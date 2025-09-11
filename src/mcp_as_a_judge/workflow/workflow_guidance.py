@@ -12,8 +12,8 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.constants import MAX_TOKENS
-from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.core.logging_config import get_logger
+from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import SystemVars
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
@@ -87,9 +87,6 @@ class WorkflowGuidance(BaseModel):
     def instructions(self) -> str:
         """Backward compatibility property that maps to guidance field."""
         return self.guidance
-
-
-
 
 
 class WorkflowGuidanceUserVars(BaseModel):
@@ -268,7 +265,10 @@ async def calculate_next_stage(
         from mcp.types import SamplingMessage
 
         # Load task size definitions from shared file
-        from mcp_as_a_judge.prompting.loader import create_separate_messages, prompt_loader
+        from mcp_as_a_judge.prompting.loader import (
+            create_separate_messages,
+            prompt_loader,
+        )
 
         task_size_definitions = prompt_loader.render_prompt(
             "shared/task_size_definitions.md"
@@ -379,13 +379,13 @@ async def calculate_next_stage(
 
             # Check if response is truncated (doesn't end with proper JSON closing)
             if not response.strip().endswith("}"):
-                logger.error(
-                    "Response appears to be truncated - doesn't end with '}'"
-                )
+                logger.error("Response appears to be truncated - doesn't end with '}'")
 
             # Try to see if we can extract partial JSON
             try:
-                from mcp_as_a_judge.core.server_helpers import extract_json_from_response
+                from mcp_as_a_judge.core.server_helpers import (
+                    extract_json_from_response,
+                )
 
                 json_content = extract_json_from_response(response)
                 logger.error(f"Extracted JSON: {json_content}")

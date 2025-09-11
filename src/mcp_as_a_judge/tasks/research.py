@@ -11,6 +11,7 @@ from typing import Any
 
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
+from mcp_as_a_judge.core.server_helpers import extract_json_from_response
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import (
     ResearchComplexityFactors,
@@ -21,7 +22,6 @@ from mcp_as_a_judge.models import (
 )
 from mcp_as_a_judge.models.task_metadata import TaskMetadata
 from mcp_as_a_judge.prompting.loader import create_separate_messages
-from mcp_as_a_judge.core.server_helpers import extract_json_from_response
 
 logger = get_logger(__name__)
 

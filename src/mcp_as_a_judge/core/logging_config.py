@@ -220,9 +220,7 @@ def log_startup_message(config: Any) -> None:
         config: Application configuration object
     """
     logger = get_logger("mcp_as_a_judge.server")
-    logger.info(
-        "MCP Judge server starting with conversation history logging enabled"
-    )
+    logger.info("MCP Judge server starting with conversation history logging enabled")
     logger.info(
         f"Configuration: max_session_records={config.database.max_session_records}"
     )
@@ -257,9 +255,7 @@ def log_tool_execution(
     """
     logger = get_logger("mcp_as_a_judge.server")
 
-    logger.info(
-        f"{tool_name} called for session {_truncate_text(session_id)}"
-    )
+    logger.info(f"{tool_name} called for session {_truncate_text(session_id)}")
 
     if additional_info:
         # Truncate additional info to prevent overly long log lines

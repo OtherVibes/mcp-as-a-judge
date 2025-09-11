@@ -11,11 +11,11 @@ import uuid
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, desc, select
 
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.db.cleanup_service import ConversationCleanupService
 from mcp_as_a_judge.db.dynamic_token_limits import get_llm_input_limit
 from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
 from mcp_as_a_judge.db.token_utils import calculate_tokens_in_record, detect_model_name
-from mcp_as_a_judge.core.logging_config import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
@@ -127,11 +127,6 @@ class SQLiteProvider(ConversationHistoryDB):
                 # Take the last record (oldest) since list is sorted by timestamp DESC (newest first)
                 oldest_record = current_records[-1]
 
-<<<<<<< Updated upstream
-=======
-            logger.info(f"Removing {len(old_records)} oldest records:")
-            for i, record in enumerate(old_records, 1):
->>>>>>> Stashed changes
                 logger.info(
                     f"   🗑️ Removing oldest record: {oldest_record.source} | {oldest_record.tokens} tokens | {oldest_record.timestamp}"
                 )

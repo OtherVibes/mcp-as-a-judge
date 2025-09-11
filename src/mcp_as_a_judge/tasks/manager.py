@@ -10,8 +10,8 @@ import time
 
 from pydantic import ValidationError
 
-from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.core.logging_config import get_logger
+from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
 
 # Set up logger using custom get_logger function

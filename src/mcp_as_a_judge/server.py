@@ -13,15 +13,7 @@ import time
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
-from mcp_as_a_judge.tasks.manager import (
-    create_new_coding_task,
-    save_task_metadata_to_history,
-    update_existing_coding_task,
-)
 from mcp_as_a_judge.constants import MAX_TOKENS
-from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
-from mcp_as_a_judge.db.db_config import load_config
-from mcp_as_a_judge.elicitation_provider import elicitation_provider
 from mcp_as_a_judge.core.logging_config import (
     get_context_aware_logger,
     get_logger,
@@ -30,6 +22,15 @@ from mcp_as_a_judge.core.logging_config import (
     set_context_reference,
     setup_logging,
 )
+from mcp_as_a_judge.core.server_helpers import (
+    extract_json_from_response,
+    generate_dynamic_elicitation_model,
+    generate_validation_error_message,
+    initialize_llm_configuration,
+)
+from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
+from mcp_as_a_judge.db.db_config import load_config
+from mcp_as_a_judge.elicitation_provider import elicitation_provider
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import (
     JudgeCodeChangeUserVars,
@@ -53,11 +54,10 @@ from mcp_as_a_judge.models.task_metadata import (
     TaskState,
 )
 from mcp_as_a_judge.prompting.loader import create_separate_messages
-from mcp_as_a_judge.core.server_helpers import (
-    extract_json_from_response,
-    generate_dynamic_elicitation_model,
-    generate_validation_error_message,
-    initialize_llm_configuration,
+from mcp_as_a_judge.tasks.manager import (
+    create_new_coding_task,
+    save_task_metadata_to_history,
+    update_existing_coding_task,
 )
 from mcp_as_a_judge.tool_description_provider import (
     tool_description_provider,
@@ -95,9 +95,7 @@ async def set_coding_task(
     set_context_reference(ctx)
 
     # Log tool execution start using context-aware logger
-    await context_logger.info(
-        f"set_coding_task called for task: {task_id_for_logging}"
-    )
+    await context_logger.info(f"set_coding_task called for task: {task_id_for_logging}")
 
     original_input = {
         "user_request": user_request,
@@ -360,9 +358,9 @@ Please choose an option (by number or description) and provide any additional co
             )
 
             # Save successful interaction as conversation record
-        await conversation_service.save_tool_interaction_and_cleanup(
-            session_id=task_id,  # Use task_id as primary key
-            tool_name="raise_obstacle",
+            await conversation_service.save_tool_interaction_and_cleanup(
+                session_id=task_id,  # Use task_id as primary key
+                tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
                     result.model_dump(mode="json", exclude_none=True)
@@ -648,16 +646,18 @@ async def judge_coding_task_completion(
                 f"judge_coding_task_completion: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
-            conversation_history = await conversation_service.load_filtered_context_for_enrichment(
-                task_id, "", ctx
+            conversation_history = (
+                await conversation_service.load_filtered_context_for_enrichment(
+                    task_id, "", ctx
+                )
             )
             logger.info(
                 f"judge_coding_task_completion: Conversation history entries: {len(conversation_history)}"
             )
             for entry in conversation_history[-5:]:
-                    logger.info(
-                        f"judge_coding_task_completion: History entry: {entry.source} at {entry.timestamp}"
-                    )
+                logger.info(
+                    f"judge_coding_task_completion: History entry: {entry.source} at {entry.timestamp}"
+                )
 
         if not task_metadata:
             # Create a minimal task metadata for debugging
@@ -1050,8 +1050,10 @@ async def judge_coding_plan(
                 f"judge_coding_plan: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
-            conversation_history = await conversation_service.load_filtered_context_for_enrichment(
-                task_id or "test_task", "", ctx
+            conversation_history = (
+                await conversation_service.load_filtered_context_for_enrichment(
+                    task_id or "test_task", "", ctx
+                )
             )
             logger.info(
                 f"judge_coding_plan: Conversation history entries: {len(conversation_history)}"
@@ -1215,8 +1217,10 @@ async def judge_coding_plan(
                 logger.info(f"Optional research provided: {len(research_urls)} URLs")
 
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.load_filtered_context_for_enrichment(
-            task_id or "test_task", "", ctx
+        conversation_history = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                task_id or "test_task", "", ctx
+            )
         )
         history_json_array = (
             conversation_service.format_conversation_history_as_json_array(
@@ -1395,8 +1399,10 @@ async def judge_code_change(
                 f"judge_code_change: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
-            conversation_history = await conversation_service.load_filtered_context_for_enrichment(
-                task_id or "test_task", "", ctx
+            conversation_history = (
+                await conversation_service.load_filtered_context_for_enrichment(
+                    task_id or "test_task", "", ctx
+                )
             )
             logger.info(
                 f"judge_code_change: Conversation history entries: {len(conversation_history)}"
@@ -1445,8 +1451,10 @@ async def judge_code_change(
         )
 
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.load_filtered_context_for_enrichment(
-            task_id or "test_task", "", ctx
+        conversation_history = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                task_id or "test_task", "", ctx
+            )
         )
         history_json_array = (
             conversation_service.format_conversation_history_as_json_array(
@@ -1702,8 +1710,10 @@ async def judge_testing_implementation(
         user_requirements = task_metadata.user_requirements
 
         # Load conversation history for context
-        conversation_history = await conversation_service.load_filtered_context_for_enrichment(
-            task_id, "", ctx
+        conversation_history = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                task_id, "", ctx
+            )
         )
         history_json_array = [
             {

@@ -104,6 +104,7 @@ for _name in _NAMES:
         }:
             # Provide slightly richer defaults for research-related types
             if _name == "ResearchComplexityFactors":
+
                 class ResearchComplexityFactors(BaseModel):  # type: ignore[no-redef]
                     domain_specialization: str = Field(default="general")
                     technology_maturity: str = Field(default="established")
@@ -113,6 +114,7 @@ for _name in _NAMES:
 
                 globals()[_name] = ResearchComplexityFactors
             elif _name == "ResearchRequirementsAnalysis":
+
                 class ResearchRequirementsAnalysis(BaseModel):  # type: ignore[no-redef]
                     expected_url_count: int = Field(default=3)
                     minimum_url_count: int = Field(default=1)
@@ -122,6 +124,7 @@ for _name in _NAMES:
 
                 globals()[_name] = ResearchRequirementsAnalysis
             else:  # URLValidationResult
+
                 class URLValidationResult(BaseModel):  # type: ignore[no-redef]
                     adequate: bool = Field(default=False)
                     provided_count: int = Field(default=0)

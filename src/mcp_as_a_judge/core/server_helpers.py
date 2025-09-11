@@ -11,9 +11,9 @@ from mcp.server.fastmcp import Context
 from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.constants import MAX_TOKENS
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.llm.llm_client import llm_manager
 from mcp_as_a_judge.llm.llm_integration import load_llm_config_from_env
-from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.prompting.loader import create_separate_messages
 
@@ -136,7 +136,7 @@ async def generate_dynamic_elicitation_model(
         Dynamically created Pydantic BaseModel class
     """
     try:
-        from mcp_as_a_judge.models import SystemVars, DynamicSchemaUserVars
+        from mcp_as_a_judge.models import DynamicSchemaUserVars, SystemVars
 
         system_vars = SystemVars(max_tokens=MAX_TOKENS)
         user_vars = DynamicSchemaUserVars(

@@ -5,9 +5,9 @@ This module contains all Pydantic models used for data validation,
 serialization, and API contracts.
 """
 
-from pydantic import BaseModel, Field
-
 from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize
@@ -45,11 +45,12 @@ class JudgeResponse(BaseModel):
         ),
         description="Current state of task metadata after operation",
     )
+
     # Use a lazy default factory to avoid importing workflow at module import time
     def _default_workflow_guidance():  # type: ignore[no-redef]
-        from mcp_as_a_judge.workflow import WorkflowGuidance as _WG
+        from mcp_as_a_judge.workflow import WorkflowGuidance
 
-        return _WG(
+        return WorkflowGuidance(
             next_tool=None,
             reasoning="Default guidance: insufficient context",
             preparation_needed=[],
@@ -182,14 +183,18 @@ class SystemVars(BaseModel):
     """
 
     response_schema: str = Field(
-        default="", description="JSON schema for the expected response format (optional)"
+        default="",
+        description="JSON schema for the expected response format (optional)",
     )
     max_tokens: int = Field(
         default=MAX_TOKENS, description="Maximum tokens available for response"
     )
     task_size_definitions: str = Field(
-        default="", description="Task size classifications and workflow routing rules (optional)"
+        default="",
+        description="Task size classifications and workflow routing rules (optional)",
     )
+
+
 class JudgeCodingPlanUserVars(BaseModel):
     """Variables for judge_coding_plan user prompt."""
 
@@ -252,9 +257,6 @@ class JudgeCodingPlanUserVars(BaseModel):
     )
 
 
-
-
-
 class JudgeCodeChangeUserVars(BaseModel):
     """Variables for judge_code_change user prompt."""
 
@@ -269,9 +271,6 @@ class JudgeCodeChangeUserVars(BaseModel):
         default_factory=list,
         description="Previous conversation history as JSON array with timestamps",
     )
-
-
-
 
 
 class ResearchValidationUserVars(BaseModel):
@@ -290,9 +289,6 @@ class ResearchValidationUserVars(BaseModel):
         default_factory=list,
         description="Previous conversation history as JSON array with timestamps",
     )
-
-
-
 
 
 class WorkflowGuidanceUserVars(BaseModel):
@@ -316,9 +312,6 @@ class WorkflowGuidanceUserVars(BaseModel):
     )
 
 
-
-
-
 class ValidationErrorUserVars(BaseModel):
     """Variables for validation_error user prompt."""
 
@@ -326,9 +319,6 @@ class ValidationErrorUserVars(BaseModel):
         description="The specific validation issue that occurred"
     )
     context: str = Field(description="Additional context about the validation failure")
-
-
-
 
 
 class DynamicSchemaUserVars(BaseModel):
@@ -357,9 +347,6 @@ class ElicitationFallbackUserVars(BaseModel):
     optional_fields: list[str] = Field(
         description="List of optional field descriptions for the user to provide"
     )
-
-
-
 
 
 class ResearchRequirementsAnalysisUserVars(BaseModel):

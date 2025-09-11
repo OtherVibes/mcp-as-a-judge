@@ -9,6 +9,7 @@ This service handles:
 
 from typing import Any
 
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.db import (
     ConversationHistoryDB,
     ConversationRecord,
@@ -18,7 +19,6 @@ from mcp_as_a_judge.db.db_config import Config
 from mcp_as_a_judge.db.token_utils import (
     filter_records_by_token_limit,
 )
-from mcp_as_a_judge.core.logging_config import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
@@ -126,15 +126,14 @@ class ConversationHistoryService:
         """
         logger.info(f"Loading conversation history for session {session_id}")
 
-        context_records = await self.load_filtered_context_for_enrichment(
-            session_id
-        )
+        context_records = await self.load_filtered_context_for_enrichment(session_id)
 
         logger.info(
             f"Retrieved {len(context_records)} conversation records for session {session_id}"
         )
 
         return context_records
+
     def format_conversation_history_as_json_array(
         self, conversation_history: list[ConversationRecord]
     ) -> list[dict]:
