@@ -9,7 +9,6 @@ import builtins
 import contextlib
 import json
 
-from authlib.common.encoding import json_dumps
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
@@ -94,7 +93,7 @@ async def build_workflow(
         current_prompt = f"task_description: {task_description}, context: {context}"
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, json_dumps(current_prompt), ctx
+                session_id, json.dumps(current_prompt), ctx
             )
         )
         history_json_array = (
