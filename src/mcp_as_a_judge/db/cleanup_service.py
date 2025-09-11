@@ -15,6 +15,7 @@ from mcp_as_a_judge.logging_config import get_logger
 # Set up logger
 logger = get_logger(__name__)
 
+
 class ConversationCleanupService:
     """
     Service for cleaning up conversation history records.

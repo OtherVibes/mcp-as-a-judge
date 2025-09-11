@@ -273,7 +273,7 @@ class TestConversationHistoryLifecycle:
             "session_B",
             "session_C",
             "session_D",
-            "session_E"
+            "session_E",
         ]:
             records = await db.get_session_conversations(session_id)
             if records:
@@ -432,6 +432,7 @@ class TestConversationHistoryLifecycle:
         print("✅ Large data handling: Correct storage and retrieval")
 
         print("✅ All edge cases handled correctly")
+
 
 if __name__ == "__main__":
     # Run tests directly for development

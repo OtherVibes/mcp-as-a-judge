@@ -18,6 +18,7 @@ from mcp_as_a_judge.logging_config import get_logger
 # Set up logger
 logger = get_logger(__name__)
 
+
 class SQLiteProvider(ConversationHistoryDB):
     """
     SQLModel-based SQLite database provider for conversation history.
@@ -145,9 +146,9 @@ class SQLiteProvider(ConversationHistoryDB):
         """Check if this is a new session (no existing records)."""
         with Session(self.engine) as session:
             existing_record = session.exec(
-                select(ConversationRecord).where(
-                    ConversationRecord.session_id == session_id
-                ).limit(1)
+                select(ConversationRecord)
+                .where(ConversationRecord.session_id == session_id)
+                .limit(1)
             ).first()
             return existing_record is None
 
