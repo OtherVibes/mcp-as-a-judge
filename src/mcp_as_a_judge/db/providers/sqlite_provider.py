@@ -112,7 +112,7 @@ class SQLiteProvider(ConversationHistoryDB):
                 .where(ConversationRecord.session_id == session_id)
                 .order_by(desc(ConversationRecord.timestamp))
             )
-            current_records = session.exec(count_stmt).all()
+            current_records = list(session.exec(count_stmt).all())
             current_count = len(current_records)
 
             logger.info(
