@@ -7,7 +7,7 @@ elicitation functionality.
 
 import pytest
 
-from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
+from mcp_as_a_judge.models import JudgeResponse
 from mcp_as_a_judge.server import (
     judge_code_change,
     judge_coding_plan,
@@ -29,6 +29,7 @@ class TestElicitMissingRequirements:
                 "What type of integration?",
             ],
             specific_questions=["Send or receive messages?", "Bot or webhook?"],
+            task_id="test-task-123",
             ctx=mock_context_with_sampling,
         )
 
@@ -47,6 +48,7 @@ class TestElicitMissingRequirements:
             current_request="Build a Slack integration",
             identified_gaps=["What specific functionality?"],
             specific_questions=["Send or receive messages?"],
+            task_id="test-task-456",
             ctx=mock_context_without_sampling,
         )
 
@@ -116,6 +118,7 @@ class TestObstacleResolution:
             problem="Cannot use LLM sampling",
             research="Researched alternatives",
             options=["Use Claude Desktop", "Configure Cursor", "Cancel"],
+            task_id="test-task-789",
             ctx=mock_context_with_sampling,
         )
 
@@ -134,6 +137,7 @@ class TestObstacleResolution:
             problem="Cannot use LLM sampling",
             research="Researched alternatives",
             options=["Use Claude Desktop", "Cancel"],
+            task_id="test-task-999",
             ctx=mock_context_without_sampling,
         )
 
@@ -149,33 +153,15 @@ class TestWorkflowGuidance:
     @pytest.mark.asyncio
     async def test_workflow_guidance_basic(self, mock_context_with_sampling):
         """Test basic workflow guidance functionality."""
+        # This test is skipped until workflow_guidance is implemented
         pass
-
-        assert isinstance(result, WorkflowGuidance)
-        assert result.next_tool in [
-            "judge_coding_plan",
-            "judge_code_change",
-            "raise_obstacle",
-            "raise_missing_requirements",
-        ]
-        assert isinstance(result.reasoning, str)
-        assert isinstance(result.preparation_needed, list)
-        assert isinstance(result.guidance, str)
 
     @pytest.mark.skip(reason="build_workflow function not implemented")
     @pytest.mark.asyncio
     async def test_workflow_guidance_with_context(self, mock_context_with_sampling):
         """Test workflow guidance with additional context."""
+        # This test is skipped until build_workflow is implemented
         pass
-
-        assert isinstance(result, WorkflowGuidance)
-        assert len(result.guidance) > 50  # Should provide substantial guidance
-        assert result.next_tool in [
-            "judge_coding_plan",
-            "judge_code_change",
-            "raise_obstacle",
-            "raise_missing_requirements",
-        ]
 
 
 class TestIntegrationScenarios:

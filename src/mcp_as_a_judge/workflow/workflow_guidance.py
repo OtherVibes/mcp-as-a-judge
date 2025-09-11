@@ -20,6 +20,7 @@ from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskStat
 # Set up logger using custom get_logger function
 logger = get_logger(__name__)
 
+
 def should_skip_planning(task_metadata: TaskMetadata) -> bool:
     """
     Determine if planning should be skipped based on task size.
@@ -33,8 +34,6 @@ def should_skip_planning(task_metadata: TaskMetadata) -> bool:
     return task_metadata.task_size in [TaskSize.XS, TaskSize.S]
 
 
-
-
 class WorkflowGuidance(BaseModel):
     """
     LLM-generated workflow guidance from shared calculate_next_stage method.
@@ -44,16 +43,16 @@ class WorkflowGuidance(BaseModel):
 
     Compatible with the original WorkflowGuidance model from models.py.
     """
+
     next_tool: str | None = Field(
         description="Next tool to call, or None if workflow complete"
     )
     reasoning: str = Field(
-        default="",
-        description="Clear explanation of why this tool should be used next"
+        default="", description="Clear explanation of why this tool should be used next"
     )
     preparation_needed: list[str] = Field(
         default_factory=list,
-        description="List of things that need to be prepared before calling the recommended tool"
+        description="List of things that need to be prepared before calling the recommended tool",
     )
     guidance: str = Field(
         description="Detailed step-by-step guidance for the AI assistant"
@@ -62,23 +61,23 @@ class WorkflowGuidance(BaseModel):
     # Research requirement determination for new tasks (only populated when task is CREATED)
     research_required: bool | None = Field(
         default=None,
-        description="Whether research is required for this task (only determined for new CREATED tasks)"
+        description="Whether research is required for this task (only determined for new CREATED tasks)",
     )
     research_scope: str | None = Field(
         default=None,
-        description="Research scope: 'none', 'light', or 'deep' (only determined for new CREATED tasks)"
+        description="Research scope: 'none', 'light', or 'deep' (only determined for new CREATED tasks)",
     )
     research_rationale: str | None = Field(
         default=None,
-        description="Explanation of research requirements (only determined for new CREATED tasks)"
+        description="Explanation of research requirements (only determined for new CREATED tasks)",
     )
     internal_research_required: bool | None = Field(
         default=None,
-        description="Whether internal codebase analysis is needed (only determined for new CREATED tasks)"
+        description="Whether internal codebase analysis is needed (only determined for new CREATED tasks)",
     )
     risk_assessment_required: bool | None = Field(
         default=None,
-        description="Whether risk assessment is needed (only determined for new CREATED tasks)"
+        description="Whether risk assessment is needed (only determined for new CREATED tasks)",
     )
 
     # Backward compatibility property
@@ -110,11 +109,14 @@ class WorkflowGuidanceUserVars(BaseModel):
     state_description: str = Field(description="Description of current state")
     current_operation: str = Field(description="Current operation being performed")
     task_size: str = Field(description="Task size classification (xs, s, m, l, xl)")
-    task_size_definitions: str = Field(description="Task size classifications and workflow routing rules")
+    task_size_definitions: str = Field(
+        description="Task size classifications and workflow routing rules"
+    )
     state_transitions: str = Field(description="State transition diagram")
     tool_descriptions: str = Field(description="Available tool descriptions")
     conversation_context: str = Field(description="Formatted conversation history")
     operation_context: str = Field(description="Current operation context")
+    response_schema: str = Field(description="JSON schema for the expected response format")
 
 
 async def calculate_next_stage(
@@ -150,20 +152,25 @@ async def calculate_next_stage(
 
     try:
         # Check for deterministic task size routing for CREATED state
-        if (task_metadata.state == TaskState.CREATED and
-            should_skip_planning(task_metadata)):
-            logger.info(f"🚀 Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation")
+        if task_metadata.state == TaskState.CREATED and should_skip_planning(
+            task_metadata
+        ):
+            logger.info(
+                f"🚀 Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation"
+            )
             # XS/S tasks skip planning but still need implementation → code review → testing → completion
-            # Return null to indicate "proceed to implementation" - the user will implement then call judge_code_change
+            # Return judge_code_change as next tool - user implements first, then calls it when ready
             return WorkflowGuidance(
-                next_tool=None,  # User should implement, then call judge_code_change when ready
-                reasoning=f"Task size is {task_metadata.task_size.value.upper()} - planning phase can be skipped for simple fixes and minor features. Proceed directly to implementation.",
+                next_tool="judge_code_change",  # User should implement, then call judge_code_change when ready
+                reasoning=f"Task size is {task_metadata.task_size.value.upper()} - planning phase can be skipped for simple fixes and minor features. Proceed directly to implementation, then call judge_code_change for code review.",
                 preparation_needed=[
                     "Identify the specific files that need modification",
                     "Understand the current implementation",
-                    "Plan the minimal changes required"
+                    "Plan the minimal changes required",
+                    "Implement the changes and write tests",
+                    "Ensure all tests are passing before code review",
                 ],
-                guidance=f"This is a {task_metadata.task_size.value.upper()} task - proceed directly to implementation. Skip the planning phase and implement the changes directly. Focus on: 1) Making the minimal necessary changes, 2) Testing the changes work correctly, 3) Ensuring no regressions are introduced. WORKFLOW: After implementation is complete and tests pass, you MUST call judge_code_change for code review, then judge_testing_implementation for testing validation, then judge_coding_task_completion for final validation. Do not skip these steps - they are required for all tasks."
+                guidance=f"This is a {task_metadata.task_size.value.upper()} task - proceed directly to implementation. Skip the planning phase and implement the changes directly. Focus on: 1) Making the minimal necessary changes, 2) Testing the changes work correctly, 3) Ensuring no regressions are introduced. WORKFLOW: After implementation is complete and tests pass, call judge_code_change for code review, then judge_testing_implementation for testing validation, then judge_coding_task_completion for final validation. Do not skip these steps - they are required for all tasks.",
             )
 
         # Load conversation history using task_id as primary key
@@ -190,54 +197,91 @@ async def calculate_next_stage(
         if completion_result:
             operation_context.append(f"- Completion Result: {completion_result}")
         if accumulated_changes:
-            operation_context.append(f"- Accumulated Changes: {len(accumulated_changes)} files modified")
+            operation_context.append(
+                f"- Accumulated Changes: {len(accumulated_changes)} files modified"
+            )
 
         # Add file tracking information
         if task_metadata.modified_files:
-            operation_context.append(f"- Modified Files ({len(task_metadata.modified_files)}): {', '.join(task_metadata.modified_files)}")
+            operation_context.append(
+                f"- Modified Files ({len(task_metadata.modified_files)}): {', '.join(task_metadata.modified_files)}"
+            )
 
             # Check implementation progress (code review comes AFTER tests are written and passing)
-            if len(task_metadata.modified_files) > 0 and task_metadata.state == TaskState.IMPLEMENTING:
+            if (
+                len(task_metadata.modified_files) > 0
+                and task_metadata.state == TaskState.IMPLEMENTING
+            ):
                 if len(task_metadata.test_files) == 0:
-                    operation_context.append("- IMPLEMENTATION PROGRESS: Implementation files have been created. Continue implementing ALL code AND write tests. Ensure tests are passing before calling judge_code_change.")
+                    operation_context.append(
+                        "- IMPLEMENTATION PROGRESS: Implementation files have been created. Continue implementing ALL code AND write tests. Ensure tests are passing before calling judge_code_change."
+                    )
                 else:
-                    operation_context.append("- IMPLEMENTATION + TESTS: Both implementation and test files exist. Ensure ALL tests are passing, then call judge_code_change for code review.")
+                    operation_context.append(
+                        "- IMPLEMENTATION + TESTS: Both implementation and test files exist. Ensure ALL tests are passing, then call judge_code_change for code review."
+                    )
 
         # Add testing information
         if task_metadata.test_files:
-            operation_context.append(f"- Test Files ({len(task_metadata.test_files)}): {', '.join(task_metadata.test_files)}")
+            operation_context.append(
+                f"- Test Files ({len(task_metadata.test_files)}): {', '.join(task_metadata.test_files)}"
+            )
             test_coverage = task_metadata.get_test_coverage_summary()
-            operation_context.append(f"- Test Status: {test_coverage['test_status']} (All passing: {test_coverage['all_tests_passing']})")
+            operation_context.append(
+                f"- Test Status: {test_coverage['test_status']} (All passing: {test_coverage['all_tests_passing']})"
+            )
 
             # Check if testing validation is complete
-            if task_metadata.state == TaskState.TESTING and test_coverage['all_tests_passing']:
-                operation_context.append("- TESTING VALIDATION READY: All tests are passing. Ready for judge_testing_implementation to validate test results.")
+            if (
+                task_metadata.state == TaskState.TESTING
+                and test_coverage["all_tests_passing"]
+            ):
+                operation_context.append(
+                    "- TESTING VALIDATION READY: All tests are passing. Ready for judge_testing_implementation to validate test results."
+                )
 
         # Add research guidance based on requirements
         if task_metadata.research_required is True:
-            research_status = "completed" if task_metadata.research_completed else "pending"
-            operation_context.append(f"- RESEARCH REQUIRED (scope: {task_metadata.research_scope}, status: {research_status}): Focus on authoritative, domain-relevant sources. Rationale: {task_metadata.research_rationale}")
+            research_status = (
+                "completed" if task_metadata.research_completed else "pending"
+            )
+            operation_context.append(
+                f"- RESEARCH REQUIRED (scope: {task_metadata.research_scope}, status: {research_status}): Focus on authoritative, domain-relevant sources. Rationale: {task_metadata.research_rationale}"
+            )
         elif task_metadata.research_required is False:
-            operation_context.append("- RESEARCH OPTIONAL: Research is optional for this task. If provided, prioritize domain-relevant, authoritative sources.")
+            operation_context.append(
+                "- RESEARCH OPTIONAL: Research is optional for this task. If provided, prioritize domain-relevant, authoritative sources."
+            )
         else:
-            operation_context.append("- RESEARCH STATUS: Research requirements not yet determined (will be inferred for new tasks).")
+            operation_context.append(
+                "- RESEARCH STATUS: Research requirements not yet determined (will be inferred for new tasks)."
+            )
 
-        operation_context_str = "\n".join(operation_context) if operation_context else "- No additional context"
+        operation_context_str = (
+            "\n".join(operation_context)
+            if operation_context
+            else "- No additional context"
+        )
 
         # Use existing llm_provider to get LLM guidance
-        logger.info(f"📤 Sending navigation request to LLM for task {task_metadata.task_id}")
+        logger.info(
+            f"📤 Sending navigation request to LLM for task {task_metadata.task_id}"
+        )
 
         # Use the same messaging pattern as other tools
         from mcp.types import SamplingMessage
 
         # Load task size definitions from shared file
         from mcp_as_a_judge.prompt_loader import create_separate_messages, prompt_loader
-        task_size_definitions = prompt_loader.render_prompt("shared/task_size_definitions.md")
+
+        task_size_definitions = prompt_loader.render_prompt(
+            "shared/task_size_definitions.md"
+        )
 
         # Create system and user variables for the workflow guidance
         system_vars = WorkflowGuidanceSystemVars(
             response_schema=json.dumps(WorkflowGuidance.model_json_schema()),
-            task_size_definitions=task_size_definitions
+            task_size_definitions=task_size_definitions,
         )
         user_vars = WorkflowGuidanceUserVars(
             task_id=task_metadata.task_id,
@@ -245,7 +289,7 @@ async def calculate_next_stage(
             task_description=task_metadata.description,
             user_requirements=task_metadata.user_requirements,
             current_state=task_metadata.state.value,
-            state_description=state_info['description'],
+            state_description=state_info["description"],
             current_operation=current_operation,
             task_size=task_metadata.task_size.value,
             task_size_definitions=task_size_definitions,
@@ -259,14 +303,14 @@ async def calculate_next_stage(
         # Create messages using the established pattern with dedicated workflow guidance prompts
         messages: list[SamplingMessage] = create_separate_messages(
             "system/workflow_guidance.md",  # Dedicated system prompt for workflow guidance
-            "user/workflow_guidance.md",    # Existing user prompt for workflow guidance
+            "user/workflow_guidance.md",  # Existing user prompt for workflow guidance
             system_vars,
             user_vars,
         )
 
         response = await llm_provider.send_message(
             messages=messages,
-            ctx=ctx,
+            ctx=ctx,  # type: ignore[arg-type]
             max_tokens=MAX_TOKENS,  # Use standardized constant for comprehensive responses
             prefer_sampling=True,  # Factory handles all message format decisions
         )
@@ -292,9 +336,13 @@ async def calculate_next_stage(
 
         # Validate required fields
         required_fields = ["next_tool", "reasoning", "preparation_needed", "guidance"]
-        missing_fields = [field for field in required_fields if field not in navigation_data]
+        missing_fields = [
+            field for field in required_fields if field not in navigation_data
+        ]
         if missing_fields:
-            raise ValueError(f"Missing required fields in LLM response: {missing_fields}")
+            raise ValueError(
+                f"Missing required fields in LLM response: {missing_fields}"
+            )
 
         # Normalize next_tool (convert "null" string to None)
         if navigation_data["next_tool"] in ["null", "None", ""]:
@@ -309,7 +357,9 @@ async def calculate_next_stage(
             research_required=navigation_data.get("research_required"),
             research_scope=navigation_data.get("research_scope"),
             research_rationale=navigation_data.get("research_rationale"),
-            internal_research_required=navigation_data.get("internal_research_required"),
+            internal_research_required=navigation_data.get(
+                "internal_research_required"
+            ),
             risk_assessment_required=navigation_data.get("risk_assessment_required"),
         )
 
@@ -321,35 +371,51 @@ async def calculate_next_stage(
         return workflow_guidance
 
     except Exception as e:
-        logger.error(f"❌ Failed to calculate next stage for task {task_metadata.task_id}: {e}")
+        logger.error(
+            f"❌ Failed to calculate next stage for task {task_metadata.task_id}: {e}"
+        )
 
         # Debug: Log the actual response if available
-        if 'response' in locals():
+        if "response" in locals():
             logger.error(f"🔍 Full LLM response length: {len(response)}")
             logger.error(f"🔍 Full LLM response: {response}")
 
             # Check if response is truncated (doesn't end with proper JSON closing)
-            if not response.strip().endswith('}'):
-                logger.error("⚠️ Response appears to be truncated - doesn't end with '}'")
+            if not response.strip().endswith("}"):
+                logger.error(
+                    "⚠️ Response appears to be truncated - doesn't end with '}'"
+                )
 
             # Try to see if we can extract partial JSON
             try:
                 from mcp_as_a_judge.server_helpers import extract_json_from_response
+
                 json_content = extract_json_from_response(response)
                 logger.error(f"🔍 Extracted JSON: {json_content}")
             except Exception as extract_error:
                 logger.error(f"🔍 JSON extraction also failed: {extract_error}")
 
-        # Return fallback navigation
+        # Return fallback navigation with appropriate next tool based on state
+        fallback_next_tool = "judge_coding_plan"  # Default fallback
+        if task_metadata.state == TaskState.PLAN_APPROVED or task_metadata.state == TaskState.IMPLEMENTING or task_metadata.state == TaskState.REVIEW_READY:
+            fallback_next_tool = "judge_code_change"
+        elif task_metadata.state == TaskState.TESTING:
+            fallback_next_tool = "judge_testing_implementation"
+        elif task_metadata.state == TaskState.COMPLETED:
+            fallback_next_tool = None  # Only case where null is appropriate
+
         return WorkflowGuidance(
-            next_tool=None,
-            reasoning="Error occurred during workflow calculation",
-            preparation_needed=["Review the error and task state"],
-            guidance=f"Error calculating next stage: {e!s}. Please review task manually."
+            next_tool=fallback_next_tool,
+            reasoning="Error occurred during workflow calculation, providing fallback based on current state",
+            preparation_needed=[
+                "Review the error and task state",
+                "Ensure all prerequisites are met",
+            ],
+            guidance=f"Error calculating next stage: {e!s}. Fallback recommendation based on current state ({task_metadata.state}). Please review task manually and proceed with the suggested next tool if appropriate.",
         )
 
 
-def _format_conversation_for_llm(conversation_history) -> str:
+def _format_conversation_for_llm(conversation_history: list[dict]) -> str:
     """
     Format conversation history for LLM context.
 
@@ -416,6 +482,3 @@ async def _get_tool_descriptions() -> str:
 - **raise_obstacle**: Handle obstacles that prevent task completion
 - **raise_missing_requirements**: Handle unclear or incomplete requirements
 """
-
-
-

@@ -39,7 +39,9 @@ def initialize_llm_configuration() -> None:
             f"🔧 LLM fallback configured: {vendor_name} with model {llm_config.model_name}"
         )
     else:
-        logger.info("🔧 No LLM API key found in environment. MCP sampling will be required.")
+        logger.info(
+            "🔧 No LLM API key found in environment. MCP sampling will be required."
+        )
 
 
 def extract_json_from_response(response_text: str) -> str:
@@ -85,12 +87,12 @@ async def generate_validation_error_message(
     """Generate a descriptive error message using AI sampling for validation failures."""
     try:
         from mcp_as_a_judge.models import (
-            ValidationErrorSystemVars,
-            ValidationErrorUserVars,
+            ResearchValidationSystemVars,
+            ResearchValidationUserVars,
         )
 
-        system_vars = ValidationErrorSystemVars()
-        user_vars = ValidationErrorUserVars(
+        system_vars = ResearchValidationSystemVars()
+        user_vars = ResearchValidationUserVars(
             validation_issue=validation_issue, context=context
         )
 

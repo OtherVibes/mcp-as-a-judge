@@ -8,6 +8,8 @@ including creation, updates, state transitions, and persistence.
 import json
 import time
 
+from pydantic import ValidationError
+
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.logging_config import get_logger
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
@@ -140,14 +142,18 @@ async def load_task_metadata_from_history(
             session_id=task_id
         )
 
-        # Look for the most recent task metadata record
+        # Look for the most recent task metadata record from any source
+        # (not just set_coding_task, since other tools also save task metadata)
         for record in reversed(conversation_history):
-            if record.source == "set_coding_task" and "task_metadata" in record.output:
-                # Parse the task metadata from the record
+            try:
+                # Parse the record output to look for task metadata
                 output_data = json.loads(record.output)
                 if "current_task_metadata" in output_data:
                     metadata_dict = output_data["current_task_metadata"]
                     return TaskMetadata.model_validate(metadata_dict)
+            except (json.JSONDecodeError, ValidationError):
+                # Skip records that can't be parsed or validated
+                continue
 
         return None
 
@@ -177,14 +183,18 @@ async def save_task_metadata_to_history(
             session_id=task_metadata.task_id,
             tool_name="set_coding_task",
             tool_input=user_request,
-            tool_output=json.dumps({
-                "action": action,
-                "current_task_metadata": task_metadata.model_dump(mode='json'),
-                "timestamp": int(time.time()),
-            }),
+            tool_output=json.dumps(
+                {
+                    "action": action,
+                    "current_task_metadata": task_metadata.model_dump(mode="json"),
+                    "timestamp": int(time.time()),
+                }
+            ),
         )
 
-        logger.info(f"💾 Saved task metadata to conversation history: {task_metadata.task_id}")
+        logger.info(
+            f"💾 Saved task metadata to conversation history: {task_metadata.task_id}"
+        )
 
     except Exception as e:
         logger.error(f"❌ Failed to save task metadata to history: {e}")
@@ -205,12 +215,42 @@ def validate_state_transition(current_state: TaskState, new_state: TaskState) ->
     # Define valid state transitions
     valid_transitions = {
         TaskState.CREATED: [TaskState.PLANNING, TaskState.BLOCKED, TaskState.CANCELLED],
-        TaskState.PLANNING: [TaskState.PLAN_APPROVED, TaskState.CREATED, TaskState.BLOCKED, TaskState.CANCELLED],
-        TaskState.PLAN_APPROVED: [TaskState.IMPLEMENTING, TaskState.PLANNING, TaskState.BLOCKED, TaskState.CANCELLED],
-        TaskState.IMPLEMENTING: [TaskState.IMPLEMENTING, TaskState.REVIEW_READY, TaskState.PLAN_APPROVED, TaskState.BLOCKED, TaskState.CANCELLED],
-        TaskState.REVIEW_READY: [TaskState.COMPLETED, TaskState.IMPLEMENTING, TaskState.BLOCKED, TaskState.CANCELLED],
-        TaskState.COMPLETED: [TaskState.CANCELLED],  # Only allow cancellation of completed tasks
-        TaskState.BLOCKED: [TaskState.CREATED, TaskState.PLANNING, TaskState.PLAN_APPROVED, TaskState.IMPLEMENTING, TaskState.REVIEW_READY, TaskState.CANCELLED],
+        TaskState.PLANNING: [
+            TaskState.PLAN_APPROVED,
+            TaskState.CREATED,
+            TaskState.BLOCKED,
+            TaskState.CANCELLED,
+        ],
+        TaskState.PLAN_APPROVED: [
+            TaskState.IMPLEMENTING,
+            TaskState.PLANNING,
+            TaskState.BLOCKED,
+            TaskState.CANCELLED,
+        ],
+        TaskState.IMPLEMENTING: [
+            TaskState.IMPLEMENTING,
+            TaskState.REVIEW_READY,
+            TaskState.PLAN_APPROVED,
+            TaskState.BLOCKED,
+            TaskState.CANCELLED,
+        ],
+        TaskState.REVIEW_READY: [
+            TaskState.COMPLETED,
+            TaskState.IMPLEMENTING,
+            TaskState.BLOCKED,
+            TaskState.CANCELLED,
+        ],
+        TaskState.COMPLETED: [
+            TaskState.CANCELLED
+        ],  # Only allow cancellation of completed tasks
+        TaskState.BLOCKED: [
+            TaskState.CREATED,
+            TaskState.PLANNING,
+            TaskState.PLAN_APPROVED,
+            TaskState.IMPLEMENTING,
+            TaskState.REVIEW_READY,
+            TaskState.CANCELLED,
+        ],
         TaskState.CANCELLED: [],  # No transitions from cancelled state
     }
 

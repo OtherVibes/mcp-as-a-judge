@@ -57,16 +57,18 @@ class LLMProvider:
 
         # Get the appropriate provider and correctly formatted messages from factory
         # The factory handles ALL message format decisions
-        provider, formatted_messages = MessagingProviderFactory.get_provider_with_messages(
-            ctx, messages, config
+        provider, formatted_messages = (
+            MessagingProviderFactory.get_provider_with_messages(ctx, messages, config)
         )
 
         # Send message using the provider with correctly formatted messages
         try:
             if provider.provider_type == "mcp_sampling":
                 # MCP sampling provider with SamplingMessage objects
-                # Type ignore because MCPSamplingProvider has send_message_direct method
-                response = await provider.send_message_direct(formatted_messages, config)  # type: ignore[attr-defined]
+                # Type ignore because MCPSamplingProvider has send_message method
+                response = await provider.send_message(
+                    formatted_messages, config
+                )
             else:
                 # LLM API provider with universal Message objects
                 response = await provider.send_message(formatted_messages, config)
@@ -101,11 +103,15 @@ class LLMProvider:
                         )
 
                         # Get LLM provider and correctly formatted messages from factory
-                        fallback_provider, fallback_messages = MessagingProviderFactory.get_provider_with_messages(
-                            ctx, messages, fallback_config
+                        fallback_provider, fallback_messages = (
+                            MessagingProviderFactory.get_provider_with_messages(
+                                ctx, messages, fallback_config
+                            )
                         )
 
-                        response = await fallback_provider.send_message(fallback_messages, fallback_config)
+                        response = await fallback_provider.send_message(
+                            fallback_messages, fallback_config
+                        )
                         return str(response)
 
                     except Exception:  # nosec B110 - Intentional fallback when LLM API unavailable

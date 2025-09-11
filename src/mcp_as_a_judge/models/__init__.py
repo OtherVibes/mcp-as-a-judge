@@ -6,77 +6,68 @@ including task metadata, enhanced responses, and workflow guidance models.
 """
 
 # Task metadata models
-from .task_metadata import TaskMetadata, TaskState, RequirementsVersion
-
-# Enhanced response models for workflow v3
-from .enhanced_responses import (
-    JudgeResponseWithTask,
-    TaskAnalysisResult,
-    TaskCompletionResult,
-    ObstacleResult,
-    MissingRequirementsResult,
-    EnhancedResponseFactory,
-    # Backward compatibility
-    JudgeResponse,
-)
-
 # Workflow guidance models
 from mcp_as_a_judge.workflow import WorkflowGuidance
 
-__all__ = [
-    # Task metadata
-    "TaskMetadata",
-    "TaskState", 
-    "RequirementsVersion",
-    
-    # Enhanced responses
-    "JudgeResponseWithTask",
-    "TaskAnalysisResult",
-    "TaskCompletionResult",
-    "ObstacleResult",
-    "MissingRequirementsResult",
-    "EnhancedResponseFactory",
-    
-    # Workflow guidance
-    "WorkflowGuidance",
-    
+# Enhanced response models for workflow v3
+from .enhanced_responses import (
+    EnhancedResponseFactory,
     # Backward compatibility
-    "JudgeResponse",
+    JudgeResponse,
+    JudgeResponseWithTask,
+    MissingRequirementsResult,
+    ObstacleResult,
+    TaskAnalysisResult,
+    TaskCompletionResult,
+)
+from .task_metadata import RequirementsVersion, TaskMetadata, TaskState
 
-    # Additional models from models.py
+__all__ = [
+    "DynamicSchemaSystemVars",
     "ElicitationFallbackUserVars",
+    "EnhancedResponseFactory",
     "JudgeCodeChangeSystemVars",
     "JudgeCodeChangeUserVars",
     "JudgeCodingPlanSystemVars",
     "JudgeCodingPlanUserVars",
-    "ResearchValidationResponse",
-    "ResearchValidationSystemVars",
-    "ResearchValidationUserVars",
-    "WorkflowGuidanceSystemVars",
-    "WorkflowGuidanceUserVars",
-    "DynamicSchemaSystemVars",
+    "JudgeResponse",
+    "JudgeResponseWithTask",
+    "MissingRequirementsResult",
+    "ObstacleResult",
+    "RequirementsVersion",
     "ResearchComplexityFactors",
     "ResearchRequirementsAnalysis",
     "ResearchRequirementsAnalysisSystemVars",
     "ResearchRequirementsAnalysisUserVars",
+    "ResearchValidationResponse",
+    "ResearchValidationSystemVars",
+    "ResearchValidationUserVars",
+    "TaskAnalysisResult",
+    "TaskCompletionResult",
+    "TaskMetadata",
+    "TaskState",
     "URLValidationResult",
+    "WorkflowGuidance",
+    "WorkflowGuidanceSystemVars",
+    "WorkflowGuidanceUserVars",
 ]
 
 # Import additional models from the original models.py file
 # Import them here to avoid circular imports
 try:
-    import sys
     import importlib.util
     import os
 
     # Get the path to models.py
     current_dir = os.path.dirname(__file__)
-    models_py_path = os.path.join(os.path.dirname(current_dir), 'models.py')
+    models_py_path = os.path.join(os.path.dirname(current_dir), "models.py")
 
     if os.path.exists(models_py_path):
         spec = importlib.util.spec_from_file_location("models_py", models_py_path)
-        models_py = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(models_py)
+        if spec is not None:
+            models_py = importlib.util.module_from_spec(spec)
+            if spec.loader is not None:
+                spec.loader.exec_module(models_py)  # type: ignore[union-attr]
 
         # Import the models we need
         ElicitationFallbackUserVars = models_py.ElicitationFallbackUserVars
@@ -95,8 +86,12 @@ try:
         # Import research-related models
         ResearchComplexityFactors = models_py.ResearchComplexityFactors
         ResearchRequirementsAnalysis = models_py.ResearchRequirementsAnalysis
-        ResearchRequirementsAnalysisSystemVars = models_py.ResearchRequirementsAnalysisSystemVars
-        ResearchRequirementsAnalysisUserVars = models_py.ResearchRequirementsAnalysisUserVars
+        ResearchRequirementsAnalysisSystemVars = (
+            models_py.ResearchRequirementsAnalysisSystemVars
+        )
+        ResearchRequirementsAnalysisUserVars = (
+            models_py.ResearchRequirementsAnalysisUserVars
+        )
         URLValidationResult = models_py.URLValidationResult
 
 except Exception:
@@ -151,7 +146,9 @@ except Exception:
         expected_url_count: int = Field(default=3)
         minimum_url_count: int = Field(default=2)
         reasoning: str = Field(default="Fallback analysis")
-        complexity_factors: ResearchComplexityFactors = Field(default_factory=ResearchComplexityFactors)
+        complexity_factors: ResearchComplexityFactors = Field(
+            default_factory=ResearchComplexityFactors
+        )
         quality_requirements: list[str] = Field(default_factory=list)
 
     class ResearchRequirementsAnalysisSystemVars(BaseModel):

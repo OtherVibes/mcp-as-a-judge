@@ -121,17 +121,17 @@ If task has risk_assessment_required=true:
 **State-Based Decisions:**
 - If state is **CREATED** →
 {% if task_size in ['xs', 's'] %}
-  - For {{ task_size.upper() }} tasks: Set next_tool to null, provide guidance to implement directly (but explain full workflow)
+  - For {{ task_size.upper() }} tasks: Set next_tool to "judge_code_change" (skip planning, proceed to implementation then code review)
 {% else %}
   - For {{ task_size.upper() }} tasks: Next tool should be planning-related (judge_coding_plan)
 {% endif %}
-- If state is **PLANNING** → Next tool should validate the plan
-- If state is **PLAN_APPROVED** → Next tool should start implementation (code AND tests)
-- If state is **IMPLEMENTING** → Next tool should continue implementation until ALL code AND tests are complete and passing, then call judge_code_change
-  - **CRITICAL**: If tests are failing, next_tool should be null with guidance to fix test failures
+- If state is **PLANNING** → Next tool should validate the plan (judge_coding_plan)
+- If state is **PLAN_APPROVED** → Next tool should be "judge_code_change" (implement code AND tests, then review)
+- If state is **IMPLEMENTING** → Next tool should be "judge_code_change" when ALL code AND tests are complete and passing
+  - **CRITICAL**: If tests are failing, next_tool should be "judge_testing_implementation" with guidance to fix test failures first
   - **ONLY** call judge_code_change when all_tests_passing is true
-- If state is **REVIEW_READY** → Next tool should validate implementation code (judge_code_change for code review only)
-- If state is **TESTING** → Next tool should validate test results (judge_testing_implementation for test validation, then judge_coding_task_completion)
+- If state is **REVIEW_READY** → Next tool should be "judge_code_change" (validate implementation code)
+- If state is **TESTING** → Next tool should be "judge_testing_implementation" for test validation, then "judge_coding_task_completion"
 - If state is **COMPLETED** → Workflow is finished (next_tool: null)
 
 ### CRITICAL RULE: judge_code_change Usage
@@ -144,7 +144,7 @@ If task has risk_assessment_required=true:
 - **MANDATORY**: all_tests_passing must be true in test coverage summary
 
 **If tests are failing:**
-- Set next_tool to null
+- Set next_tool to "judge_testing_implementation"
 - Provide guidance to fix test failures first
 - Do NOT proceed to code review until all tests pass
 
@@ -178,8 +178,8 @@ You MUST respond with ONLY a valid JSON object that exactly matches the Workflow
 
 {% if current_state == "created" and task_size in ['xs', 's'] %}
 **Current Scenario: {{ task_size.upper() }} Task - Skip Planning**
-- **next_tool**: null (proceed to implementation)
-- **reasoning**: "Task size is {{ task_size.upper() }} - planning phase can be skipped for simple fixes and minor features. Proceed directly to implementation, but still follow code review → testing → completion workflow."
+- **next_tool**: "judge_code_change" (proceed to implementation then code review)
+- **reasoning**: "Task size is {{ task_size.upper() }} - planning phase can be skipped for simple fixes and minor features. Implement the changes directly, then proceed to code review."
 - **preparation_needed**: Focus on minimal preparation for direct implementation
 - **guidance**: Emphasize direct implementation BUT explain that code review, testing, and completion are still required
 
@@ -192,7 +192,7 @@ You MUST respond with ONLY a valid JSON object that exactly matches the Workflow
 
 {% elif current_state == "implementing" %}
 **Current Scenario: Implementation Phase**
-- **next_tool**: null (continue implementation) OR "judge_code_change" (if implementation complete)
+- **next_tool**: "judge_code_change" (when implementation complete) OR "judge_testing_implementation" (if tests failing)
 - **reasoning**: Based on whether implementation is complete and tests are passing
 - **preparation_needed**: Focus on completing implementation and ensuring tests pass
 - **guidance**: Continue implementation or proceed to code review if ready
@@ -206,7 +206,7 @@ You MUST respond with ONLY a valid JSON object that exactly matches the Workflow
 
 You must respond with a JSON object containing exactly these fields:
 
-- **next_tool**: String name of the next tool to call, or null if should proceed to implementation/completion
+- **next_tool**: String name of the next tool to call, or null ONLY if workflow is completely finished
 - **reasoning**: Clear explanation of why this tool should be used next
 - **preparation_needed**: Array of preparation steps needed before calling the tool
 - **guidance**: Detailed step-by-step instructions for the coding assistant

@@ -73,7 +73,7 @@ class MCPElicitationProvider(BaseElicitationProvider):
             if elicit_result.action == "accept" and elicit_result.data:
                 # Convert Pydantic model to dictionary
                 if hasattr(elicit_result.data, "model_dump"):
-                    data = elicit_result.data.model_dump()
+                    data = elicit_result.data.model_dump(exclude_none=True)
                 elif isinstance(elicit_result.data, dict):  # type: ignore[unreachable]
                     data = elicit_result.data  # type: ignore[unreachable]
                 else:
@@ -122,7 +122,8 @@ class FallbackElicitationProvider(BaseElicitationProvider):
 
         # Generate fallback message using prompt template
         fallback_message = prompt_loader.render_prompt(
-            "user/elicitation_fallback.md", **template_vars.model_dump()
+            "user/elicitation_fallback.md",
+            **template_vars.model_dump(exclude_none=True),
         )
 
         return ElicitationResult(success=False, message=fallback_message)

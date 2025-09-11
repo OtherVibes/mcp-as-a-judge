@@ -1,38 +1,46 @@
 """
 Central logging configuration for MCP as a Judge.
 
-This module provides centralized logging setup with colored output and
-consistent formatting across the entire application.
+This module provides centralized logging setup with MCP Context integration
+when available, falling back to standard logging otherwise.
 """
 
 import logging
 import sys
 from datetime import datetime
-from typing import Any, ClassVar
+from typing import Any
+
+# Import MCP SDK logging utilities for proper color support
+try:
+    from mcp.server.fastmcp.utilities.logging import (
+        configure_logging,
+    )
+    from mcp.server.fastmcp.utilities.logging import (
+        get_logger as mcp_get_logger,
+    )
+
+    MCP_SDK_AVAILABLE = True
+except ImportError:
+    configure_logging = None  # type: ignore[assignment]
+    mcp_get_logger = None  # type: ignore[assignment]
+    MCP_SDK_AVAILABLE = False
+
+# Global context reference for MCP integration
+_global_context_ref: Any | None = None
 
 
-class ColoredFormatter(logging.Formatter):
-    """Custom formatter that adds colors to log levels and formats messages."""
+def set_context_reference(ctx: Any) -> None:
+    """Set global context reference for MCP integration."""
+    global _global_context_ref
+    _global_context_ref = ctx
 
-    # ANSI color codes
-    COLORS: ClassVar[dict[str, str]] = {
-        "DEBUG": "\033[36m",  # Cyan
-        "INFO": "\033[32m",  # Green
-        "WARNING": "\033[33m",  # Yellow
-        "ERROR": "\033[31m",  # Red
-        "CRITICAL": "\033[35m",  # Magenta
-    }
-    RESET = "\033[0m"  # Reset color
+
+class CleanFormatter(logging.Formatter):
+    """Clean formatter without ANSI colors - uses MCP SDK logging for proper color support."""
 
     def format(self, record: logging.LogRecord) -> str:
-        """Format log record with colors and custom format."""
-        # Get color for log level
-        level_color = self.COLORS.get(record.levelname, "")
-
-        # Format: [level_with_color] [module:linenumber] [iso-date] [message]
-        colored_level = f"{level_color}{record.levelname}{self.RESET}"
-
-        # Get module name (remove package prefix for cleaner output)
+        """Format log record with clean output."""
+        # Get module name from the actual caller (remove package prefix for cleaner output)
         module_name = record.name
         if module_name.startswith("mcp_as_a_judge."):
             module_name = module_name[len("mcp_as_a_judge.") :]
@@ -40,8 +48,8 @@ class ColoredFormatter(logging.Formatter):
         # Format timestamp as ISO date
         timestamp = datetime.fromtimestamp(record.created).isoformat()
 
-        # Build the formatted message
-        formatted_message = f"[{colored_level}] [{module_name}:{record.lineno}] [{timestamp}] {record.getMessage()}"
+        # Clean format without ANSI codes - let MCP SDK handle colors
+        formatted_message = f"[{record.levelname}] [{module_name}:{record.lineno}] [{timestamp}] {record.getMessage()}"
 
         # Handle exceptions
         if record.exc_info:
@@ -50,32 +58,34 @@ class ColoredFormatter(logging.Formatter):
         return formatted_message
 
 
-def setup_logging(level: int = logging.INFO) -> None:
+def setup_logging(level: str = "INFO") -> None:
     """
-    Set up centralized logging configuration for the entire application.
+    Set up centralized logging configuration using MCP SDK.
 
     Args:
-        level: Logging level (default: INFO)
+        level: Logging level (default: "INFO")
     """
-    # Create custom formatter
-    formatter = ColoredFormatter()
+    if MCP_SDK_AVAILABLE and configure_logging is not None:
+        # Use MCP SDK configure_logging for proper color support
+        configure_logging(level)  # type: ignore[misc]
+    else:
+        # Fallback to standard logging setup
+        # Create custom formatter
+        formatter = CleanFormatter()
 
-    # Create handler for stderr (so it's visible in development tools like Cursor)
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(formatter)
+        # Create handler for stderr (so it's visible in development tools like Cursor)
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setFormatter(formatter)
 
-    # Configure root logger
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
+        # Configure root logger
+        root_logger = logging.getLogger()
+        root_logger.setLevel(getattr(logging, level.upper(), logging.INFO))
 
-    # Clear any existing handlers to avoid duplicates
-    root_logger.handlers.clear()
+        # Clear any existing handlers to avoid duplicates
+        root_logger.handlers.clear()
 
-    # Add our custom handler
-    root_logger.addHandler(handler)
-
-    # Configure specific loggers for our application
-    configure_application_loggers(level)
+        # Add our custom handler
+        root_logger.addHandler(handler)
 
 
 def configure_application_loggers(level: int = logging.INFO) -> None:
@@ -103,6 +113,87 @@ def configure_application_loggers(level: int = logging.INFO) -> None:
     for logger_name in app_loggers:
         logger = logging.getLogger(logger_name)
         logger.setLevel(level)
+
+
+class ContextAwareLogger:
+    """Logger that automatically uses MCP Context when available."""
+
+    def __init__(self, name: str):
+        """Initialize logger with a name."""
+        self.name = name
+        # Use MCP SDK logger for fallback (proper color support)
+        if MCP_SDK_AVAILABLE:
+            # Clean name for MCP SDK
+            clean_name = name
+            if name.startswith("mcp_as_a_judge."):
+                clean_name = name[len("mcp_as_a_judge.") :]
+            elif name == "__main__":
+                clean_name = "server"
+            self._fallback_logger = mcp_get_logger(clean_name)
+        else:
+            self._fallback_logger = logging.getLogger(name)
+
+    async def info(self, message: str) -> None:
+        """Log info message using Context if available, MCP SDK logging otherwise."""
+        global _global_context_ref
+        if _global_context_ref is not None:
+            await _global_context_ref.info(message)
+        else:
+            self._fallback_logger.info(message)
+
+    async def debug(self, message: str) -> None:
+        """Log debug message using Context if available, MCP SDK logging otherwise."""
+        global _global_context_ref
+        if _global_context_ref is not None:
+            await _global_context_ref.debug(message)
+        else:
+            self._fallback_logger.debug(message)
+
+    async def warning(self, message: str) -> None:
+        """Log warning message using Context if available, MCP SDK logging otherwise."""
+        global _global_context_ref
+        if _global_context_ref is not None:
+            await _global_context_ref.warning(message)
+        else:
+            self._fallback_logger.warning(message)
+
+    async def error(self, message: str) -> None:
+        """Log error message using Context if available, MCP SDK logging otherwise."""
+        global _global_context_ref
+        if _global_context_ref is not None:
+            await _global_context_ref.error(message)
+        else:
+            self._fallback_logger.error(message)
+
+    # Synchronous methods for backward compatibility
+    def info_sync(self, message: str) -> None:
+        """Synchronous info logging using MCP SDK."""
+        self._fallback_logger.info(message)
+
+    def debug_sync(self, message: str) -> None:
+        """Synchronous debug logging using MCP SDK."""
+        self._fallback_logger.debug(message)
+
+    def warning_sync(self, message: str) -> None:
+        """Synchronous warning logging using MCP SDK."""
+        self._fallback_logger.warning(message)
+
+    def error_sync(self, message: str) -> None:
+        """Synchronous error logging using MCP SDK."""
+        self._fallback_logger.error(message)
+
+
+def get_context_aware_logger(name: str) -> ContextAwareLogger:
+    """
+    Get a context-aware logger that automatically uses MCP Context when available.
+
+    Args:
+        name: Logger name (typically __name__ from the calling module)
+
+    Returns:
+        ContextAwareLogger instance
+    """
+    return ContextAwareLogger(name)
 
 
 def get_logger(name: str) -> logging.Logger:

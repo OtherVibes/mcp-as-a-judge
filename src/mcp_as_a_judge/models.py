@@ -129,12 +129,10 @@ class ResearchRequirementsAnalysis(BaseModel):
     expected_url_count: int = Field(
         description="Recommended number of research URLs for optimal coverage",
         ge=0,
-        le=10
+        le=10,
     )
     minimum_url_count: int = Field(
-        description="Minimum acceptable number of URLs for basic adequacy",
-        ge=0,
-        le=5
+        description="Minimum acceptable number of URLs for basic adequacy", ge=0, le=5
     )
     reasoning: str = Field(
         description="Detailed explanation of why these URL counts are appropriate"
@@ -144,7 +142,7 @@ class ResearchRequirementsAnalysis(BaseModel):
     )
     quality_requirements: list[str] = Field(
         default_factory=list,
-        description="Specific requirements for research source quality and types"
+        description="Specific requirements for research source quality and types",
     )
 
 
@@ -154,15 +152,9 @@ class URLValidationResult(BaseModel):
     adequate: bool = Field(
         description="Whether the provided URLs meet the dynamic requirements"
     )
-    provided_count: int = Field(
-        description="Number of URLs actually provided"
-    )
-    expected_count: int = Field(
-        description="Expected number of URLs based on analysis"
-    )
-    minimum_count: int = Field(
-        description="Minimum acceptable number of URLs"
-    )
+    provided_count: int = Field(description="Number of URLs actually provided")
+    expected_count: int = Field(description="Expected number of URLs based on analysis")
+    minimum_count: int = Field(description="Minimum acceptable number of URLs")
     feedback: str = Field(
         description="Detailed feedback about URL adequacy and suggestions"
     )
@@ -213,54 +205,44 @@ class JudgeCodingPlanUserVars(BaseModel):
 
     # Conditional research fields
     research_required: bool = Field(
-        default=False,
-        description="Whether external research is required for this task"
+        default=False, description="Whether external research is required for this task"
     )
     research_scope: str = Field(
-        default="none",
-        description="Scope of research required (none, light, deep)"
+        default="none", description="Scope of research required (none, light, deep)"
     )
     research_rationale: str = Field(
-        default="",
-        description="Explanation of why research is or isn't required"
+        default="", description="Explanation of why research is or isn't required"
     )
 
     # Conditional internal research fields
     internal_research_required: bool = Field(
-        default=False,
-        description="Whether internal codebase research is needed"
+        default=False, description="Whether internal codebase research is needed"
     )
     related_code_snippets: list[str] = Field(
-        default_factory=list,
-        description="Related code snippets from the codebase"
+        default_factory=list, description="Related code snippets from the codebase"
     )
 
     # Conditional risk assessment fields
     risk_assessment_required: bool = Field(
-        default=False,
-        description="Whether risk assessment is needed"
+        default=False, description="Whether risk assessment is needed"
     )
     identified_risks: list[str] = Field(
-        default_factory=list,
-        description="Areas that could be harmed by the changes"
+        default_factory=list, description="Areas that could be harmed by the changes"
     )
     risk_mitigation_strategies: list[str] = Field(
-        default_factory=list,
-        description="Strategies to mitigate identified risks"
+        default_factory=list, description="Strategies to mitigate identified risks"
     )
 
     # Dynamic URL requirements fields - NEW
     expected_url_count: int = Field(
         default=0,
-        description="LLM-determined expected number of research URLs for this task"
+        description="LLM-determined expected number of research URLs for this task",
     )
     minimum_url_count: int = Field(
-        default=0,
-        description="LLM-determined minimum acceptable URL count"
+        default=0, description="LLM-determined minimum acceptable URL count"
     )
     url_requirement_reasoning: str = Field(
-        default="",
-        description="LLM explanation of why specific URL count is needed"
+        default="", description="LLM explanation of why specific URL count is needed"
     )
 
 
@@ -338,7 +320,9 @@ class WorkflowGuidanceUserVars(BaseModel):
     tool_descriptions: str = Field(description="Available tool descriptions")
     conversation_context: str = Field(description="Conversation history context")
     operation_context: str = Field(description="Current operation context")
-    response_schema: str = Field(description="JSON schema for the expected response format")
+    response_schema: str = Field(
+        description="JSON schema for the expected response format"
+    )
 
 
 class ValidationErrorSystemVars(BaseModel):
@@ -408,9 +392,7 @@ class ResearchRequirementsAnalysisUserVars(BaseModel):
     research_rationale: str = Field(
         description="Rationale for why research is needed at current scope"
     )
-    context: str = Field(
-        description="Additional context about the task and project"
-    )
+    context: str = Field(description="Additional context about the task and project")
 
 
 class TestingEvaluationSystemVars(BaseModel):
@@ -432,28 +414,19 @@ class TestingEvaluationUserVars(BaseModel):
     )
     modified_files: list[str] = Field(
         default_factory=list,
-        description="List of implementation files that were modified"
+        description="List of implementation files that were modified",
     )
-    test_summary: str = Field(
-        description="Summary of the testing implementation"
-    )
+    test_summary: str = Field(description="Summary of the testing implementation")
     test_files: list[str] = Field(
-        default_factory=list,
-        description="List of test files that were created"
+        default_factory=list, description="List of test files that were created"
     )
-    test_execution_results: str = Field(
-        description="Results from running the tests"
-    )
-    test_coverage_report: str = Field(
-        description="Test coverage report data"
-    )
+    test_execution_results: str = Field(description="Results from running the tests")
+    test_coverage_report: str = Field(description="Test coverage report data")
     test_types_implemented: list[str] = Field(
         default_factory=list,
-        description="Types of tests implemented (unit, integration, e2e, etc.)"
+        description="Types of tests implemented (unit, integration, e2e, etc.)",
     )
-    testing_framework: str = Field(
-        description="Testing framework used"
-    )
+    testing_framework: str = Field(description="Testing framework used")
     performance_test_results: str = Field(
         description="Performance test results if applicable"
     )
@@ -462,5 +435,5 @@ class TestingEvaluationUserVars(BaseModel):
     )
     conversation_history: list = Field(
         default_factory=list,
-        description="Previous conversation history as JSON array with timestamps"
+        description="Previous conversation history as JSON array with timestamps",
     )

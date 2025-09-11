@@ -39,6 +39,7 @@ class ToolDescriptionProvider(ABC):
         """
         pass
 
+    @abstractmethod
     def clear_cache(self) -> None:
         """Clear any cached descriptions.
 

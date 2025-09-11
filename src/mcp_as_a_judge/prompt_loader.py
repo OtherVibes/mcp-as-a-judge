@@ -100,11 +100,13 @@ def create_separate_messages(
     """
     # Render system prompt with system variables
     system_content = prompt_loader.render_prompt(
-        system_template, **system_vars.model_dump()
+        system_template, **system_vars.model_dump(exclude_none=True)
     )
 
     # Render user prompt with user variables
-    user_content = prompt_loader.render_prompt(user_template, **user_vars.model_dump())
+    user_content = prompt_loader.render_prompt(
+        user_template, **user_vars.model_dump(exclude_none=True)
+    )
 
     return [
         # System instructions as assistant message

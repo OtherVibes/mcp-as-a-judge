@@ -33,16 +33,11 @@ class TestTaskSizeEnum:
         """Test that TaskMetadata requires task_size to be specified."""
         # Should fail without task_size
         with pytest.raises(ValidationError):
-            TaskMetadata(
-                title="Test Task",
-                description="Test description"
-            )
+            TaskMetadata(title="Test Task", description="Test description")
 
         # Should work with task_size
         task = TaskMetadata(
-            title="Test Task",
-            description="Test description",
-            task_size=TaskSize.M
+            title="Test Task", description="Test description", task_size=TaskSize.M
         )
         assert task.task_size == TaskSize.M
 
@@ -55,7 +50,7 @@ class TestTaskMetadataWithSizing:
         task = TaskMetadata(
             title="Fix typo",
             description="Fix typo in documentation",
-            task_size=TaskSize.XS
+            task_size=TaskSize.XS,
         )
         assert task.task_size == TaskSize.XS
         assert task.state == TaskState.CREATED
@@ -65,7 +60,7 @@ class TestTaskMetadataWithSizing:
         task = TaskMetadata(
             title="Redesign architecture",
             description="Complete system redesign",
-            task_size=TaskSize.XL
+            task_size=TaskSize.XL,
         )
         assert task.task_size == TaskSize.XL
         assert task.state == TaskState.CREATED
@@ -73,11 +68,9 @@ class TestTaskMetadataWithSizing:
     def test_task_metadata_serialization(self):
         """Test that TaskMetadata with task_size serializes correctly."""
         task = TaskMetadata(
-            title="Test Task",
-            description="Test description",
-            task_size=TaskSize.L
+            title="Test Task", description="Test description", task_size=TaskSize.L
         )
-        data = task.model_dump()
+        data = task.model_dump(exclude_none=True)
         assert data["task_size"] == "l"
 
     def test_task_metadata_deserialization(self):
@@ -85,7 +78,7 @@ class TestTaskMetadataWithSizing:
         data = {
             "title": "Test Task",
             "description": "Test description",
-            "task_size": "s"
+            "task_size": "s",
         }
         task = TaskMetadata(**data)
         assert task.task_size == TaskSize.S
@@ -99,7 +92,7 @@ class TestShouldSkipPlanning:
         task = TaskMetadata(
             title="Fix typo",
             description="Fix typo in documentation",
-            task_size=TaskSize.XS
+            task_size=TaskSize.XS,
         )
         assert should_skip_planning(task) is True
 
@@ -108,7 +101,7 @@ class TestShouldSkipPlanning:
         task = TaskMetadata(
             title="Minor refactor",
             description="Simple refactoring",
-            task_size=TaskSize.S
+            task_size=TaskSize.S,
         )
         assert should_skip_planning(task) is True
 
@@ -117,7 +110,7 @@ class TestShouldSkipPlanning:
         task = TaskMetadata(
             title="Standard feature",
             description="Implement standard feature",
-            task_size=TaskSize.M
+            task_size=TaskSize.M,
         )
         assert should_skip_planning(task) is False
 
@@ -126,7 +119,7 @@ class TestShouldSkipPlanning:
         task = TaskMetadata(
             title="Complex feature",
             description="Implement complex feature",
-            task_size=TaskSize.L
+            task_size=TaskSize.L,
         )
         assert should_skip_planning(task) is False
 
@@ -135,7 +128,7 @@ class TestShouldSkipPlanning:
         task = TaskMetadata(
             title="Architecture redesign",
             description="Complete system redesign",
-            task_size=TaskSize.XL
+            task_size=TaskSize.XL,
         )
         assert should_skip_planning(task) is False
 
@@ -155,7 +148,7 @@ class TestCreateNewCodingTaskWithSizing:
             user_requirements="Test requirements",
             tags=["test"],
             conversation_service=mock_conversation_service,
-            task_size=TaskSize.M
+            task_size=TaskSize.M,
         )
 
         assert task.task_size == TaskSize.M
@@ -173,7 +166,7 @@ class TestCreateNewCodingTaskWithSizing:
             user_requirements="Fix the typo",
             tags=["bugfix"],
             conversation_service=mock_conversation_service,
-            task_size=TaskSize.XS
+            task_size=TaskSize.XS,
         )
 
         assert task.task_size == TaskSize.XS
@@ -191,7 +184,7 @@ class TestCreateNewCodingTaskWithSizing:
             user_requirements="Redesign the entire system",
             tags=["architecture"],
             conversation_service=mock_conversation_service,
-            task_size=TaskSize.XL
+            task_size=TaskSize.XL,
         )
 
         assert task.task_size == TaskSize.XL
@@ -208,9 +201,7 @@ class TestWorkflowGuidanceWithSizing:
         # For now, we'll test that the task_size is properly passed to the user vars
 
         task = TaskMetadata(
-            title="Test Task",
-            description="Test description",
-            task_size=TaskSize.L
+            title="Test Task", description="Test description", task_size=TaskSize.L
         )
 
         # Test that task_size is accessible for workflow guidance
@@ -227,7 +218,7 @@ class TestWorkflowGuidanceWithSizing:
             title="Fix typo",
             description="Fix typo in README",
             task_size=TaskSize.S,
-            state=TaskState.CREATED
+            state=TaskState.CREATED,
         )
 
         # Mock conversation service
@@ -239,18 +230,27 @@ class TestWorkflowGuidanceWithSizing:
             task_metadata=task,
             current_operation="set_coding_task",
             conversation_service=mock_conversation_service,
-            ctx=None
+            ctx=None,
         )
 
         # Verify that planning is skipped but full workflow is explained
         assert guidance.next_tool is None
         assert "skip" in guidance.reasoning.lower()
-        assert "task size is s" in guidance.reasoning.lower() or "small" in guidance.reasoning.lower()
+        assert (
+            "task size is s" in guidance.reasoning.lower()
+            or "small" in guidance.reasoning.lower()
+        )
         assert "implement" in guidance.guidance.lower()
         # Verify that the guidance mentions the full workflow steps
         assert "judge_code_change" in guidance.guidance.lower()
-        assert "judge_testing_implementation" in guidance.guidance.lower() or "testing" in guidance.guidance.lower()
-        assert "judge_coding_task_completion" in guidance.guidance.lower() or "completion" in guidance.guidance.lower()
+        assert (
+            "judge_testing_implementation" in guidance.guidance.lower()
+            or "testing" in guidance.guidance.lower()
+        )
+        assert (
+            "judge_coding_task_completion" in guidance.guidance.lower()
+            or "completion" in guidance.guidance.lower()
+        )
 
     @pytest.mark.asyncio
     async def test_large_task_requires_planning(self):
@@ -262,7 +262,7 @@ class TestWorkflowGuidanceWithSizing:
             title="Implement authentication",
             description="Implement complete user authentication system",
             task_size=TaskSize.L,
-            state=TaskState.CREATED
+            state=TaskState.CREATED,
         )
 
         # Mock conversation service
@@ -276,12 +276,12 @@ class TestWorkflowGuidanceWithSizing:
                 task_metadata=task,
                 current_operation="set_coding_task",
                 conversation_service=mock_conversation_service,
-                ctx=None
+                ctx=None,
             )
             # If we get here without exception, the function works
             assert guidance is not None
-            assert hasattr(guidance, 'next_tool')
-            assert hasattr(guidance, 'reasoning')
+            assert hasattr(guidance, "next_tool")
+            assert hasattr(guidance, "reasoning")
         except Exception as e:
             # Expected to fail without proper LLM setup, but function should exist
             assert "calculate_next_stage" not in str(e)  # Function exists
@@ -296,16 +296,14 @@ class TestTaskSizeRequired:
         with pytest.raises(ValidationError):
             TaskMetadata(
                 title="Test Task",
-                description="Task without size"
+                description="Task without size",
                 # Missing task_size - should fail
             )
 
     def test_task_size_field_can_be_updated(self):
         """Test that task_size can be updated on existing tasks."""
         task = TaskMetadata(
-            title="Test Task",
-            description="Test description",
-            task_size=TaskSize.S
+            title="Test Task", description="Test description", task_size=TaskSize.S
         )
 
         # Update task_size

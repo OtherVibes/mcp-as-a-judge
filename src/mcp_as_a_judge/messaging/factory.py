@@ -9,12 +9,16 @@ The factory handles ALL message format decisions to ensure consistency.
 """
 
 from typing import Any
+
 from mcp.server.fastmcp import Context
 
+from mcp_as_a_judge.messaging.converters import (
+    mcp_messages_to_universal,
+    validate_message_conversion,
+)
 from mcp_as_a_judge.messaging.interface import MessagingConfig, MessagingProvider
 from mcp_as_a_judge.messaging.llm_api_provider import LLMAPIProvider
 from mcp_as_a_judge.messaging.mcp_sampling_provider import MCPSamplingProvider
-from mcp_as_a_judge.messaging.converters import mcp_messages_to_universal, validate_message_conversion
 
 
 class MessagingProviderFactory:
@@ -68,9 +72,7 @@ class MessagingProviderFactory:
 
     @staticmethod
     def get_provider_with_messages(
-        ctx: Context,
-        messages: list[Any],
-        config: MessagingConfig
+        ctx: Context, messages: list[Any], config: MessagingConfig
     ) -> tuple[MessagingProvider, list[Any]]:
         """
         Get the appropriate provider and convert messages to the correct format.

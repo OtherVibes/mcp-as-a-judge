@@ -78,6 +78,28 @@ class LocalStorageProvider(ToolDescriptionProvider):
         """
         self._description_cache.clear()
 
+    def get_available_tools(self) -> list[str]:
+        """Get list of available tool names.
+
+        Returns:
+            List of tool names that have descriptions available
+        """
+        try:
+            # List all .md files in the descriptions directory
+            tool_files = []
+            for file_path in self.descriptions_dir.glob("*.md"):
+                tool_name = file_path.stem  # Remove .md extension
+                tool_files.append(tool_name)
+            return sorted(tool_files)
+        except Exception:
+            # Return empty list if directory doesn't exist or can't be read
+            return []
+
+    @property
+    def provider_type(self) -> str:
+        """Get the provider type identifier."""
+        return "local_storage"
+
     def _load_description_file(self, tool_name: str) -> str:
         """Load description from markdown file.
 

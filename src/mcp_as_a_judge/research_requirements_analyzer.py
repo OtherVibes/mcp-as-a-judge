@@ -7,7 +7,6 @@ complexity, domain specialization, and implementation risk.
 """
 
 import json
-from typing import Optional
 
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.logging_config import get_logger
@@ -29,8 +28,8 @@ logger = get_logger(__name__)
 async def analyze_research_requirements(
     task_metadata: TaskMetadata,
     user_requirements: str,
-    ctx,  # MCP Context
-) -> ResearchRequirementsAnalysis:
+    ctx: Any,  # MCP Context
+) -> "ResearchRequirementsAnalysis":
     """
     Analyze a task to determine dynamic research URL requirements.
 
@@ -55,7 +54,7 @@ async def analyze_research_requirements(
         system_vars = ResearchRequirementsAnalysisSystemVars(
             response_schema=json.dumps(ResearchRequirementsAnalysis.model_json_schema())
         )
-        
+
         user_vars = ResearchRequirementsAnalysisUserVars(
             task_title=task_metadata.title,
             task_description=task_metadata.description,
@@ -74,10 +73,7 @@ async def analyze_research_requirements(
 
         # Get LLM analysis
         response_text = await llm_provider.send_message(
-            messages=messages,
-            ctx=ctx,
-            max_tokens=MAX_TOKENS,
-            prefer_sampling=True
+            messages=messages, ctx=ctx, max_tokens=MAX_TOKENS, prefer_sampling=True
         )
 
         # Parse and validate the response
@@ -97,37 +93,33 @@ async def analyze_research_requirements(
         return _get_fallback_analysis(task_metadata)
 
 
-def _get_fallback_analysis(task_metadata: TaskMetadata) -> ResearchRequirementsAnalysis:
+def _get_fallback_analysis(task_metadata: TaskMetadata) -> "ResearchRequirementsAnalysis":
     """
     Provide fallback analysis if LLM analysis fails.
-    
+
     Uses conservative defaults based on existing research scope.
     """
-    scope_to_urls = {
-        "none": (0, 0),
-        "light": (2, 1),
-        "deep": (4, 2)
-    }
-    
+    scope_to_urls = {"none": (0, 0), "light": (2, 1), "deep": (4, 2)}
+
     expected, minimum = scope_to_urls.get(task_metadata.research_scope.value, (3, 2))
-    
+
     return ResearchRequirementsAnalysis(
         expected_url_count=expected,
         minimum_url_count=minimum,
         reasoning=f"Fallback analysis based on research scope '{task_metadata.research_scope.value}'. "
-                 f"LLM analysis was unavailable, so using conservative defaults.",
+        f"LLM analysis was unavailable, so using conservative defaults.",
         complexity_factors=ResearchComplexityFactors(
             domain_specialization="general",
-            technology_maturity="established", 
+            technology_maturity="established",
             integration_scope="moderate",
             existing_solutions="limited",
-            risk_level="medium"
+            risk_level="medium",
         ),
         quality_requirements=[
             "Official documentation or authoritative sources",
             "Current repository analysis for existing patterns",
-            "Practical implementation examples"
-        ]
+            "Practical implementation examples",
+        ],
     )
 
 
@@ -136,8 +128,8 @@ async def validate_url_adequacy(
     expected_count: int,
     minimum_count: int,
     reasoning: str,
-    ctx,  # MCP Context
-) -> URLValidationResult:
+    ctx: Any,  # MCP Context
+) -> "URLValidationResult":
     """
     Validate that provided URLs meet the dynamic requirements.
 
@@ -152,15 +144,11 @@ async def validate_url_adequacy(
         URLValidationResult with validation outcome and feedback
     """
     provided_count = len(provided_urls)
-    
+
     logger.info(
         f"📊 Validating URL adequacy: Provided={provided_count}, "
         f"Expected={expected_count}, Minimum={minimum_count}"
     )
-
-    # Basic count validation
-    meets_minimum = provided_count >= minimum_count
-    meets_expected = provided_count >= expected_count
 
     # Generate contextual feedback
     if provided_count == 0:
@@ -192,13 +180,12 @@ async def validate_url_adequacy(
         expected_count=expected_count,
         minimum_count=minimum_count,
         feedback=feedback,
-        meets_quality_standards=meets_quality_standards
+        meets_quality_standards=meets_quality_standards,
     )
 
 
 def update_task_metadata_with_analysis(
-    task_metadata: TaskMetadata,
-    analysis: ResearchRequirementsAnalysis
+    task_metadata: TaskMetadata, analysis: "ResearchRequirementsAnalysis"
 ) -> None:
     """
     Update TaskMetadata with the results of research requirements analysis.
@@ -218,7 +205,7 @@ def update_task_metadata_with_analysis(
         "risk_level": analysis.complexity_factors.risk_level,
         "quality_requirements": analysis.quality_requirements,
     }
-    
+
     logger.info(
         f"📝 Updated task metadata with research analysis: "
         f"Expected={analysis.expected_url_count}, Minimum={analysis.minimum_url_count}"
