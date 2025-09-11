@@ -61,10 +61,8 @@ class ConversationHistoryService:
         logger.info(f"📚 Retrieved {len(recent_records)} conversation records from DB")
 
         # Apply LLM context filtering: ensure history + current prompt will fit within token limit
-        # This filters the list without modifying the database
-        filtered_records = filter_records_by_token_limit(
-            records=recent_records, max_records=self.config.database.max_session_records
-        )
+        # This filters the list without modifying the database (only token limit matters for LLM)
+        filtered_records = filter_records_by_token_limit(recent_records)
 
         logger.info(
             f"✅ Returning {len(filtered_records)} conversation records for LLM context"
