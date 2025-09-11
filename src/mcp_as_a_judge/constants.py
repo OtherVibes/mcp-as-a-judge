@@ -14,5 +14,5 @@ DEFAULT_TIMEOUT = 30  # Default timeout in seconds for operations
 # Database Configuration
 DATABASE_URL = "sqlite://:memory:"
 MAX_SESSION_RECORDS = 20  # Maximum records to keep per session (FIFO)
-MAX_TOTAL_SESSIONS = 2000  # Maximum total sessions to keep (LRU cleanup)
-RECORD_RETENTION_DAYS = 1  # Optional time-based cleanup (fallback)
+MAX_TOTAL_SESSIONS = 50  # Maximum total sessions to keep (LRU cleanup)
+RECORD_RETENTION_DAYS = 10  # Optional time-based cleanup (fallback)
