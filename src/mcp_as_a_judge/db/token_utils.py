@@ -7,6 +7,10 @@ with fallback to character-based approximation.
 """
 
 from mcp_as_a_judge.db.dynamic_token_limits import get_llm_input_limit
+from mcp_as_a_judge.logging_config import get_logger
+
+# Set up logger
+logger = get_logger(__name__)
 
 # Global cache for model name detection
 _cached_model_name: str | None = None
@@ -34,9 +38,12 @@ async def detect_model_name(ctx=None) -> str | None:
         client = llm_manager.get_client()
         if client and hasattr(client, "config") and client.config.model_name:
             return client.config.model_name
-    except Exception:
-        # LLM client not available or configuration error
-        pass
+    except ImportError:
+        logger.debug("LLM client module not available")
+    except AttributeError as e:
+        logger.debug(f"LLM client configuration incomplete: {e}")
+    except Exception as e:
+        logger.debug(f"Failed to get model name from LLM client: {e}")
 
     # Try MCP sampling if context available
     if ctx:
@@ -57,9 +64,12 @@ async def detect_model_name(ctx=None) -> str | None:
             if hasattr(result, "model") and result.model:
                 return result.model
 
-        except Exception:
-            # MCP sampling failed or not available
-            pass
+        except ImportError:
+            logger.debug("MCP types not available for sampling")
+        except AttributeError as e:
+            logger.debug(f"MCP sampling response missing expected attributes: {e}")
+        except Exception as e:
+            logger.debug(f"MCP sampling failed: {e}")
 
     return None
 
@@ -121,9 +131,14 @@ async def calculate_tokens_in_string(
             token_count = litellm.token_counter(model=model_name, text=text)
             return token_count
 
-        except Exception:
-            # Fall back to approximation if LiteLLM fails
-            pass
+        except ImportError:
+            logger.debug(
+                "LiteLLM not available for token counting, using approximation"
+            )
+        except Exception as e:
+            logger.debug(
+                f"LiteLLM token counting failed for model {model_name}: {e}, using approximation"
+            )
 
     # Fallback to character-based approximation
     return (len(text) + 3) // 4

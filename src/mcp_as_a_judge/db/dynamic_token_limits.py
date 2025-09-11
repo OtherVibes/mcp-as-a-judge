@@ -9,6 +9,10 @@ with model-specific limits from LiteLLM.
 from dataclasses import dataclass
 
 from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS, MAX_RESPONSE_TOKENS
+from mcp_as_a_judge.logging_config import get_logger
+
+# Set up logger
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -67,11 +71,15 @@ def get_model_limits(model_name: str | None = None) -> ModelLimits:
 
         # Cache and return what we have
         _model_limits_cache[model_name] = limits
+        logger.debug(
+            f"Retrieved model limits from LiteLLM for {model_name}: {limits.max_input_tokens} input tokens"
+        )
 
-    except Exception:
-        # LiteLLM not available or model info retrieval failed
+    except ImportError:
+        logger.debug("LiteLLM not available, using hardcoded defaults")
+    except Exception as e:
+        logger.debug(f"Failed to get model info from LiteLLM for {model_name}: {e}")
         # Continue with hardcoded defaults
-        pass
 
     return limits
 
