@@ -5,7 +5,6 @@ Tests the complete flow of conversation records through the system.
 """
 
 import asyncio
-
 import pytest
 
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
