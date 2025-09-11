@@ -57,14 +57,29 @@ def get_model_limits(model_name: str | None = None) -> ModelLimits:
 
         model_info = litellm.get_model_info(model_name)
 
+        # Extract values with proper fallbacks
+        context_window = model_info.get("max_tokens")
+        if context_window is not None:
+            context_window = int(context_window)
+        else:
+            context_window = limits.context_window
+
+        max_input_tokens = model_info.get("max_input_tokens")
+        if max_input_tokens is not None:
+            max_input_tokens = int(max_input_tokens)
+        else:
+            max_input_tokens = limits.max_input_tokens
+
+        max_output_tokens = model_info.get("max_output_tokens")
+        if max_output_tokens is not None:
+            max_output_tokens = int(max_output_tokens)
+        else:
+            max_output_tokens = limits.max_output_tokens
+
         limits = ModelLimits(
-            context_window=model_info.get("max_tokens", limits.context_window),
-            max_input_tokens=model_info.get(
-                "max_input_tokens", limits.max_input_tokens
-            ),
-            max_output_tokens=model_info.get(
-                "max_output_tokens", limits.max_output_tokens
-            ),
+            context_window=context_window,
+            max_input_tokens=max_input_tokens,
+            max_output_tokens=max_output_tokens,
             model_name=model_name,
             source="litellm",
         )
