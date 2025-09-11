@@ -11,7 +11,7 @@ import time
 from pydantic import ValidationError
 
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
-from mcp_as_a_judge.logging_config import get_logger
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
 
 # Set up logger using custom get_logger function
@@ -43,7 +43,7 @@ async def create_new_coding_task(
         New TaskMetadata instance
     """
 
-    logger.info(f"📝 Creating new coding task: {task_title}")
+    logger.info(f"Creating new coding task: {task_title}")
 
     # Create new TaskMetadata with auto-generated UUID
     task_metadata = TaskMetadata(
@@ -59,7 +59,7 @@ async def create_new_coding_task(
     if user_requirements:
         task_metadata.update_requirements(user_requirements, source="initial")
 
-    logger.info(f"✅ Created new task metadata: {task_metadata.task_id}")
+    logger.info(f"Created new task metadata: {task_metadata.task_id}")
     return task_metadata
 
 
@@ -92,7 +92,7 @@ async def update_existing_coding_task(
     Raises:
         ValueError: If task not found or invalid state transition
     """
-    logger.info(f"📝 Updating existing coding task: {task_id}")
+    logger.info(f"Updating existing coding task: {task_id}")
 
     # Load existing task metadata from conversation history
     existing_metadata = await load_task_metadata_from_history(
@@ -118,7 +118,7 @@ async def update_existing_coding_task(
         validate_state_transition(existing_metadata.state, state)
         existing_metadata.update_state(state)
 
-    logger.info(f"✅ Updated task metadata: {task_id}")
+    logger.info(f"Updated task metadata: {task_id}")
     return existing_metadata
 
 
@@ -158,7 +158,7 @@ async def load_task_metadata_from_history(
         return None
 
     except Exception as e:
-        logger.warning(f"⚠️ Failed to load task metadata from history: {e}")
+        logger.warning(f"Failed to load task metadata from history: {e}")
         return None
 
 
@@ -193,11 +193,11 @@ async def save_task_metadata_to_history(
         )
 
         logger.info(
-            f"💾 Saved task metadata to conversation history: {task_metadata.task_id}"
+            f"Saved task metadata to conversation history: {task_metadata.task_id}"
         )
 
     except Exception as e:
-        logger.error(f"❌ Failed to save task metadata to history: {e}")
+        logger.error(f"Failed to save task metadata to history: {e}")
         # Don't raise - this is not critical for tool operation
 
 

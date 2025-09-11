@@ -98,15 +98,15 @@ def configure_application_loggers(level: int = logging.INFO) -> None:
     # List of application-specific loggers to configure
     app_loggers = [
         "mcp_as_a_judge.server",
-        "mcp_as_a_judge.server_helpers",
+        "mcp_as_a_judge.core.server_helpers",
         "mcp_as_a_judge.db.conversation_history_service",
         "mcp_as_a_judge.db.providers.in_memory",
         "mcp_as_a_judge.db.providers.sqlite_provider",
         "mcp_as_a_judge.messaging",
-        "mcp_as_a_judge.llm_client",
+        "mcp_as_a_judge.llm",
         "mcp_as_a_judge.config",
         "mcp_as_a_judge.workflow.workflow_guidance",
-        "mcp_as_a_judge.coding_task_manager",
+        "mcp_as_a_judge.tasks.manager",
     ]
 
     # Set level for each application logger
@@ -221,10 +221,10 @@ def log_startup_message(config: Any) -> None:
     """
     logger = get_logger("mcp_as_a_judge.server")
     logger.info(
-        "🚀 MCP Judge server starting with conversation history logging enabled"
+        "MCP Judge server starting with conversation history logging enabled"
     )
     logger.info(
-        f"📊 Configuration: max_session_records={config.database.max_session_records}"
+        f"Configuration: max_session_records={config.database.max_session_records}"
     )
 
 
@@ -257,17 +257,9 @@ def log_tool_execution(
     """
     logger = get_logger("mcp_as_a_judge.server")
 
-    # Map tool names to emojis for better visibility
-    tool_emojis = {
-        "build_workflow": "🔧",
-        "judge_coding_plan": "⚖️",
-        "judge_code_change": "🔍",
-        "raise_obstacle": "🚧",
-        "raise_missing_requirements": "❓",
-    }
-
-    emoji = tool_emojis.get(tool_name, "🛠️")
-    logger.info(f"{emoji} {tool_name} called for session {_truncate_text(session_id)}")
+    logger.info(
+        f"{tool_name} called for session {_truncate_text(session_id)}"
+    )
 
     if additional_info:
         # Truncate additional info to prevent overly long log lines
@@ -290,6 +282,6 @@ def log_error(error: Exception, context: str = "") -> None:
 
     if context:
         truncated_context = _truncate_text(context, 100)
-        logger.error(f"❌ Error in {truncated_context}: {error_msg}")
+        logger.error(f"Error in {truncated_context}: {error_msg}")
     else:
-        logger.error(f"❌ Error: {error_msg}")
+        logger.error(f"Error: {error_msg}")

@@ -13,7 +13,7 @@ import time
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
-from mcp_as_a_judge.coding_task_manager import (
+from mcp_as_a_judge.tasks.manager import (
     create_new_coding_task,
     save_task_metadata_to_history,
     update_existing_coding_task,
@@ -22,7 +22,7 @@ from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.elicitation_provider import elicitation_provider
-from mcp_as_a_judge.logging_config import (
+from mcp_as_a_judge.core.logging_config import (
     get_context_aware_logger,
     get_logger,
     log_startup_message,
@@ -52,8 +52,8 @@ from mcp_as_a_judge.models.task_metadata import (
     TaskSize,
     TaskState,
 )
-from mcp_as_a_judge.prompt_loader import create_separate_messages
-from mcp_as_a_judge.server_helpers import (
+from mcp_as_a_judge.prompting.loader import create_separate_messages
+from mcp_as_a_judge.core.server_helpers import (
     extract_json_from_response,
     generate_dynamic_elicitation_model,
     generate_validation_error_message,
@@ -96,7 +96,7 @@ async def set_coding_task(
 
     # Log tool execution start using context-aware logger
     await context_logger.info(
-        f"🔧 set_coding_task called for task: {task_id_for_logging}"
+        f"set_coding_task called for task: {task_id_for_logging}"
     )
 
     original_input = {
@@ -176,7 +176,7 @@ async def set_coding_task(
             task_metadata.updated_at = int(time.time())
 
             logger.info(
-                f"🔬 Applied LLM-determined research requirements: required={task_metadata.research_required}, scope={task_metadata.research_scope}, rationale='{task_metadata.research_rationale}'"
+                f"Applied LLM-determined research requirements: required={task_metadata.research_required}, scope={task_metadata.research_scope}, rationale='{task_metadata.research_rationale}'"
             )
 
         # Save task metadata to conversation history using task_id as primary key
@@ -265,7 +265,7 @@ async def raise_obstacle(
 
     try:
         # Load task metadata to get current context
-        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         task_metadata = await load_task_metadata_from_history(
             task_id=task_id,
@@ -455,7 +455,7 @@ async def raise_missing_requirements(
 
     try:
         # Load task metadata to get current context
-        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         task_metadata = await load_task_metadata_from_history(
             task_id=task_id,
@@ -629,10 +629,10 @@ async def judge_coding_task_completion(
 
     try:
         # Load task metadata to get current context
-        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         logger.info(
-            f"🔍 judge_coding_task_completion: Loading task metadata for task_id: {task_id}"
+            f"judge_coding_task_completion: Loading task metadata for task_id: {task_id}"
         )
 
         task_metadata = await load_task_metadata_from_history(
@@ -641,23 +641,23 @@ async def judge_coding_task_completion(
         )
 
         logger.info(
-            f"🔍 judge_coding_task_completion: Task metadata loaded: {task_metadata is not None}"
+            f"judge_coding_task_completion: Task metadata loaded: {task_metadata is not None}"
         )
         if task_metadata:
             logger.info(
-                f"🔍 judge_coding_task_completion: Task state: {task_metadata.state}, title: {task_metadata.title}"
+                f"judge_coding_task_completion: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
             conversation_history = await conversation_service.load_filtered_context_for_enrichment(
                 task_id, "", ctx
             )
             logger.info(
-                f"🔍 judge_coding_task_completion: Conversation history entries: {len(conversation_history)}"
+                f"judge_coding_task_completion: Conversation history entries: {len(conversation_history)}"
             )
             for entry in conversation_history[-5:]:
-                logger.info(
-                    f"🔍 judge_coding_task_completion: History entry: {entry.source} at {entry.timestamp}"
-                )
+                    logger.info(
+                        f"judge_coding_task_completion: History entry: {entry.source} at {entry.timestamp}"
+                    )
 
         if not task_metadata:
             # Create a minimal task metadata for debugging
@@ -1031,10 +1031,10 @@ async def judge_coding_plan(
 
     try:
         # Load task metadata to get current context and user requirements
-        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         logger.info(
-            f"🔍 judge_coding_plan: Loading task metadata for task_id: {task_id or 'test_task'}"
+            f"judge_coding_plan: Loading task metadata for task_id: {task_id or 'test_task'}"
         )
 
         task_metadata = await load_task_metadata_from_history(
@@ -1043,22 +1043,22 @@ async def judge_coding_plan(
         )
 
         logger.info(
-            f"🔍 judge_coding_plan: Task metadata loaded: {task_metadata is not None}"
+            f"judge_coding_plan: Task metadata loaded: {task_metadata is not None}"
         )
         if task_metadata:
             logger.info(
-                f"🔍 judge_coding_plan: Task state: {task_metadata.state}, title: {task_metadata.title}"
+                f"judge_coding_plan: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
             conversation_history = await conversation_service.load_filtered_context_for_enrichment(
                 task_id or "test_task", "", ctx
             )
             logger.info(
-                f"🔍 judge_coding_plan: Conversation history entries: {len(conversation_history)}"
+                f"judge_coding_plan: Conversation history entries: {len(conversation_history)}"
             )
             for entry in conversation_history[-5:]:
                 logger.info(
-                    f"🔍 judge_coding_plan: History entry: {entry.source} at {entry.timestamp}"
+                    f"judge_coding_plan: History entry: {entry.source} at {entry.timestamp}"
                 )
 
         if not task_metadata:
@@ -1090,7 +1090,7 @@ async def judge_coding_plan(
         # DYNAMIC RESEARCH VALIDATION - Only validate if research is actually required
         if task_metadata.research_required:
             # Import dynamic research analysis functions
-            from mcp_as_a_judge.research_requirements_analyzer import (
+            from mcp_as_a_judge.tasks.research import (
                 analyze_research_requirements,
                 update_task_metadata_with_analysis,
                 validate_url_adequacy,
@@ -1099,7 +1099,7 @@ async def judge_coding_plan(
             # Step 1: Perform research requirements analysis if not already done
             if task_metadata.expected_url_count is None:
                 logger.info(
-                    f"🔍 Performing dynamic research requirements analysis for task {task_id or 'test_task'}"
+                    f"Performing dynamic research requirements analysis for task {task_id or 'test_task'}"
                 )
                 try:
                     requirements_analysis = await analyze_research_requirements(
@@ -1112,7 +1112,7 @@ async def judge_coding_plan(
                         task_metadata, requirements_analysis
                     )
                     logger.info(
-                        f"✅ Research analysis complete: Expected={task_metadata.expected_url_count}, Minimum={task_metadata.minimum_url_count}"
+                        f"Research analysis complete: Expected={task_metadata.expected_url_count}, Minimum={task_metadata.minimum_url_count}"
                     )
 
                     # Save the analysis results to task history
@@ -1376,10 +1376,10 @@ async def judge_code_change(
 
     try:
         # Load task metadata to get current context and user requirements
-        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         logger.info(
-            f"🔍 judge_code_change: Loading task metadata for task_id: {task_id or 'test_task'}"
+            f"judge_code_change: Loading task metadata for task_id: {task_id or 'test_task'}"
         )
 
         task_metadata = await load_task_metadata_from_history(
@@ -1388,22 +1388,22 @@ async def judge_code_change(
         )
 
         logger.info(
-            f"🔍 judge_code_change: Task metadata loaded: {task_metadata is not None}"
+            f"judge_code_change: Task metadata loaded: {task_metadata is not None}"
         )
         if task_metadata:
             logger.info(
-                f"🔍 judge_code_change: Task state: {task_metadata.state}, title: {task_metadata.title}"
+                f"judge_code_change: Task state: {task_metadata.state}, title: {task_metadata.title}"
             )
         else:
             conversation_history = await conversation_service.load_filtered_context_for_enrichment(
                 task_id or "test_task", "", ctx
             )
             logger.info(
-                f"🔍 judge_code_change: Conversation history entries: {len(conversation_history)}"
+                f"judge_code_change: Conversation history entries: {len(conversation_history)}"
             )
             for entry in conversation_history[-5:]:
                 logger.info(
-                    f"🔍 judge_code_change: History entry: {entry.source} at {entry.timestamp}"
+                    f"judge_code_change: History entry: {entry.source} at {entry.timestamp}"
                 )
 
         if not task_metadata:
@@ -1494,7 +1494,7 @@ async def judge_code_change(
                     file_path
                 )  # Mark code as approved for completion validation
                 logger.info(
-                    f"📁 Added file to task tracking and marked as approved: {file_path}"
+                    f"Added file to task tracking and marked as approved: {file_path}"
                 )
 
                 # Update state to TESTING when code is approved
@@ -1627,10 +1627,10 @@ async def judge_testing_implementation(
 
     try:
         # Load task metadata to get current context
-        from mcp_as_a_judge.coding_task_manager import load_task_metadata_from_history
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         logger.info(
-            f"🔍 judge_testing_implementation: Loading task metadata for task_id: {task_id}"
+            f"judge_testing_implementation: Loading task metadata for task_id: {task_id}"
         )
 
         task_metadata = await load_task_metadata_from_history(
@@ -1639,11 +1639,11 @@ async def judge_testing_implementation(
         )
 
         logger.info(
-            f"🔍 judge_testing_implementation: Task metadata loaded: {task_metadata is not None}"
+            f"judge_testing_implementation: Task metadata loaded: {task_metadata is not None}"
         )
         if task_metadata:
             logger.info(
-                f"🔍 judge_testing_implementation: Task state: {task_metadata.state}, test files: {len(task_metadata.test_files)}"
+                f"judge_testing_implementation: Task state: {task_metadata.state}, test files: {len(task_metadata.test_files)}"
             )
 
         if not task_metadata:
@@ -1720,7 +1720,7 @@ async def judge_testing_implementation(
             JudgeCodingPlanUserVars,
             SystemVars,
         )
-        from mcp_as_a_judge.prompt_loader import create_separate_messages
+        from mcp_as_a_judge.prompting.loader import create_separate_messages
 
         # Create system and user variables for testing evaluation
         system_vars = SystemVars(

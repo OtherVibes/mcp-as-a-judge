@@ -13,7 +13,7 @@ from mcp.server.fastmcp import Context
 from pydantic import BaseModel
 
 from mcp_as_a_judge.models import ElicitationFallbackUserVars
-from mcp_as_a_judge.prompt_loader import prompt_loader
+from mcp_as_a_judge.prompting.loader import prompt_loader
 
 
 class ElicitationResult:

@@ -11,7 +11,7 @@ from typing import Any
 import litellm
 
 from mcp_as_a_judge.constants import DEFAULT_REASONING_EFFORT
-from mcp_as_a_judge.llm_integration import LLMConfig, LLMVendor
+from mcp_as_a_judge.llm.llm_integration import LLMConfig, LLMVendor
 
 # Set global drop_params to handle model-specific parameter restrictions
 # This is especially important for GPT-5 models which don't support temperature at all

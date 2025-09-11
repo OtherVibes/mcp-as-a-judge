@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from mcp_as_a_judge.constants import MAX_TOKENS
-from mcp_as_a_judge.logging_config import get_logger
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import (
     ResearchComplexityFactors,
@@ -20,8 +20,8 @@ from mcp_as_a_judge.models import (
     URLValidationResult,
 )
 from mcp_as_a_judge.models.task_metadata import TaskMetadata
-from mcp_as_a_judge.prompt_loader import create_separate_messages
-from mcp_as_a_judge.server_helpers import extract_json_from_response
+from mcp_as_a_judge.prompting.loader import create_separate_messages
+from mcp_as_a_judge.core.server_helpers import extract_json_from_response
 
 logger = get_logger(__name__)
 
@@ -48,7 +48,7 @@ async def analyze_research_requirements(
     Raises:
         ValueError: If LLM analysis fails or returns invalid response
     """
-    logger.info(f"🔍 Analyzing research requirements for task: {task_metadata.title}")
+    logger.info(f"Analyzing research requirements for task: {task_metadata.title}")
 
     try:
         # Create system and user messages from templates
@@ -85,14 +85,14 @@ async def analyze_research_requirements(
         analysis = ResearchRequirementsAnalysis.model_validate_json(json_content)
 
         logger.info(
-            f"✅ Research analysis complete: Expected URLs={analysis.expected_url_count}, "
+            f"Research analysis complete: Expected URLs={analysis.expected_url_count}, "
             f"Minimum URLs={analysis.minimum_url_count}"
         )
 
         return analysis
 
     except Exception as e:
-        logger.error(f"❌ Failed to analyze research requirements: {e}")
+        logger.error(f"Failed to analyze research requirements: {e}")
         # Return conservative default analysis
         return _get_fallback_analysis(task_metadata)
 
@@ -152,7 +152,7 @@ async def validate_url_adequacy(
     provided_count = len(provided_urls)
 
     logger.info(
-        f"📊 Validating URL adequacy: Provided={provided_count}, "
+        f"Validating URL adequacy: Provided={provided_count}, "
         f"Expected={expected_count}, Minimum={minimum_count}"
     )
 
@@ -213,6 +213,6 @@ def update_task_metadata_with_analysis(
     }
 
     logger.info(
-        f"📝 Updated task metadata with research analysis: "
+        f"Updated task metadata with research analysis: "
         f"Expected={analysis.expected_url_count}, Minimum={analysis.minimum_url_count}"
     )

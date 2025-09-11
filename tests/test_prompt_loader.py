@@ -8,7 +8,7 @@ from mcp_as_a_judge.models import (
     JudgeCodingPlanUserVars,
     SystemVars,
 )
-from mcp_as_a_judge.prompt_loader import (
+from mcp_as_a_judge.prompting.loader import (
     PromptLoader,
     create_separate_messages,
     prompt_loader,

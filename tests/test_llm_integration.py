@@ -8,8 +8,8 @@ and fallback functionality when MCP sampling is not available.
 import os
 from unittest.mock import MagicMock, patch
 
-from mcp_as_a_judge.llm_client import LLMClient, LLMClientManager
-from mcp_as_a_judge.llm_integration import (
+from mcp_as_a_judge.llm.llm_client import LLMClient, LLMClientManager
+from mcp_as_a_judge.llm.llm_integration import (
     LLMConfig,
     LLMVendor,
     create_llm_config,
@@ -315,7 +315,7 @@ class TestLLMClientManager:
             api_key="sk-test123",  # gitleaks:allow vendor=LLMVendor.OPENAI, model_name="gpt-4o"
         )
 
-        with patch("mcp_as_a_judge.llm_client.LLMClient") as mock_client_class:
+        with patch("mcp_as_a_judge.llm.llm_client.LLMClient") as mock_client_class:
             manager.configure(config)
             assert manager._config == config
             mock_client_class.assert_called_once_with(config)
@@ -327,7 +327,7 @@ class TestLLMClientManager:
             api_key="sk-test123",  # gitleaks:allow vendor=LLMVendor.OPENAI, model_name="gpt-4o"
         )
 
-        with patch("mcp_as_a_judge.llm_client.LLMClient") as mock_client_class:
+        with patch("mcp_as_a_judge.llm.llm_client.LLMClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 

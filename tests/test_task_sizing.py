@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 from pydantic import ValidationError
 
-from mcp_as_a_judge.coding_task_manager import create_new_coding_task
+from mcp_as_a_judge.tasks.manager import create_new_coding_task
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
 from mcp_as_a_judge.workflow.workflow_guidance import (
     calculate_next_stage,

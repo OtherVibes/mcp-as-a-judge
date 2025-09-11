@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
-from mcp_as_a_judge.logging_config import get_logger
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import SystemVars
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
@@ -144,7 +144,7 @@ async def calculate_next_stage(
     Raises:
         Exception: If LLM fails to generate valid navigation
     """
-    logger.info(f"🧠 Calculating next stage for task {task_metadata.task_id}")
+    logger.info(f"Calculating next stage for task {task_metadata.task_id}")
 
     try:
         # Check for deterministic task size routing for CREATED state
@@ -152,7 +152,7 @@ async def calculate_next_stage(
             task_metadata
         ):
             logger.info(
-                f"🚀 Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation"
+                f"Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation"
             )
             # XS/S tasks skip planning but still need implementation → code review → testing → completion
             # Return judge_code_change as next tool - user implements first, then calls it when ready
@@ -261,14 +261,14 @@ async def calculate_next_stage(
 
         # Use existing llm_provider to get LLM guidance
         logger.info(
-            f"📤 Sending navigation request to LLM for task {task_metadata.task_id}"
+            f"Sending navigation request to LLM for task {task_metadata.task_id}"
         )
 
         # Use the same messaging pattern as other tools
         from mcp.types import SamplingMessage
 
         # Load task size definitions from shared file
-        from mcp_as_a_judge.prompt_loader import create_separate_messages, prompt_loader
+        from mcp_as_a_judge.prompting.loader import create_separate_messages, prompt_loader
 
         task_size_definitions = prompt_loader.render_prompt(
             "shared/task_size_definitions.md"
@@ -313,18 +313,18 @@ async def calculate_next_stage(
         )
 
         # Parse the JSON response using the existing DRY method
-        from mcp_as_a_judge.server_helpers import extract_json_from_response
+        from mcp_as_a_judge.core.server_helpers import extract_json_from_response
 
         try:
-            logger.info(f"🔍 Raw LLM response length: {len(response)}")
-            logger.info(f"🔍 Raw LLM response preview: {response[:300]}...")
+            logger.info(f"Raw LLM response length: {len(response)}")
+            logger.info(f"Raw LLM response preview: {response[:300]}...")
 
             json_content = extract_json_from_response(response)
-            logger.info(f"🔍 Extracted JSON content length: {len(json_content)}")
-            logger.info(f"🔍 Extracted JSON preview: {json_content[:200]}...")
+            logger.info(f"Extracted JSON content length: {len(json_content)}")
+            logger.info(f"Extracted JSON preview: {json_content[:200]}...")
 
             navigation_data = json.loads(json_content)
-            logger.info(f"🔍 Parsed JSON keys: {list(navigation_data.keys())}")
+            logger.info(f"Parsed JSON keys: {list(navigation_data.keys())}")
 
         except (ValueError, json.JSONDecodeError) as e:
             logger.error(f"❌ Failed to parse LLM response: {e}")
@@ -361,7 +361,7 @@ async def calculate_next_stage(
         )
 
         logger.info(
-            f"✅ Calculated next stage: next_tool={workflow_guidance.next_tool}, "
+            f"Calculated next stage: next_tool={workflow_guidance.next_tool}, "
             f"instructions_length={len(workflow_guidance.instructions)}"
         )
 
@@ -369,28 +369,28 @@ async def calculate_next_stage(
 
     except Exception as e:
         logger.error(
-            f"❌ Failed to calculate next stage for task {task_metadata.task_id}: {e}"
+            f"Failed to calculate next stage for task {task_metadata.task_id}: {e}"
         )
 
         # Debug: Log the actual response if available
         if "response" in locals():
-            logger.error(f"🔍 Full LLM response length: {len(response)}")
-            logger.error(f"🔍 Full LLM response: {response}")
+            logger.error(f"Full LLM response length: {len(response)}")
+            logger.error(f"Full LLM response: {response}")
 
             # Check if response is truncated (doesn't end with proper JSON closing)
             if not response.strip().endswith("}"):
                 logger.error(
-                    "⚠️ Response appears to be truncated - doesn't end with '}'"
+                    "Response appears to be truncated - doesn't end with '}'"
                 )
 
             # Try to see if we can extract partial JSON
             try:
-                from mcp_as_a_judge.server_helpers import extract_json_from_response
+                from mcp_as_a_judge.core.server_helpers import extract_json_from_response
 
                 json_content = extract_json_from_response(response)
-                logger.error(f"🔍 Extracted JSON: {json_content}")
+                logger.error(f"Extracted JSON: {json_content}")
             except Exception as extract_error:
-                logger.error(f"🔍 JSON extraction also failed: {extract_error}")
+                logger.error(f"JSON extraction also failed: {extract_error}")
 
         # Return fallback navigation with appropriate next tool based on state
         fallback_next_tool = "judge_coding_plan"  # Default fallback
@@ -472,7 +472,7 @@ async def _get_tool_descriptions() -> str:
         return "\n".join(formatted_descriptions)
 
     except Exception as e:
-        logger.warning(f"⚠️ Failed to get tool descriptions programmatically: {e}")
+        logger.warning(f"Failed to get tool descriptions programmatically: {e}")
         # Fallback to static descriptions
         return """
 - **set_coding_task**: Create or update task metadata (entry point for all coding work)

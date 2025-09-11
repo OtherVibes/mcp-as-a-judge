@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mcp_as_a_judge.llm_integration import LLMConfig, LLMVendor
+from mcp_as_a_judge.llm.llm_integration import LLMConfig, LLMVendor
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 
 

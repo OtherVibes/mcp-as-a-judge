@@ -18,7 +18,7 @@ from mcp_as_a_judge.db.db_config import Config
 from mcp_as_a_judge.db.token_utils import (
     filter_records_by_token_limit,
 )
-from mcp_as_a_judge.logging_config import get_logger
+from mcp_as_a_judge.core.logging_config import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
@@ -58,13 +58,13 @@ class ConversationHistoryService:
         Returns:
             List of conversation records for LLM context (filtered for LLM limits)
         """
-        logger.info(f"🔍 Loading conversation history for session: {session_id}")
+        logger.info(f"Loading conversation history for session: {session_id}")
 
         # Load all conversations for this session - database already contains
         # records within storage limits, but we may need to filter further for LLM context
         recent_records = await self.db.get_session_conversations(session_id)
 
-        logger.info(f"📚 Retrieved {len(recent_records)} conversation records from DB")
+        logger.info(f"Retrieved {len(recent_records)} conversation records from DB")
 
         # Apply LLM context filtering: ensure history + current prompt will fit within token limit
         # This filters the list without modifying the database (only token limit matters for LLM)
@@ -74,7 +74,7 @@ class ConversationHistoryService:
         )
 
         logger.info(
-            f"✅ Returning {len(filtered_records)} conversation records for LLM context"
+            f"Returning {len(filtered_records)} conversation records for LLM context"
         )
         return filtered_records
 
@@ -99,7 +99,7 @@ class ConversationHistoryService:
             ID of the created conversation record
         """
         logger.info(
-            f"💾 Saving tool interaction to SQLite DB for session: {session_id}, tool: {tool_name}"
+            f"Saving tool interaction to SQLite DB for session: {session_id}, tool: {tool_name}"
         )
 
         record_id = await self.db.save_conversation(
@@ -109,9 +109,32 @@ class ConversationHistoryService:
             output=tool_output,
         )
 
-        logger.info(f"✅ Saved conversation record with ID: {record_id}")
+        logger.info(f"Saved conversation record with ID: {record_id}")
         return record_id
 
+    async def get_conversation_history(
+        self, session_id: str
+    ) -> list[ConversationRecord]:
+        """
+        Get conversation history for a session to be injected into user prompts.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            List of conversation records for the session (most recent first)
+        """
+        logger.info(f"Loading conversation history for session {session_id}")
+
+        context_records = await self.load_filtered_context_for_enrichment(
+            session_id
+        )
+
+        logger.info(
+            f"Retrieved {len(context_records)} conversation records for session {session_id}"
+        )
+
+        return context_records
     def format_conversation_history_as_json_array(
         self, conversation_history: list[ConversationRecord]
     ) -> list[dict]:
@@ -128,7 +151,7 @@ class ConversationHistoryService:
             return []
 
         logger.info(
-            f"📝 Formatting {len(conversation_history)} conversation records as JSON array"
+            f"Formatting {len(conversation_history)} conversation records as JSON array"
         )
 
         json_array = []
@@ -142,5 +165,5 @@ class ConversationHistoryService:
                 }
             )
 
-        logger.info(f"📝 Generated JSON array with {len(json_array)} records")
+        logger.info(f"Generated JSON array with {len(json_array)} records")
         return json_array

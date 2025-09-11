@@ -7,9 +7,13 @@ serialization, and API contracts.
 
 from pydantic import BaseModel, Field
 
+from typing import TYPE_CHECKING
+
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize
-from mcp_as_a_judge.workflow import WorkflowGuidance
+
+if TYPE_CHECKING:  # Avoid import cycle at runtime
+    from mcp_as_a_judge.workflow import WorkflowGuidance
 
 
 class JudgeResponse(BaseModel):
@@ -41,13 +45,19 @@ class JudgeResponse(BaseModel):
         ),
         description="Current state of task metadata after operation",
     )
-    workflow_guidance: WorkflowGuidance = Field(
-        default_factory=lambda: WorkflowGuidance(
+    # Use a lazy default factory to avoid importing workflow at module import time
+    def _default_workflow_guidance():  # type: ignore[no-redef]
+        from mcp_as_a_judge.workflow import WorkflowGuidance as _WG
+
+        return _WG(
             next_tool=None,
             reasoning="Default guidance: insufficient context",
             preparation_needed=[],
             guidance="Provide required parameters and context",
-        ),
+        )
+
+    workflow_guidance: "WorkflowGuidance" = Field(
+        default_factory=_default_workflow_guidance,
         description="LLM-generated next steps and instructions",
     )
 
@@ -158,19 +168,12 @@ class URLValidationResult(BaseModel):
     )
 
 
-# Database models for conversation history
-# ConversationRecord is now defined in db/interface.py using SQLModel
-# DatabaseConfig is now defined in constants.py
-
-
-# Type aliases for better code readability
+# Lightweight type aliases
 ToolResponse = JudgeResponse
 ElicitationResponse = str
 
 
-# Prompt variable models for type safety and validation
-
-
+# Prompt variable models
 class SystemVars(BaseModel):
     """Unified system variables for all system prompts.
 
@@ -187,11 +190,6 @@ class SystemVars(BaseModel):
     task_size_definitions: str = Field(
         default="", description="Task size classifications and workflow routing rules (optional)"
     )
-
-
-
-
-
 class JudgeCodingPlanUserVars(BaseModel):
     """Variables for judge_coding_plan user prompt."""
 

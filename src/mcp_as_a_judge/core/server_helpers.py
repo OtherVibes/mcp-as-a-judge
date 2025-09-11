@@ -11,11 +11,11 @@ from mcp.server.fastmcp import Context
 from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.constants import MAX_TOKENS
-from mcp_as_a_judge.llm_client import llm_manager
-from mcp_as_a_judge.llm_integration import load_llm_config_from_env
-from mcp_as_a_judge.logging_config import get_logger
+from mcp_as_a_judge.llm.llm_client import llm_manager
+from mcp_as_a_judge.llm.llm_integration import load_llm_config_from_env
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
-from mcp_as_a_judge.prompt_loader import create_separate_messages
+from mcp_as_a_judge.prompting.loader import create_separate_messages
 
 
 def get_session_id(ctx: Context) -> str:
@@ -36,11 +36,11 @@ def initialize_llm_configuration() -> None:
         llm_manager.configure(llm_config)
         vendor_name = llm_config.vendor.value if llm_config.vendor else "unknown"
         logger.info(
-            f"🔧 LLM fallback configured: {vendor_name} with model {llm_config.model_name}"
+            f"LLM fallback configured: {vendor_name} with model {llm_config.model_name}"
         )
     else:
         logger.info(
-            "🔧 No LLM API key found in environment. MCP sampling will be required."
+            "No LLM API key found in environment. MCP sampling will be required."
         )
 
 
