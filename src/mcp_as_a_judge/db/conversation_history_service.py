@@ -14,6 +14,7 @@ from mcp_as_a_judge.db import (
 )
 from mcp_as_a_judge.db.db_config import Config
 from mcp_as_a_judge.logging_config import get_logger
+from mcp_as_a_judge.utils.token_utils import filter_records_by_token_limit
 
 # Set up logger
 logger = get_logger(__name__)
@@ -41,22 +42,34 @@ class ConversationHistoryService:
         """
         Load recent conversation records for LLM context enrichment.
 
+        Two-level filtering approach:
+        1. Database already enforces storage limits (record count + token limits)
+        2. Load-time filtering ensures history + current fits within LLM context limits
+
         Args:
             session_id: Session identifier
 
         Returns:
-            List of conversation records for LLM context
+            List of conversation records for LLM context (filtered for LLM limits)
         """
         logger.info(f"🔍 Loading conversation history for session: {session_id}")
 
-        # Load recent conversations for this session
-        recent_records = await self.db.get_session_conversations(
-            session_id=session_id,
-            limit=self.config.database.max_session_records,  # load last X records (same as save limit)
-        )
+        # Load all conversations for this session - database already contains
+        # records within storage limits, but we may need to filter further for LLM context
+        recent_records = await self.db.get_session_conversations(session_id)
 
         logger.info(f"📚 Retrieved {len(recent_records)} conversation records from DB")
-        return recent_records
+
+        # Apply LLM context filtering: ensure history + current prompt will fit within token limit
+        # This filters the list without modifying the database
+        filtered_records = filter_records_by_token_limit(
+            records=recent_records, max_records=self.config.database.max_session_records
+        )
+
+        logger.info(
+            f"✅ Returning {len(filtered_records)} conversation records for LLM context"
+        )
+        return filtered_records
 
     async def save_tool_interaction(
         self, session_id: str, tool_name: str, tool_input: str, tool_output: str
