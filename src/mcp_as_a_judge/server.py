@@ -12,7 +12,7 @@ import json
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
-from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
+from mcp_as_a_judge.constants import MAX_RESPONSE_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.elicitation_provider import elicitation_provider
@@ -120,7 +120,7 @@ async def build_workflow(
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=MAX_CONTEXT_TOKENS,
+            max_tokens=MAX_RESPONSE_TOKENS,
             prefer_sampling=True,
         )
 
@@ -494,7 +494,7 @@ async def _evaluate_coding_plan(
     response_text = await llm_provider.send_message(
         messages=messages,
         ctx=ctx,
-        max_tokens=MAX_CONTEXT_TOKENS,
+        max_tokens=MAX_RESPONSE_TOKENS,
         prefer_sampling=True,
     )
 
@@ -686,7 +686,7 @@ async def judge_code_change(
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=MAX_CONTEXT_TOKENS,
+            max_tokens=MAX_RESPONSE_TOKENS,
             prefer_sampling=True,
         )
 
