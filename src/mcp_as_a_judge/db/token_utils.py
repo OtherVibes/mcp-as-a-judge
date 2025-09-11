@@ -7,8 +7,6 @@ using the approximation that 1 token ≈ 4 characters of English text.
 
 from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
 
-from mcp_as_a_judge.db.interface import ConversationRecord
-
 
 def calculate_tokens(text: str) -> int:
     """
@@ -60,9 +58,7 @@ def calculate_total_tokens(records: list) -> int:
     return sum(record.tokens for record in records if hasattr(record, "tokens"))
 
 
-def filter_records_by_token_limit(
-    records: list, current_prompt: str = ""
-) -> list:
+def filter_records_by_token_limit(records: list, current_prompt: str = "") -> list:
     """
     Filter conversation records to stay within token and record limits.
 
@@ -81,7 +77,9 @@ def filter_records_by_token_limit(
         return []
 
     # Calculate current prompt tokens
-    current_prompt_tokens = calculate_record_tokens(current_prompt, "") if current_prompt else 0
+    current_prompt_tokens = (
+        calculate_record_tokens(current_prompt, "") if current_prompt else 0
+    )
 
     # Calculate total tokens including current prompt
     history_tokens = calculate_total_tokens(records)
@@ -96,7 +94,9 @@ def filter_records_by_token_limit(
     filtered_records = records.copy()
     current_history_tokens = history_tokens
 
-    while (current_history_tokens + current_prompt_tokens) > MAX_CONTEXT_TOKENS and len(filtered_records) > 1:
+    while (current_history_tokens + current_prompt_tokens) > MAX_CONTEXT_TOKENS and len(
+        filtered_records
+    ) > 1:
         # Remove the oldest record (last in the list)
         removed_record = filtered_records.pop()
         current_history_tokens -= getattr(removed_record, "tokens", 0)

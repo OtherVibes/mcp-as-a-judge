@@ -12,7 +12,7 @@ from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
-from mcp_as_a_judge.utils.token_utils import (
+from mcp_as_a_judge.db.token_utils import (
     calculate_record_tokens,
     calculate_tokens,
     filter_records_by_token_limit,
@@ -109,7 +109,7 @@ class TestTokenBasedHistory:
 
         # Create 25 small records (each ~2 tokens, total ~50 tokens)
         for i in range(25):
-            await service.save_tool_interaction(
+            await service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name=f"tool_{i}",
                 tool_input=f"Input {i}",  # ~8 chars = 2 tokens
@@ -143,7 +143,7 @@ class TestTokenBasedHistory:
         large_text = "A" * 10000  # 10000 chars = 2500 tokens each
 
         for i in range(25):  # 25 * 5000 = 125K tokens total
-            await service.save_tool_interaction(
+            await service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name=f"large_tool_{i}",
                 tool_input=large_text,  # 2500 tokens
@@ -178,53 +178,56 @@ class TestTokenBasedHistory:
         print("\n🔍 TESTING FILTER_RECORDS_BY_TOKEN_LIMIT FUNCTION")
         print("=" * 50)
 
-        # Create mock records with known token counts
+        # Create mock records with known token counts that will exceed MAX_CONTEXT_TOKENS (50,000)
         class MockRecord:
             def __init__(self, tokens, name):
                 self.tokens = tokens
                 self.name = name
 
         records = [
-            MockRecord(1000, "newest"),  # Most recent
-            MockRecord(2000, "recent"),
-            MockRecord(3000, "older"),
-            MockRecord(4000, "oldest"),  # Oldest
+            MockRecord(10000, "newest"),  # Most recent
+            MockRecord(15000, "recent"),
+            MockRecord(20000, "older"),
+            MockRecord(25000, "oldest"),  # Oldest - total = 70,000 tokens
         ]
 
-        # Test with token limit that allows all records
-        filtered = filter_records_by_token_limit(records, max_tokens=15000)
-        assert len(filtered) == 4
-        print("✅ All records fit within high token limit")
-
-        # Test with token limit that requires filtering
-        filtered = filter_records_by_token_limit(records, max_tokens=6000)
-        assert len(filtered) == 3  # Should remove oldest (4000 tokens)
-        assert filtered[-1].name == "older"  # Oldest remaining should be "older"
-        print("✅ Oldest record removed when token limit exceeded")
-
-        # Test with very low token limit
-        filtered = filter_records_by_token_limit(records, max_tokens=2500)
-        assert len(filtered) == 1  # Should keep only newest (1000 tokens)
-        assert filtered[0].name == "newest"
-        print("✅ Multiple old records removed for very low token limit")
-
-        # Test with limit that allows exactly 2 records
-        filtered = filter_records_by_token_limit(records, max_tokens=3000)
-        assert (
-            len(filtered) == 2
-        )  # Should keep newest (1000) + recent (2000) = 3000 tokens
+        # Test with no current prompt - should filter to fit within 50,000 tokens
+        filtered = filter_records_by_token_limit(records)
+        # Should keep newest (10,000) + recent (15,000) + older (20,000) = 45,000 tokens (within 50,000 limit)
+        assert len(filtered) == 3
         assert filtered[0].name == "newest"
         assert filtered[1].name == "recent"
-        print("✅ Exactly 2 records kept within 3000 token limit")
+        assert filtered[2].name == "older"
+        print("✅ Records filtered to fit within MAX_CONTEXT_TOKENS")
 
-        # Test with record limit as well
+        # Test with current prompt that pushes over the limit
         filtered = filter_records_by_token_limit(
-            records, max_tokens=15000, max_records=2
-        )
-        assert len(filtered) == 2  # Limited by record count
+            records, current_prompt="A" * 80000
+        )  # 20,000 tokens
+        # Total would be 45,000 (first 3 records) + 20,000 = 65,000, so should filter to 2 records
+        # newest (10,000) + recent (15,000) + prompt (20,000) = 45,000 tokens
+        assert len(filtered) == 2
         assert filtered[0].name == "newest"
         assert filtered[1].name == "recent"
-        print("✅ Record limit applied when token limit is not reached")
+        print("✅ Records filtered with current prompt consideration")
+
+        # Test with smaller records that all fit
+        small_records = [
+            MockRecord(5000, "small1"),
+            MockRecord(5000, "small2"),
+            MockRecord(5000, "small3"),
+        ]
+        filtered = filter_records_by_token_limit(small_records)
+        assert len(filtered) == 3  # All should fit within 50,000 limit
+        print("✅ All small records kept within limit")
+
+        # Test with no current prompt (should return all records if within limit)
+        filtered = filter_records_by_token_limit(small_records)
+        assert len(filtered) == 3  # All should fit within 50,000 token limit
+        assert filtered[0].name == "small1"
+        assert filtered[1].name == "small2"
+        assert filtered[2].name == "small3"
+        print("✅ All small records returned when within token limit")
 
     @pytest.mark.asyncio
     async def test_mixed_record_sizes(self):
@@ -246,7 +249,7 @@ class TestTokenBasedHistory:
         ]
 
         for source, input_data, output, _expected_tokens in records_data:
-            await service.save_tool_interaction(
+            await service.save_tool_interaction_and_cleanup(
                 session_id=session_id,
                 tool_name=source,
                 tool_input=input_data,
@@ -275,7 +278,7 @@ class TestTokenBasedHistory:
         print("=" * 50)
 
         # Test empty records list
-        filtered = filter_records_by_token_limit([], max_tokens=1000)
+        filtered = filter_records_by_token_limit([], current_prompt="test")
         assert len(filtered) == 0
         print("✅ Empty records list handled")
 
@@ -285,13 +288,17 @@ class TestTokenBasedHistory:
                 self.tokens = tokens
 
         single_record = [MockRecord(500)]
-        filtered = filter_records_by_token_limit(single_record, max_tokens=1000)
+        filtered = filter_records_by_token_limit(
+            single_record, current_prompt="A" * 4000
+        )  # 1000 tokens
         assert len(filtered) == 1
         print("✅ Single record within limit handled")
 
         # Test single record exceeding limit (should still return 1 record)
         large_record = [MockRecord(2000)]
-        filtered = filter_records_by_token_limit(large_record, max_tokens=1000)
+        filtered = filter_records_by_token_limit(
+            large_record, current_prompt="A" * 4000
+        )  # 1000 tokens
         assert len(filtered) == 1  # Always return at least 1 record
         print("✅ Single large record handled (minimum 1 record returned)")
 

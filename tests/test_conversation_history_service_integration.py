@@ -53,7 +53,9 @@ class TestConversationHistoryServiceIntegration:
         # PHASE 2: Retrieve conversation history
         print("\n📖 PHASE 2: Retrieving conversation history...")
 
-        conversation_history = await service.load_context_for_enrichment(session_id)
+        conversation_history = await service.load_filtered_context_for_enrichment(
+            session_id
+        )
         assert len(conversation_history) == 2, (
             f"Expected 2 records, got {len(conversation_history)}"
         )
@@ -101,7 +103,7 @@ class TestConversationHistoryServiceIntegration:
             )
 
         # Should only get max_session_records (20) records
-        limited_history = await service.load_context_for_enrichment(session_id)
+        limited_history = await service.load_filtered_context_for_enrichment(session_id)
         expected_count = service.config.database.max_session_records
         assert len(limited_history) == expected_count, (
             f"Expected {expected_count} records, got {len(limited_history)}"
@@ -151,7 +153,7 @@ class TestConversationHistoryServiceIntegration:
         )
 
         # Retrieve and verify
-        history = await service.load_context_for_enrichment(session_id)
+        history = await service.load_filtered_context_for_enrichment(session_id)
         assert len(history) == 3
 
         # Verify the conversation flow makes sense
@@ -168,7 +170,9 @@ class TestConversationHistoryServiceIntegration:
         print("=" * 60)
 
         # Test empty session
-        empty_history = await service.load_context_for_enrichment("nonexistent_session")
+        empty_history = await service.load_filtered_context_for_enrichment(
+            "nonexistent_session"
+        )
         assert len(empty_history) == 0
         print("✅ Empty session handled correctly")
 
@@ -180,14 +184,16 @@ class TestConversationHistoryServiceIntegration:
 
         # Test with special characters in data
         special_session = "special_chars_session"
-        await service.save_tool_interaction(
+        await service.save_tool_interaction_and_cleanup(
             session_id=special_session,
             tool_name="test_tool",
             tool_input="Input with 'quotes' and \"double quotes\" and \n newlines",
             tool_output="Result with émojis 🎉 and unicode ñ characters",
         )
 
-        special_history = await service.load_context_for_enrichment(special_session)
+        special_history = await service.load_filtered_context_for_enrichment(
+            special_session
+        )
         assert len(special_history) == 1
 
         special_json = service.format_conversation_history_as_json_array(
@@ -223,7 +229,7 @@ class TestConversationHistoryServiceIntegration:
 
         # Retrieve records
         start_time = datetime.now()
-        history = await service.load_context_for_enrichment(session_id)
+        history = await service.load_filtered_context_for_enrichment(session_id)
         retrieve_time = datetime.now() - start_time
 
         print(

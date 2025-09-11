@@ -9,13 +9,13 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import create_engine
-from sqlmodel import Session, SQLModel, asc, desc, select
+from sqlmodel import Session, SQLModel, desc, select
 
 from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.db.cleanup_service import ConversationCleanupService
 from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
-from mcp_as_a_judge.logging_config import get_logger
 from mcp_as_a_judge.db.token_utils import calculate_record_tokens
+from mcp_as_a_judge.logging_config import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
@@ -107,9 +107,11 @@ class SQLiteProvider(ConversationHistoryDB):
         """
         with Session(self.engine) as session:
             # Get current records ordered by timestamp DESC (newest first for token calculation)
-            count_stmt = select(ConversationRecord).where(
-                ConversationRecord.session_id == session_id
-            ).order_by(desc(ConversationRecord.timestamp))
+            count_stmt = (
+                select(ConversationRecord)
+                .where(ConversationRecord.session_id == session_id)
+                .order_by(desc(ConversationRecord.timestamp))
+            )
             current_records = session.exec(count_stmt).all()
             current_count = len(current_records)
 

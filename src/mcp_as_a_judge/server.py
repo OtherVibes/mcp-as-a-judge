@@ -12,6 +12,7 @@ import json
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
+from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.elicitation_provider import elicitation_provider
@@ -47,8 +48,6 @@ from mcp_as_a_judge.server_helpers import (
 from mcp_as_a_judge.tool_description_provider import (
     tool_description_provider,
 )
-
-from src.mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
 
 # Initialize centralized logging
 setup_logging()
@@ -90,9 +89,16 @@ async def build_workflow(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.load_filtered_context_for_enrichment(session_id, json.dumps(original_input))
-        history_json_array = conversation_service.format_conversation_history_as_json_array(conversation_history)
-        
+        conversation_history = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id, json.dumps(original_input)
+            )
+        )
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
+        )
 
         # STEP 2: Create system and user messages with separate context and conversation history
         system_vars = WorkflowGuidanceSystemVars(
@@ -135,7 +141,7 @@ async def build_workflow(
         log_error(e, "build_workflow")
         # Return a default workflow guidance in case of error
         return WorkflowGuidance(
-            next_tool="elicit_missing_requirements",
+            next_tool="raise_missing_requirements",
             reasoning="An error occurred during workflow generation. Please provide more details.",
             preparation_needed=[
                 "Review the error and provide more specific requirements"
@@ -558,9 +564,16 @@ async def judge_coding_plan(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.load_filtered_context_for_enrichment(session_id, json.dumps(original_input))
-        history_json_array = conversation_service.format_conversation_history_as_json_array(conversation_history)
-        
+        conversation_history = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id, json.dumps(original_input)
+            )
+        )
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
+        )
 
         # STEP 2: Use helper function for main evaluation with JSON array conversation history
         evaluation_result = await _evaluate_coding_plan(
@@ -639,8 +652,16 @@ async def judge_code_change(
 
     try:
         # STEP 1: Load conversation history and format as JSON array
-        conversation_history = await conversation_service.load_filtered_context_for_enrichment(session_id,json.dumps(original_input))
-        history_json_array = conversation_service.format_conversation_history_as_json_array(conversation_history)
+        conversation_history = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id, json.dumps(original_input)
+            )
+        )
+        history_json_array = (
+            conversation_service.format_conversation_history_as_json_array(
+                conversation_history
+            )
+        )
 
         # STEP 2: Create system and user messages with separate context and conversation history
         system_vars = JudgeCodeChangeSystemVars(
