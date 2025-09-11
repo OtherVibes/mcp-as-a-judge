@@ -37,16 +37,16 @@ def should_skip_planning(task_metadata: TaskMetadata) -> bool:
 
 class WorkflowGuidance(BaseModel):
     """
-    LLM-generated workflow guidance from shared calculate_next_stage method.
+    Canonical workflow guidance model used across the system.
 
-    This model is returned by all tools to provide consistent next steps
-    and instructions for the coding assistant.
-
-    Compatible with the original WorkflowGuidance model from models.py.
+    Returned by tools to provide consistent next steps and instructions for
+    the coding assistant. This is the single source of truth for the
+    WorkflowGuidance schema.
     """
 
     next_tool: str | None = Field(
-        description="Next tool to call, or None if workflow complete"
+        default=None,
+        description="Next tool to call, or None if workflow complete",
     )
     reasoning: str = Field(
         default="", description="Clear explanation of why this tool should be used next"
@@ -56,7 +56,8 @@ class WorkflowGuidance(BaseModel):
         description="List of things that need to be prepared before calling the recommended tool",
     )
     guidance: str = Field(
-        description="Detailed step-by-step guidance for the AI assistant"
+        default="",
+        description="Detailed step-by-step guidance for the AI assistant",
     )
 
     # Research requirement determination for new tasks (only populated when task is CREATED)
