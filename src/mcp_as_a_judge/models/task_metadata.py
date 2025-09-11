@@ -12,31 +12,54 @@ from pydantic import BaseModel, Field
 from enum import Enum
 
 
+class TaskSize(str, Enum):
+    """
+    Task size classification for workflow optimization.
+
+    Sizes are based on estimated complexity and time requirements:
+    - XS: Extra Small - Simple fixes, typos, minor config changes (< 30 minutes)
+    - S: Small - Minor features, simple refactoring (30 minutes - 2 hours)
+    - M: Medium - Standard features, moderate complexity (2-8 hours) - DEFAULT
+    - L: Large - Complex features, multiple components (1-3 days)
+    - XL: Extra Large - Major system changes, architectural updates (3+ days)
+
+    This classification determines workflow routing:
+    - XS/S: Skip planning phase, minimal validation
+    - M: Standard workflow (current behavior)
+    - L/XL: Enhanced validation, mandatory risk assessment
+    """
+    XS = "xs"  # Extra Small: Simple fixes, typos (< 30 min)
+    S = "s"    # Small: Minor features, simple refactoring (30 min - 2 hours)
+    M = "m"    # Medium: Standard features (2-8 hours) - DEFAULT
+    L = "l"    # Large: Complex features, multiple components (1-3 days)
+    XL = "xl"  # Extra Large: Major system changes (3+ days)
+
+
 class TaskState(str, Enum):
     """
     Coding task state enum with well-documented transitions.
     
     State Transitions:
-    - CREATED → PLANNING: Task created, ready for planning phase
+    - CREATED → PLANNING: Task created, ready for planning phase (XS/S may skip to IMPLEMENTING)
     - PLANNING → PLAN_APPROVED: Plan validated and approved
     - PLAN_APPROVED → IMPLEMENTING: Implementation phase started
     - IMPLEMENTING → IMPLEMENTING: Multiple code changes during implementation
-    - IMPLEMENTING → TESTING: Implementation complete, ready for testing
+    - IMPLEMENTING → REVIEW_READY: Implementation complete, ready for code review
+    - REVIEW_READY → TESTING: Code review approved, ready for testing validation
     - TESTING → TESTING: Multiple test iterations
-    - TESTING → REVIEW_READY: All tests passing, ready for final review
-    - REVIEW_READY → COMPLETED: Task completed successfully
+    - TESTING → COMPLETED: All tests validated; task completed successfully
     - Any state → BLOCKED: Task blocked by external dependencies
     - Any state → CANCELLED: Task cancelled
     - BLOCKED → Previous state: Unblocked, return to previous state
     
     Usage:
-    - CREATED: Default state for new tasks, needs planning
+    - CREATED: Default state for new tasks, needs planning (XS/S may proceed directly to IMPLEMENTING)
     - PLANNING: Planning phase in progress (set when planning starts)
     - PLAN_APPROVED: Plan validated and approved (set by judge_coding_plan)
     - IMPLEMENTING: Implementation phase in progress (set when coding starts)
-    - TESTING: Testing phase in progress (set when implementation complete)
-    - REVIEW_READY: All tests passing, ready for final review
-    - COMPLETED: Task completed successfully (set by judge_task_completion)
+    - REVIEW_READY: Implementation complete and ready for code review
+    - TESTING: Testing/validation phase after code review approval
+    - COMPLETED: Task completed successfully (set by judge_coding_task_completion)
     - BLOCKED: Task blocked by external dependencies (manual override)
     - CANCELLED: Task cancelled (manual override)
     """
@@ -107,7 +130,10 @@ class TaskMetadata(BaseModel):
         default=TaskState.CREATED,
         description="Current task state (updatable, follows TaskState transitions)"
     )
-    
+    task_size: TaskSize = Field(
+        description="Task size classification for workflow optimization (XS=simple fixes, S=minor features, M=standard, L=complex, XL=major changes)"
+    )
+
     # SYSTEM MANAGED FIELDS - Updated by system, not directly by user
     user_requirements_history: List[RequirementsVersion] = Field(
         default_factory=list,
@@ -156,6 +182,24 @@ class TaskMetadata(BaseModel):
         description="Explanation of why research was required and how the scope was determined"
     )
 
+    # DYNAMIC URL REQUIREMENTS - LLM-driven research URL count determination
+    expected_url_count: Optional[int] = Field(
+        default=None,
+        description="LLM-determined expected number of research URLs based on task complexity"
+    )
+    minimum_url_count: Optional[int] = Field(
+        default=None,
+        description="LLM-determined minimum acceptable URL count for adequate research"
+    )
+    url_requirement_reasoning: str = Field(
+        default="",
+        description="LLM-generated explanation of why specific URL count is needed for this task"
+    )
+    research_complexity_analysis: Optional[dict] = Field(
+        default=None,
+        description="Detailed complexity analysis factors from LLM (domain, tech maturity, integration scope, etc.)"
+    )
+
     # INTERNAL RESEARCH FIELDS - For code snippet analysis
     internal_research_required: Optional[bool] = Field(
         default=None,
@@ -178,6 +222,24 @@ class TaskMetadata(BaseModel):
     risk_mitigation_strategies: List[str] = Field(
         default_factory=list,
         description="Strategies to mitigate identified risks"
+    )
+
+    # APPROVAL TRACKING FIELDS - For validating completion requirements
+    plan_approved_at: Optional[int] = Field(
+        default=None,
+        description="Timestamp when plan was approved by judge_coding_plan (None=not approved)"
+    )
+    code_approved_files: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Dictionary mapping file paths to approval timestamps from judge_code_change"
+    )
+    testing_approved_at: Optional[int] = Field(
+        default=None,
+        description="Timestamp when testing was approved by judge_testing_implementation (None=not approved)"
+    )
+    all_approvals_validated: bool = Field(
+        default=False,
+        description="Whether all required approvals (plan, code, testing) have been validated"
     )
 
     def update_requirements(self, new_requirements: str, source: str = "update") -> None:
@@ -337,3 +399,95 @@ class TaskMetadata(BaseModel):
             "description": f"Unknown state: {self.state}",
             "next_action": "Review task state"
         })
+
+    # APPROVAL TRACKING METHODS
+    def mark_plan_approved(self) -> None:
+        """Mark the plan as approved by judge_coding_plan."""
+        self.plan_approved_at = int(time.time())
+        self.updated_at = int(time.time())
+        self._update_approval_validation()
+
+    def mark_code_approved(self, file_path: str) -> None:
+        """Mark a specific file's code as approved by judge_code_change."""
+        self.code_approved_files[file_path] = int(time.time())
+        self.updated_at = int(time.time())
+        self._update_approval_validation()
+
+    def mark_testing_approved(self) -> None:
+        """Mark the testing as approved by judge_testing_implementation."""
+        self.testing_approved_at = int(time.time())
+        self.updated_at = int(time.time())
+        self._update_approval_validation()
+
+    def get_approval_status(self) -> Dict[str, Any]:
+        """
+        Get comprehensive approval status for task completion validation.
+        
+        Returns:
+            Dictionary with approval status details
+        """
+        return {
+            "plan_approved": self.plan_approved_at is not None,
+            "plan_approved_at": self.plan_approved_at,
+            "code_files_approved": len(self.code_approved_files),
+            "code_approved_files": dict(self.code_approved_files),
+            "all_modified_files_approved": all(
+                file_path in self.code_approved_files 
+                for file_path in self.modified_files
+            ) if self.modified_files else True,
+            "testing_approved": self.testing_approved_at is not None,
+            "testing_approved_at": self.testing_approved_at,
+            "all_approvals_validated": self.all_approvals_validated,
+            "missing_approvals": self._get_missing_approvals(),
+        }
+
+    def _get_missing_approvals(self) -> List[str]:
+        """Get list of missing approvals."""
+        missing = []
+        
+        if self.plan_approved_at is None:
+            missing.append("plan approval (judge_coding_plan)")
+        
+        if self.modified_files:
+            unapproved_files = [
+                f for f in self.modified_files 
+                if f not in self.code_approved_files
+            ]
+            if unapproved_files:
+                missing.append(f"code approval for files: {', '.join(unapproved_files)}")
+        
+        if self.test_files and self.testing_approved_at is None:
+            missing.append("testing approval (judge_testing_implementation)")
+        
+        return missing
+
+    def _update_approval_validation(self) -> None:
+        """Update the all_approvals_validated flag based on current approvals."""
+        missing_approvals = self._get_missing_approvals()
+        self.all_approvals_validated = len(missing_approvals) == 0
+
+    def validate_completion_readiness(self) -> Dict[str, Any]:
+        """
+        Validate if task is ready for completion based on approvals.
+        
+        Returns:
+            Dictionary with validation results
+        """
+        approval_status = self.get_approval_status()
+        missing_approvals = approval_status["missing_approvals"]
+        
+        is_ready = (
+            approval_status["plan_approved"] and
+            approval_status["all_modified_files_approved"] and
+            (approval_status["testing_approved"] or len(self.test_files) == 0)
+        )
+        
+        return {
+            "ready_for_completion": is_ready,
+            "approval_status": approval_status,
+            "missing_approvals": missing_approvals,
+            "validation_message": (
+                "✅ All required approvals completed" if is_ready
+                else f"❌ Missing approvals: {', '.join(missing_approvals)}"
+            )
+        }

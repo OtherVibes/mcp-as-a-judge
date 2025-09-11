@@ -50,9 +50,15 @@ CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TES
 
 ## Decision Logic Framework
 
+### Task Size-Based Workflow Optimization
+
+{{ task_size_definitions }}
+
 ### State-Based Tool Selection
 
-- **CREATED** → Recommend planning tools (judge_coding_plan)
+- **CREATED** →
+  - For XS/S tasks: Skip planning, proceed to implementation (next_tool: null, but guidance must explain: implement → judge_code_change → judge_testing_implementation → judge_coding_task_completion)
+  - For M/L/XL tasks: Recommend planning tools (judge_coding_plan)
 - **PLANNING** → Validate plan or gather more requirements
 - **PLAN_APPROVED** → Start implementation (implement ALL code AND tests, ensure tests pass)
 - **IMPLEMENTING** → Continue implementation until ALL code AND tests are complete and passing, then call judge_code_change
@@ -60,6 +66,37 @@ CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TES
 - **TESTING** → Validate test results and coverage (judge_testing_implementation ONLY)
 - **COMPLETED** → Workflow finished (next_tool: null)
 - **BLOCKED** → Resolve obstacles (raise_obstacle)
+
+### CRITICAL: judge_coding_plan Preparation Requirements
+
+When recommending judge_coding_plan, the preparation_needed MUST include ALL elements that will be validated:
+
+**ALWAYS Required:**
+- Detailed implementation plan with code examples
+- System design with architecture and data flow
+- List of files to be modified or created
+
+**Conditionally Required (check task metadata):**
+- **If research_required = true**: Gather research URLs (minimum based on research_scope)
+  - Light scope: 2-3 authoritative URLs
+  - Deep scope: 5+ comprehensive research URLs
+- **If internal_research_required = true**: Identify related code snippets and existing patterns
+- **If risk_assessment_required = true**: Document potential risks and mitigation strategies
+
+**Preparation Template for judge_coding_plan:**
+```
+preparation_needed: [
+  "Create detailed implementation plan with specific code examples",
+  "Design system architecture and component interactions",
+  "List all files that will be modified or created",
+  // CONDITIONAL: Add if research_required = true
+  "Research best practices and gather [X] authoritative URLs for [domain/technology]",
+  // CONDITIONAL: Add if internal_research_required = true
+  "Analyze existing codebase patterns and identify related components",
+  // CONDITIONAL: Add if risk_assessment_required = true
+  "Assess potential risks and document mitigation strategies"
+]
+```
 
 ### CRITICAL: judge_code_change Usage Rules
 
@@ -125,7 +162,48 @@ You must respond with a JSON object containing exactly these fields:
 - **preparation_needed**: Array of preparation steps needed before calling the tool
 - **guidance**: Detailed step-by-step instructions for the coding assistant
 
+## Research Requirements Determination (for NEW CREATED tasks only)
+
+When analyzing a **NEW task in CREATED state**, you MUST also determine research requirements and include these additional fields:
+
+- **research_required**: Boolean - whether external research is needed for this task
+- **research_scope**: String - "none", "light", or "deep" based on task complexity
+- **research_rationale**: String - explanation of why research is needed and the scope chosen
+- **internal_research_required**: Boolean - whether codebase analysis is needed
+- **risk_assessment_required**: Boolean - whether risk assessment is needed
+
+### Research Requirement Guidelines
+
+**research_required: true, research_scope: "light"** for:
+- Simple integrations with existing patterns
+- Well-documented functionality with established approaches
+- Standard framework usage
+
+**research_required: true, research_scope: "deep"** for:
+- Complex system integrations
+- Security-critical implementations
+- Performance-sensitive components
+- Novel or cutting-edge features
+
+**research_required: false** for:
+- Simple bug fixes
+- Minor UI changes
+- Basic configuration updates
+
+**internal_research_required: true** for:
+- Tasks requiring understanding of existing codebase
+- Modifications to existing systems
+- Integration with current architecture
+
+**risk_assessment_required: true** for:
+- Database schema changes
+- API modifications
+- Authentication/authorization changes
+- Performance-critical components
+
 ## Response Schema
+
+You must respond with a JSON object that exactly matches this schema:
 
 {{ response_schema }}
 

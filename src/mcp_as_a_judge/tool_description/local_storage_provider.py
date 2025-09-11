@@ -72,7 +72,10 @@ class LocalStorageProvider(ToolDescriptionProvider):
         return description
 
     def clear_cache(self) -> None:
-        """Clear the description cache to force reload from files."""
+        """Clear the description cache.
+
+        Useful for testing or when description files are updated at runtime.
+        """
         self._description_cache.clear()
 
     def _load_description_file(self, tool_name: str) -> str:
@@ -98,12 +101,7 @@ class LocalStorageProvider(ToolDescriptionProvider):
                 f"Tool description file '{description_file}' not found in {self.descriptions_dir}"
             ) from e
 
-    def clear_cache(self) -> None:
-        """Clear the description cache.
-
-        Useful for testing or when description files are updated at runtime.
-        """
-        self._description_cache.clear()
+    # duplicate clear_cache removed
 
     def get_available_tools(self) -> list[str]:
         """Get list of available tool names based on description files.

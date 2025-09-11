@@ -10,11 +10,11 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from mcp_as_a_judge.models.task_metadata import TaskMetadata
-from mcp_as_a_judge.workflow import WorkflowGuidance
+from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize
+from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
 
 
-class JudgeResponseWithTask(BaseModel):
+class JudgeResponse(BaseModel):
     """
     Enhanced JudgeResponse that ALWAYS includes current task metadata and workflow guidance.
     
@@ -35,10 +35,22 @@ class JudgeResponseWithTask(BaseModel):
     
     # Enhanced workflow v3 fields
     current_task_metadata: TaskMetadata = Field(
-        description="ALWAYS current state of task metadata after operation"
+        default_factory=lambda: TaskMetadata(
+            title="Unknown Task",
+            description="No metadata provided",
+            user_requirements="",
+            task_size=TaskSize.M,
+        ),
+        description="ALWAYS current state of task metadata after operation",
     )
     workflow_guidance: WorkflowGuidance = Field(
-        description="LLM-generated next steps and instructions from shared method"
+        default_factory=lambda: WorkflowGuidance(
+            next_tool="raise_obstacle",
+            reasoning="Default guidance: insufficient context",
+            preparation_needed=[],
+            guidance="Provide required parameters and context",
+        ),
+        description="LLM-generated next steps and instructions from shared method",
     )
 
 
@@ -149,10 +161,8 @@ class MissingRequirementsResult(BaseModel):
         description="LLM-generated next steps and instructions for requirements clarification"
     )
 
-
-# Backward compatibility aliases for existing code
-# These can be removed once all tools are migrated to enhanced responses
-JudgeResponse = JudgeResponseWithTask  # Alias for backward compatibility
+# Backward compatibility alias
+JudgeResponseWithTask = JudgeResponse
 
 
 class EnhancedResponseFactory:
@@ -170,9 +180,9 @@ class EnhancedResponseFactory:
         current_task_metadata: TaskMetadata,
         workflow_guidance: WorkflowGuidance,
         required_improvements: Optional[List[str]] = None,
-    ) -> JudgeResponseWithTask:
+    ) -> JudgeResponse:
         """
-        Create a JudgeResponseWithTask with consistent structure.
+        Create a JudgeResponse with consistent structure.
         
         Args:
             approved: Whether the validation passed
@@ -182,9 +192,9 @@ class EnhancedResponseFactory:
             required_improvements: Optional list of required improvements
             
         Returns:
-            JudgeResponseWithTask instance
+            JudgeResponse instance
         """
-        return JudgeResponseWithTask(
+        return JudgeResponse(
             approved=approved,
             feedback=feedback,
             required_improvements=required_improvements or [],

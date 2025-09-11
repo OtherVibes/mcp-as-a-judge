@@ -15,11 +15,22 @@ from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.logging_config import get_logger
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
-from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskState
+from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
 
 # Set up logger using custom get_logger function
 logger = get_logger(__name__)
 
+def should_skip_planning(task_metadata: TaskMetadata) -> bool:
+    """
+    Determine if planning should be skipped based on task size.
+
+    Args:
+        task_metadata: Task metadata containing size information
+
+    Returns:
+        True if planning should be skipped (XS/S tasks), False otherwise
+    """
+    return task_metadata.task_size in [TaskSize.XS, TaskSize.S]
 
 
 
@@ -48,6 +59,28 @@ class WorkflowGuidance(BaseModel):
         description="Detailed step-by-step guidance for the AI assistant"
     )
 
+    # Research requirement determination for new tasks (only populated when task is CREATED)
+    research_required: bool | None = Field(
+        default=None,
+        description="Whether research is required for this task (only determined for new CREATED tasks)"
+    )
+    research_scope: str | None = Field(
+        default=None,
+        description="Research scope: 'none', 'light', or 'deep' (only determined for new CREATED tasks)"
+    )
+    research_rationale: str | None = Field(
+        default=None,
+        description="Explanation of research requirements (only determined for new CREATED tasks)"
+    )
+    internal_research_required: bool | None = Field(
+        default=None,
+        description="Whether internal codebase analysis is needed (only determined for new CREATED tasks)"
+    )
+    risk_assessment_required: bool | None = Field(
+        default=None,
+        description="Whether risk assessment is needed (only determined for new CREATED tasks)"
+    )
+
     # Backward compatibility property
     @property
     def instructions(self) -> str:
@@ -61,6 +94,9 @@ class WorkflowGuidanceSystemVars(BaseModel):
     response_schema: str = Field(
         description="JSON schema for the expected response format"
     )
+    task_size_definitions: str = Field(
+        description="Task size classifications and workflow routing rules"
+    )
 
 
 class WorkflowGuidanceUserVars(BaseModel):
@@ -73,6 +109,8 @@ class WorkflowGuidanceUserVars(BaseModel):
     current_state: str = Field(description="Current task state")
     state_description: str = Field(description="Description of current state")
     current_operation: str = Field(description="Current operation being performed")
+    task_size: str = Field(description="Task size classification (xs, s, m, l, xl)")
+    task_size_definitions: str = Field(description="Task size classifications and workflow routing rules")
     state_transitions: str = Field(description="State transition diagram")
     tool_descriptions: str = Field(description="Available tool descriptions")
     conversation_context: str = Field(description="Formatted conversation history")
@@ -111,6 +149,23 @@ async def calculate_next_stage(
     logger.info(f"🧠 Calculating next stage for task {task_metadata.task_id}")
 
     try:
+        # Check for deterministic task size routing for CREATED state
+        if (task_metadata.state == TaskState.CREATED and
+            should_skip_planning(task_metadata)):
+            logger.info(f"🚀 Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation")
+            # XS/S tasks skip planning but still need implementation → code review → testing → completion
+            # Return null to indicate "proceed to implementation" - the user will implement then call judge_code_change
+            return WorkflowGuidance(
+                next_tool=None,  # User should implement, then call judge_code_change when ready
+                reasoning=f"Task size is {task_metadata.task_size.value.upper()} - planning phase can be skipped for simple fixes and minor features. Proceed directly to implementation.",
+                preparation_needed=[
+                    "Identify the specific files that need modification",
+                    "Understand the current implementation",
+                    "Plan the minimal changes required"
+                ],
+                guidance=f"This is a {task_metadata.task_size.value.upper()} task - proceed directly to implementation. Skip the planning phase and implement the changes directly. Focus on: 1) Making the minimal necessary changes, 2) Testing the changes work correctly, 3) Ensuring no regressions are introduced. WORKFLOW: After implementation is complete and tests pass, you MUST call judge_code_change for code review, then judge_testing_implementation for testing validation, then judge_coding_task_completion for final validation. Do not skip these steps - they are required for all tasks."
+            )
+
         # Load conversation history using task_id as primary key
         # Note: For now we'll use task_id as session_id until we update the DB schema
         conversation_history = await conversation_service.get_conversation_history(
@@ -175,11 +230,14 @@ async def calculate_next_stage(
         # Use the same messaging pattern as other tools
         from mcp.types import SamplingMessage
 
-        from mcp_as_a_judge.prompt_loader import create_separate_messages
+        # Load task size definitions from shared file
+        from mcp_as_a_judge.prompt_loader import create_separate_messages, prompt_loader
+        task_size_definitions = prompt_loader.render_prompt("shared/task_size_definitions.md")
 
         # Create system and user variables for the workflow guidance
         system_vars = WorkflowGuidanceSystemVars(
-            response_schema=json.dumps(WorkflowGuidance.model_json_schema())
+            response_schema=json.dumps(WorkflowGuidance.model_json_schema()),
+            task_size_definitions=task_size_definitions
         )
         user_vars = WorkflowGuidanceUserVars(
             task_id=task_metadata.task_id,
@@ -189,10 +247,13 @@ async def calculate_next_stage(
             current_state=task_metadata.state.value,
             state_description=state_info['description'],
             current_operation=current_operation,
+            task_size=task_metadata.task_size.value,
+            task_size_definitions=task_size_definitions,
             state_transitions="CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED",
             tool_descriptions=tool_descriptions,
             conversation_context=conversation_context,
             operation_context=operation_context_str,
+            response_schema=json.dumps(WorkflowGuidance.model_json_schema(), indent=2),
         )
 
         # Create messages using the established pattern with dedicated workflow guidance prompts
@@ -243,7 +304,13 @@ async def calculate_next_stage(
             next_tool=navigation_data.get("next_tool"),
             reasoning=navigation_data.get("reasoning", ""),
             preparation_needed=navigation_data.get("preparation_needed", []),
-            guidance=navigation_data.get("guidance", "")
+            guidance=navigation_data.get("guidance", ""),
+            # Research determination fields (only populated for new CREATED tasks)
+            research_required=navigation_data.get("research_required"),
+            research_scope=navigation_data.get("research_scope"),
+            research_rationale=navigation_data.get("research_rationale"),
+            internal_research_required=navigation_data.get("internal_research_required"),
+            risk_assessment_required=navigation_data.get("risk_assessment_required"),
         )
 
         logger.info(

@@ -54,6 +54,8 @@ __all__ = [
     "ResearchValidationUserVars",
     "WorkflowGuidanceSystemVars",
     "WorkflowGuidanceUserVars",
+    "DynamicSchemaSystemVars",
+    "DynamicSchemaUserVars",
 ]
 
 # Import additional models from the original models.py file
@@ -83,6 +85,8 @@ try:
         ResearchValidationUserVars = models_py.ResearchValidationUserVars
         WorkflowGuidanceSystemVars = models_py.WorkflowGuidanceSystemVars
         WorkflowGuidanceUserVars = models_py.WorkflowGuidanceUserVars
+        DynamicSchemaSystemVars = models_py.DynamicSchemaSystemVars
+        DynamicSchemaUserVars = models_py.DynamicSchemaUserVars
 
 except Exception:
     # Fallback if models.py doesn't exist or has issues

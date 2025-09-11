@@ -1,12 +1,19 @@
 # Judge Coding Task Completion
 
+**🚨 MANDATORY TOOL: This tool MUST be called before completing any task or providing a final summary to the user. 🚨**
+
 DYNAMIC WORKFLOW: This tool is called when the workflow guidance indicates `next_tool: "judge_coding_task_completion"`.
+
+**⚠️ CRITICAL REQUIREMENT: Do NOT mark any task as complete or provide completion summaries to users without first calling this validation tool.**
 
 Final validation tool for coding task completion with enhanced task-centric workflow management.
 
 ## Purpose
 
-This tool performs the final validation of coding task completion, ensuring all requirements have been met and the task can be marked as successfully completed. It provides comprehensive assessment and final workflow guidance.
+**🛡️ MANDATORY VALIDATION CHECKPOINT:**
+This tool performs the final validation of coding task completion, ensuring all requirements have been met and the task can be marked as successfully completed. **NO TASK CAN BE COMPLETED OR SUMMARIZED TO THE USER WITHOUT FIRST PASSING THIS VALIDATION.**
+
+This tool provides comprehensive assessment and final workflow guidance, serving as the mandatory gateway between implementation work and task completion.
 
 ## Key Features
 
@@ -31,19 +38,43 @@ This tool performs the final validation of coding task completion, ensuring all 
 
 ## Validation Criteria
 
-The tool validates completion based on:
+**🔒 MANDATORY APPROVALS REQUIRED:**
+The tool validates that ALL of the following have been approved:
 
-1. **Requirements Coverage**: All original user requirements addressed
-2. **Implementation Quality**: Code follows best practices and standards
-3. **Functionality**: Implementation works as intended
-4. **Testing**: Appropriate testing has been performed (if applicable)
-5. **Documentation**: Adequate documentation provided (if required)
+1. **Plan Approval**: Task plan must be approved via `judge_coding_plan`
+2. **Code Approval**: All code changes must be approved via `judge_code_change`
+3. **Test Approval**: Testing implementation must be approved via `judge_testing_implementation`
+
+**📋 ADDITIONAL COMPLETION CRITERIA:**
+4. **Requirements Coverage**: All original user requirements addressed
+5. **Implementation Quality**: Code follows best practices and standards
+6. **Functionality**: Implementation works as intended
+7. **Testing Status**: Appropriate testing has been performed and validated
+8. **Documentation**: Adequate documentation provided (if required)
+
+**❌ REJECTION CONDITIONS:**
+- Missing plan approval from `judge_coding_plan`
+- Missing code approval from `judge_code_change`
+- Missing test approval from `judge_testing_implementation`
+- Incomplete requirements coverage
+- Outstanding remaining work items
 
 ## Task State Transitions
 
-- **REVIEW_READY → COMPLETED**: Task successfully completed
-- **IMPLEMENTING → REVIEW_READY**: Implementation complete, needs final review
-- **Any State → IMPLEMENTING**: More work needed, return to implementation
+**✅ APPROVED PATH:**
+- **REVIEW_READY → COMPLETED**: All approvals validated, task successfully completed
+
+**❌ REJECTION PATHS:**
+- **REVIEW_READY → IMPLEMENTING**: Missing approvals or incomplete work
+- **IMPLEMENTING → IMPLEMENTING**: Continue implementation work
+- **TESTING → TESTING**: Return to testing phase if tests not approved
+- **PLAN_APPROVED → PLANNING**: Return to planning if plan needs revision
+
+**🔍 VALIDATION REQUIREMENTS:**
+- Must have approval from `judge_coding_plan` (plan approved)
+- Must have approval from `judge_code_change` (code approved)
+- Must have approval from `judge_testing_implementation` (tests approved)
+- Must meet all completion criteria listed above
 
 ## Response
 
@@ -102,10 +133,27 @@ result = await judge_coding_task_completion(
 
 ## Workflow Context
 
-This tool is typically called when:
+**🔒 MANDATORY CALL REQUIREMENT:**
+This tool MUST be called when:
 - All implementation work appears complete
-- Individual code changes have been approved via `judge_code_change`
-- Task state is REVIEW_READY or IMPLEMENTING
-- The AI assistant believes the task requirements have been fulfilled
+- **PLAN has been approved via `judge_coding_plan`**
+- **ALL code changes have been approved via `judge_code_change`**
+- **TESTING has been approved via `judge_testing_implementation`**
+- Task state is REVIEW_READY (preferred) or IMPLEMENTING
+- The AI assistant believes all requirements have been fulfilled
+- **BEFORE providing any completion summary or status to the user**
+- **BEFORE marking any task as finished or done**
+
+**🛡️ APPROVAL VALIDATION:**
+The tool will validate that the task metadata contains:
+- `plan_approved_at`: Timestamp when plan was approved
+- `code_approved_files`: List of files with approved code changes
+- `testing_approved_at`: Timestamp when testing was approved
+
+**❌ NEVER:**
+- Mark a task as complete without calling this tool first
+- Tell the user a task is finished without validation
+- Provide completion summaries without proper validation
+- Skip this tool for "simple" or "obvious" completions
 
 The response will guide whether the task is truly complete or if additional work is needed.

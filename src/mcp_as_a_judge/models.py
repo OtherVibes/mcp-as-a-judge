@@ -103,6 +103,74 @@ class ResearchValidationResponse(BaseModel):
     )
 
 
+class ResearchComplexityFactors(BaseModel):
+    """Analysis factors for determining research complexity."""
+
+    domain_specialization: str = Field(
+        description="Level of domain specialization: 'general', 'specialized', 'highly_specialized'"
+    )
+    technology_maturity: str = Field(
+        description="Maturity of required technologies: 'established', 'emerging', 'cutting_edge'"
+    )
+    integration_scope: str = Field(
+        description="Scope of system integration: 'isolated', 'moderate', 'system_wide'"
+    )
+    existing_solutions: str = Field(
+        description="Availability of existing solutions: 'abundant', 'limited', 'scarce'"
+    )
+    risk_level: str = Field(
+        description="Implementation risk level: 'low', 'medium', 'high'"
+    )
+
+
+class ResearchRequirementsAnalysis(BaseModel):
+    """LLM analysis of research requirements for a task."""
+
+    expected_url_count: int = Field(
+        description="Recommended number of research URLs for optimal coverage",
+        ge=0,
+        le=10
+    )
+    minimum_url_count: int = Field(
+        description="Minimum acceptable number of URLs for basic adequacy",
+        ge=0,
+        le=5
+    )
+    reasoning: str = Field(
+        description="Detailed explanation of why these URL counts are appropriate"
+    )
+    complexity_factors: ResearchComplexityFactors = Field(
+        description="Breakdown of complexity analysis factors"
+    )
+    quality_requirements: list[str] = Field(
+        default_factory=list,
+        description="Specific requirements for research source quality and types"
+    )
+
+
+class URLValidationResult(BaseModel):
+    """Result of validating provided URLs against dynamic requirements."""
+
+    adequate: bool = Field(
+        description="Whether the provided URLs meet the dynamic requirements"
+    )
+    provided_count: int = Field(
+        description="Number of URLs actually provided"
+    )
+    expected_count: int = Field(
+        description="Expected number of URLs based on analysis"
+    )
+    minimum_count: int = Field(
+        description="Minimum acceptable number of URLs"
+    )
+    feedback: str = Field(
+        description="Detailed feedback about URL adequacy and suggestions"
+    )
+    meets_quality_standards: bool = Field(
+        description="Whether URLs meet quality requirements beyond just count"
+    )
+
+
 # Database models for conversation history
 # ConversationRecord is now defined in db/interface.py using SQLModel
 # DatabaseConfig is now defined in constants.py
@@ -181,6 +249,20 @@ class JudgeCodingPlanUserVars(BaseModel):
         description="Strategies to mitigate identified risks"
     )
 
+    # Dynamic URL requirements fields - NEW
+    expected_url_count: int = Field(
+        default=0,
+        description="LLM-determined expected number of research URLs for this task"
+    )
+    minimum_url_count: int = Field(
+        default=0,
+        description="LLM-determined minimum acceptable URL count"
+    )
+    url_requirement_reasoning: str = Field(
+        default="",
+        description="LLM explanation of why specific URL count is needed"
+    )
+
 
 class JudgeCodeChangeSystemVars(BaseModel):
     """Variables for judge_code_change system prompt."""
@@ -223,7 +305,7 @@ class ResearchValidationUserVars(BaseModel):
     research: str = Field(description="Research findings to be validated")
     research_urls: list[str] = Field(
         default_factory=list,
-        description="URLs from MANDATORY online research - minimum 3 URLs required",
+        description="URLs from online research - count determined dynamically based on task complexity",
     )
     context: str = Field(description="Additional context about the research validation")
     conversation_history: list = Field(
@@ -241,14 +323,22 @@ class WorkflowGuidanceSystemVars(BaseModel):
 
 
 class WorkflowGuidanceUserVars(BaseModel):
-    """Variables for build_workflow user prompt."""
+    """Variables for workflow_guidance user prompt."""
 
+    task_id: str = Field(description="Task ID")
+    task_title: str = Field(description="Task title")
     task_description: str = Field(description="Description of the development task")
-    context: str = Field(description="Additional context about the task")
-    conversation_history: list = Field(
-        default_factory=list,
-        description="Previous conversation history as JSON array with timestamps",
-    )
+    user_requirements: str = Field(description="User requirements for the task")
+    current_state: str = Field(description="Current task state")
+    state_description: str = Field(description="Description of current state")
+    current_operation: str = Field(description="Current operation being performed")
+    task_size: str = Field(description="Task size classification")
+    task_size_definitions: str = Field(description="Task size definitions")
+    state_transitions: str = Field(description="Valid state transitions")
+    tool_descriptions: str = Field(description="Available tool descriptions")
+    conversation_context: str = Field(description="Conversation history context")
+    operation_context: str = Field(description="Current operation context")
+    response_schema: str = Field(description="JSON schema for the expected response format")
 
 
 class ValidationErrorSystemVars(BaseModel):
@@ -297,6 +387,29 @@ class ElicitationFallbackUserVars(BaseModel):
     )
     optional_fields: list[str] = Field(
         description="List of optional field descriptions for the user to provide"
+    )
+
+
+class ResearchRequirementsAnalysisSystemVars(BaseModel):
+    """Variables for research_requirements_analysis system prompt."""
+
+    response_schema: str = Field(
+        description="JSON schema for the expected response format"
+    )
+
+
+class ResearchRequirementsAnalysisUserVars(BaseModel):
+    """Variables for research_requirements_analysis user prompt."""
+
+    task_title: str = Field(description="Title of the coding task")
+    task_description: str = Field(description="Detailed description of the task")
+    user_requirements: str = Field(description="User requirements for the task")
+    research_scope: str = Field(description="Current research scope (none/light/deep)")
+    research_rationale: str = Field(
+        description="Rationale for why research is needed at current scope"
+    )
+    context: str = Field(
+        description="Additional context about the task and project"
     )
 
 

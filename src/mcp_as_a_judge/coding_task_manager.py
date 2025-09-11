@@ -10,7 +10,7 @@ import time
 
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.logging_config import get_logger
-from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskState
+from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
 
 # Set up logger using custom get_logger function
 logger = get_logger(__name__)
@@ -23,6 +23,7 @@ async def create_new_coding_task(
     user_requirements: str,
     tags: list[str],
     conversation_service: ConversationHistoryService,
+    task_size: TaskSize,
 ) -> TaskMetadata:
     """
     Create a new coding task with auto-generated task_id.
@@ -34,10 +35,12 @@ async def create_new_coding_task(
         user_requirements: Initial requirements
         tags: Task tags
         conversation_service: Conversation service
+        task_size: Task size classification (REQUIRED)
 
     Returns:
         New TaskMetadata instance
     """
+
     logger.info(f"📝 Creating new coding task: {task_title}")
 
     # Create new TaskMetadata with auto-generated UUID
@@ -46,6 +49,7 @@ async def create_new_coding_task(
         description=task_description,
         user_requirements=user_requirements,
         state=TaskState.CREATED,  # Default state for new tasks
+        task_size=task_size,
         tags=tags,
     )
 

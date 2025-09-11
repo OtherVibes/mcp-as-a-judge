@@ -29,15 +29,31 @@ Please evaluate the following coding plan:
 **Status:** REQUIRED (Scope: {{ research_scope }})
 **Rationale:** {{ research_rationale }}
 
+{% if expected_url_count > 0 %}
+### 🧠 Dynamic URL Requirements (LLM Analysis)
+**Expected URLs:** {{ expected_url_count }}
+**Minimum URLs:** {{ minimum_url_count }}
+**Reasoning:** {{ url_requirement_reasoning }}
+{% endif %}
+
 {% if research_urls %}
-**Research Sources:**
+**Research Sources Provided ({{ research_urls|length }} URLs):**
 {% for url in research_urls %}
 - {{ url }}
 {% endfor %}
 
-**Validation Focus:** Ensure research demonstrates problem domain authority and established best practices.
+**Validation Focus:** 
+- Ensure research demonstrates problem domain authority and established best practices
+{% if expected_url_count > 0 %}
+- Verify {{ research_urls|length }} URLs {% if research_urls|length >= expected_url_count %}meet{% else %}fall short of{% endif %} the expected {{ expected_url_count }} URLs for optimal coverage
+- Minimum {{ minimum_url_count }} URLs required for basic adequacy
+{% endif %}
 {% else %}
 ⚠️ **MISSING:** External research is required but no URLs provided.
+{% if expected_url_count > 0 %}
+**Required:** At least {{ minimum_url_count }} URLs ({{ expected_url_count }} recommended)
+**Reason:** {{ url_requirement_reasoning }}
+{% endif %}
 {% endif %}
 {% endif %}
 

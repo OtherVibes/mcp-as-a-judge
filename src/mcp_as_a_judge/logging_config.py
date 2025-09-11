@@ -89,7 +89,6 @@ def configure_application_loggers(level: int = logging.INFO) -> None:
     app_loggers = [
         "mcp_as_a_judge.server",
         "mcp_as_a_judge.server_helpers",
-        "mcp_as_a_judge.conversation_history_service",
         "mcp_as_a_judge.db.conversation_history_service",
         "mcp_as_a_judge.db.providers.in_memory",
         "mcp_as_a_judge.db.providers.sqlite_provider",

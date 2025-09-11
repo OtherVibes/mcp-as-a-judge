@@ -1,6 +1,6 @@
 # Set Coding Task
 
-**MANDATORY FIRST STEP**: This tool MUST be called explicitly after every user request that requires coding work.
+**MANDATORY FIRST STEP**: WARNING: This tool MUST be called explicitly after every user request that requires coding work, else the results might be unexpected and cause high token loss.
 
 Create or update coding task metadata with enhanced task-centric workflow management.
 
@@ -29,6 +29,26 @@ This tool creates new coding tasks or updates existing ones, providing intellige
 
 **Key principle: Only use for tasks that require LOGICAL CODE CHANGES**
 
+## Task Size Workflow Optimization
+
+The task sizing system optimizes workflow efficiency based on task complexity:
+
+### Size-Based Workflow Routing
+- **XS/S Tasks**: Skip planning phase → CREATED → IMPLEMENTING (minimal validation)
+  - Best for: Bug fixes, typos, minor config changes, simple refactoring
+  - Benefits: Faster execution, reduced overhead for simple tasks
+
+- **M/L/XL Tasks**: Full workflow → CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING
+  - Best for: New features, complex changes, architectural updates
+  - Benefits: Comprehensive planning, risk assessment, thorough validation
+
+### Choosing the Right Size
+- **XS**: Quick fixes that take less than 30 minutes
+- **S**: Minor features or refactoring (30 minutes to 2 hours)
+- **M**: Standard development work (2-8 hours) - **Default choice**
+- **L**: Complex features spanning multiple components (1-3 days)
+- **XL**: Major system changes or architectural updates (3+ days)
+
 ## Dynamic Workflow System
 
 ```
@@ -48,6 +68,7 @@ User Coding Request → set_coding_task (REQUIRED) → Follow workflow_guidance.
 - **Task Creation**: Auto-generates immutable task_id (UUID) for new coding tasks
 - **Task Updates**: Updates existing tasks using immutable task_id as primary key
 - **State Management**: Manages TaskState transitions with validation
+- **Task Sizing**: Optimizes workflow based on task complexity (XS/S skip planning, M/L/XL require full planning)
 - **Workflow Guidance**: Provides intelligent next steps using LLM-driven guidance
 - **Memory Integration**: Uses task_id as primary key for conversation history storage
 
@@ -55,7 +76,6 @@ User Coding Request → set_coding_task (REQUIRED) → Follow workflow_guidance.
 
 ### Required for New Tasks
 - `user_request`: Original user request for context
-- `task_name`: Human-readable slug (e.g., "implement-user-auth")
 - `task_title`: Display title (e.g., "Implement User Authentication")
 - `task_description`: Detailed coding task description
 
@@ -63,6 +83,14 @@ User Coding Request → set_coding_task (REQUIRED) → Follow workflow_guidance.
 - `task_id`: Immutable task UUID (required when updating existing task)
 - `user_requirements`: Updated coding requirements (optional)
 - `state`: Updated TaskState (optional, validated against allowed transitions)
+
+### Recommended
+- `task_size`: Task size classification for workflow optimization (defaults to `m` if omitted)
+  - `xs`: Extra Small - Simple fixes, typos, minor config changes (< 30 minutes)
+  - `s`: Small - Minor features, simple refactoring (30 minutes - 2 hours)
+  - `m`: Medium - Standard features, moderate complexity (2-8 hours) — default
+  - `l`: Large - Complex features, multiple components (1-3 days)
+  - `xl`: Extra Large - Major system changes, architectural updates (3+ days)
 
 ### Optional
 - `tags`: List of coding-related tags
@@ -115,6 +143,7 @@ result = await set_coding_task(
     task_title="Implement User Authentication",
     task_description="Add secure user authentication with JWT tokens",
     user_requirements="Users should be able to register, login, and logout securely",
+    task_size="l",  # Large task requiring comprehensive planning (optional; defaults to "m")
     tags=["authentication", "security", "backend"]
 )
 ```
