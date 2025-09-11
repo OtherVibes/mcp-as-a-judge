@@ -152,7 +152,9 @@ class TestTokenCountingIntegration:
         """Test enhanced calls with optional model parameters."""
         # New-style calls with optional parameters should work
         tokens1 = await calculate_tokens("Hello world", model_name=None, ctx=None)
-        tokens2 = await calculate_record_tokens("Hello", "world", model_name=None, ctx=None)
+        tokens2 = await calculate_record_tokens(
+            "Hello", "world", model_name=None, ctx=None
+        )
 
         assert tokens1 > 0
         assert tokens2 > 0

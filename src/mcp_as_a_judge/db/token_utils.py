@@ -35,6 +35,7 @@ async def detect_model_name(ctx=None) -> str | None:
         if client and hasattr(client, "config") and client.config.model_name:
             return client.config.model_name
     except Exception:
+        # LLM client not available or configuration error
         pass
 
     # Try MCP sampling if context available
@@ -57,6 +58,7 @@ async def detect_model_name(ctx=None) -> str | None:
                 return result.model
 
         except Exception:
+            # MCP sampling failed or not available
             pass
 
     return None

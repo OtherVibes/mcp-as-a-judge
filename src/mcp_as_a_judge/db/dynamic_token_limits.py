@@ -69,6 +69,8 @@ def get_model_limits(model_name: str | None = None) -> ModelLimits:
         _model_limits_cache[model_name] = limits
 
     except Exception:
+        # LiteLLM not available or model info retrieval failed
+        # Continue with hardcoded defaults
         pass
 
     return limits
