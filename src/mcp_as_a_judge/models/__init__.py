@@ -23,12 +23,10 @@ from .enhanced_responses import (
 from .task_metadata import RequirementsVersion, TaskMetadata, TaskState
 
 __all__ = [
-    "DynamicSchemaSystemVars",
+    "DynamicSchemaUserVars",
     "ElicitationFallbackUserVars",
     "EnhancedResponseFactory",
-    "JudgeCodeChangeSystemVars",
     "JudgeCodeChangeUserVars",
-    "JudgeCodingPlanSystemVars",
     "JudgeCodingPlanUserVars",
     "JudgeResponse",
     "JudgeResponseWithTask",
@@ -37,18 +35,17 @@ __all__ = [
     "RequirementsVersion",
     "ResearchComplexityFactors",
     "ResearchRequirementsAnalysis",
-    "ResearchRequirementsAnalysisSystemVars",
     "ResearchRequirementsAnalysisUserVars",
     "ResearchValidationResponse",
-    "ResearchValidationSystemVars",
     "ResearchValidationUserVars",
+    "SystemVars",
     "TaskAnalysisResult",
     "TaskCompletionResult",
     "TaskMetadata",
     "TaskState",
     "URLValidationResult",
+    "ValidationErrorUserVars",
     "WorkflowGuidance",
-    "WorkflowGuidanceSystemVars",
     "WorkflowGuidanceUserVars",
 ]
 
@@ -71,24 +68,18 @@ try:
 
         # Import the models we need
         ElicitationFallbackUserVars = models_py.ElicitationFallbackUserVars
-        JudgeCodeChangeSystemVars = models_py.JudgeCodeChangeSystemVars
         JudgeCodeChangeUserVars = models_py.JudgeCodeChangeUserVars
-        JudgeCodingPlanSystemVars = models_py.JudgeCodingPlanSystemVars
         JudgeCodingPlanUserVars = models_py.JudgeCodingPlanUserVars
         ResearchValidationResponse = models_py.ResearchValidationResponse
-        ResearchValidationSystemVars = models_py.ResearchValidationSystemVars
         ResearchValidationUserVars = models_py.ResearchValidationUserVars
-        WorkflowGuidanceSystemVars = models_py.WorkflowGuidanceSystemVars
         WorkflowGuidanceUserVars = models_py.WorkflowGuidanceUserVars
-        DynamicSchemaSystemVars = models_py.DynamicSchemaSystemVars
         DynamicSchemaUserVars = models_py.DynamicSchemaUserVars
+        ValidationErrorUserVars = models_py.ValidationErrorUserVars
+        SystemVars = models_py.SystemVars
 
         # Import research-related models
         ResearchComplexityFactors = models_py.ResearchComplexityFactors
         ResearchRequirementsAnalysis = models_py.ResearchRequirementsAnalysis
-        ResearchRequirementsAnalysisSystemVars = (
-            models_py.ResearchRequirementsAnalysisSystemVars
-        )
         ResearchRequirementsAnalysisUserVars = (
             models_py.ResearchRequirementsAnalysisUserVars
         )
@@ -102,13 +93,7 @@ except Exception:
     class ElicitationFallbackUserVars(BaseModel):
         pass
 
-    class JudgeCodeChangeSystemVars(BaseModel):
-        pass
-
     class JudgeCodeChangeUserVars(BaseModel):
-        pass
-
-    class JudgeCodingPlanSystemVars(BaseModel):
         pass
 
     class JudgeCodingPlanUserVars(BaseModel):
@@ -117,22 +102,16 @@ except Exception:
     class ResearchValidationResponse(BaseModel):
         pass
 
-    class ResearchValidationSystemVars(BaseModel):
-        pass
-
     class ResearchValidationUserVars(BaseModel):
-        pass
-
-    class WorkflowGuidanceSystemVars(BaseModel):
         pass
 
     class WorkflowGuidanceUserVars(BaseModel):
         pass
 
-    class DynamicSchemaSystemVars(BaseModel):
+    class DynamicSchemaUserVars(BaseModel):
         pass
 
-    class DynamicSchemaUserVars(BaseModel):
+    class SystemVars(BaseModel):
         pass
 
     class ResearchComplexityFactors(BaseModel):

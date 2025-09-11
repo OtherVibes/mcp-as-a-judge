@@ -6,7 +6,6 @@ incorporating TaskMetadata and WorkflowGuidance for consistent task tracking
 and intelligent next-step guidance.
 """
 
-
 from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize

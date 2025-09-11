@@ -7,6 +7,7 @@ serialization, and API contracts.
 
 from pydantic import BaseModel, Field
 
+from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.models.task_metadata import TaskMetadata
 from mcp_as_a_judge.workflow import WorkflowGuidance
 
@@ -176,12 +177,25 @@ ElicitationResponse = str
 # Prompt variable models for type safety and validation
 
 
-class JudgeCodingPlanSystemVars(BaseModel):
-    """Variables for judge_coding_plan system prompt."""
+class SystemVars(BaseModel):
+    """Unified system variables for all system prompts.
+
+    This replaces all individual SystemVars models to reduce duplication.
+    All system prompts use the same basic structure with response schema and token limits.
+    """
 
     response_schema: str = Field(
-        description="JSON schema for the expected response format"
+        default="", description="JSON schema for the expected response format (optional)"
     )
+    max_tokens: int = Field(
+        default=MAX_TOKENS, description="Maximum tokens available for response"
+    )
+    task_size_definitions: str = Field(
+        default="", description="Task size classifications and workflow routing rules (optional)"
+    )
+
+
+
 
 
 class JudgeCodingPlanUserVars(BaseModel):
@@ -246,12 +260,7 @@ class JudgeCodingPlanUserVars(BaseModel):
     )
 
 
-class JudgeCodeChangeSystemVars(BaseModel):
-    """Variables for judge_code_change system prompt."""
 
-    response_schema: str = Field(
-        description="JSON schema for the expected response format"
-    )
 
 
 class JudgeCodeChangeUserVars(BaseModel):
@@ -270,12 +279,7 @@ class JudgeCodeChangeUserVars(BaseModel):
     )
 
 
-class ResearchValidationSystemVars(BaseModel):
-    """Variables for research_validation system prompt."""
 
-    response_schema: str = Field(
-        description="JSON schema for the expected response format"
-    )
 
 
 class ResearchValidationUserVars(BaseModel):
@@ -296,12 +300,7 @@ class ResearchValidationUserVars(BaseModel):
     )
 
 
-class WorkflowGuidanceSystemVars(BaseModel):
-    """Variables for build_workflow system prompt."""
 
-    response_schema: str = Field(
-        description="JSON schema for the expected response format"
-    )
 
 
 class WorkflowGuidanceUserVars(BaseModel):
@@ -325,10 +324,7 @@ class WorkflowGuidanceUserVars(BaseModel):
     )
 
 
-class ValidationErrorSystemVars(BaseModel):
-    """Variables for validation_error system prompt."""
 
-    # No additional variables needed for system prompt
 
 
 class ValidationErrorUserVars(BaseModel):
@@ -340,10 +336,7 @@ class ValidationErrorUserVars(BaseModel):
     context: str = Field(description="Additional context about the validation failure")
 
 
-class DynamicSchemaSystemVars(BaseModel):
-    """Variables for dynamic_schema system prompt."""
 
-    # No additional variables needed for system prompt
 
 
 class DynamicSchemaUserVars(BaseModel):
@@ -374,12 +367,7 @@ class ElicitationFallbackUserVars(BaseModel):
     )
 
 
-class ResearchRequirementsAnalysisSystemVars(BaseModel):
-    """Variables for research_requirements_analysis system prompt."""
 
-    response_schema: str = Field(
-        description="JSON schema for the expected response format"
-    )
 
 
 class ResearchRequirementsAnalysisUserVars(BaseModel):

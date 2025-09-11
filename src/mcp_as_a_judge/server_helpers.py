@@ -87,12 +87,12 @@ async def generate_validation_error_message(
     """Generate a descriptive error message using AI sampling for validation failures."""
     try:
         from mcp_as_a_judge.models import (
-            ResearchValidationSystemVars,
-            ResearchValidationUserVars,
+            SystemVars,
+            ValidationErrorUserVars,
         )
 
-        system_vars = ResearchValidationSystemVars()
-        user_vars = ResearchValidationUserVars(
+        system_vars = SystemVars(max_tokens=MAX_TOKENS)
+        user_vars = ValidationErrorUserVars(
             validation_issue=validation_issue, context=context
         )
 
@@ -136,9 +136,9 @@ async def generate_dynamic_elicitation_model(
         Dynamically created Pydantic BaseModel class
     """
     try:
-        from mcp_as_a_judge.models import DynamicSchemaSystemVars, DynamicSchemaUserVars
+        from mcp_as_a_judge.models import SystemVars, DynamicSchemaUserVars
 
-        system_vars = DynamicSchemaSystemVars()
+        system_vars = SystemVars(max_tokens=MAX_TOKENS)
         user_vars = DynamicSchemaUserVars(
             context=context,
             information_needed=information_needed,

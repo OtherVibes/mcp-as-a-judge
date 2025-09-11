@@ -7,6 +7,7 @@ complexity, domain specialization, and implementation risk.
 """
 
 import json
+from typing import Any
 
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.logging_config import get_logger
@@ -14,8 +15,8 @@ from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import (
     ResearchComplexityFactors,
     ResearchRequirementsAnalysis,
-    ResearchRequirementsAnalysisSystemVars,
     ResearchRequirementsAnalysisUserVars,
+    SystemVars,
     URLValidationResult,
 )
 from mcp_as_a_judge.models.task_metadata import TaskMetadata
@@ -51,8 +52,11 @@ async def analyze_research_requirements(
 
     try:
         # Create system and user messages from templates
-        system_vars = ResearchRequirementsAnalysisSystemVars(
-            response_schema=json.dumps(ResearchRequirementsAnalysis.model_json_schema())
+        system_vars = SystemVars(
+            response_schema=json.dumps(
+                ResearchRequirementsAnalysis.model_json_schema()
+            ),
+            max_tokens=MAX_TOKENS,
         )
 
         user_vars = ResearchRequirementsAnalysisUserVars(
@@ -93,7 +97,9 @@ async def analyze_research_requirements(
         return _get_fallback_analysis(task_metadata)
 
 
-def _get_fallback_analysis(task_metadata: TaskMetadata) -> "ResearchRequirementsAnalysis":
+def _get_fallback_analysis(
+    task_metadata: TaskMetadata,
+) -> "ResearchRequirementsAnalysis":
     """
     Provide fallback analysis if LLM analysis fails.
 

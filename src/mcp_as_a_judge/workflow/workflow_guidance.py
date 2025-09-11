@@ -15,6 +15,7 @@ from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.logging_config import get_logger
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
+from mcp_as_a_judge.models import SystemVars
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
 
 # Set up logger using custom get_logger function
@@ -87,15 +88,7 @@ class WorkflowGuidance(BaseModel):
         return self.guidance
 
 
-class WorkflowGuidanceSystemVars(BaseModel):
-    """Variables for workflow guidance system prompt."""
 
-    response_schema: str = Field(
-        description="JSON schema for the expected response format"
-    )
-    task_size_definitions: str = Field(
-        description="Task size classifications and workflow routing rules"
-    )
 
 
 class WorkflowGuidanceUserVars(BaseModel):
@@ -116,7 +109,9 @@ class WorkflowGuidanceUserVars(BaseModel):
     tool_descriptions: str = Field(description="Available tool descriptions")
     conversation_context: str = Field(description="Formatted conversation history")
     operation_context: str = Field(description="Current operation context")
-    response_schema: str = Field(description="JSON schema for the expected response format")
+    response_schema: str = Field(
+        description="JSON schema for the expected response format"
+    )
 
 
 async def calculate_next_stage(
@@ -279,9 +274,10 @@ async def calculate_next_stage(
         )
 
         # Create system and user variables for the workflow guidance
-        system_vars = WorkflowGuidanceSystemVars(
+        system_vars = SystemVars(
             response_schema=json.dumps(WorkflowGuidance.model_json_schema()),
             task_size_definitions=task_size_definitions,
+            max_tokens=MAX_TOKENS,
         )
         user_vars = WorkflowGuidanceUserVars(
             task_id=task_metadata.task_id,
@@ -397,7 +393,11 @@ async def calculate_next_stage(
 
         # Return fallback navigation with appropriate next tool based on state
         fallback_next_tool = "judge_coding_plan"  # Default fallback
-        if task_metadata.state == TaskState.PLAN_APPROVED or task_metadata.state == TaskState.IMPLEMENTING or task_metadata.state == TaskState.REVIEW_READY:
+        if (
+            task_metadata.state == TaskState.PLAN_APPROVED
+            or task_metadata.state == TaskState.IMPLEMENTING
+            or task_metadata.state == TaskState.REVIEW_READY
+        ):
             fallback_next_tool = "judge_code_change"
         elif task_metadata.state == TaskState.TESTING:
             fallback_next_tool = "judge_testing_implementation"

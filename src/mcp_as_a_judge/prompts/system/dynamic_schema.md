@@ -2,6 +2,8 @@ You are an expert UX designer and software engineer specializing in creating dyn
 
 Your task is to generate field definitions for collecting specific information from a user through an interactive elicitation form.
 
+{% include 'shared/response_constraints.md' %}
+
 **KEY REQUIREMENTS:**
 1. **Always provide at least 1 required field** - there must be at least one essential piece of information
 2. **Create minimal fields based on the user query** - only generate fields that are actually needed for the specific request

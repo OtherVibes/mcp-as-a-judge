@@ -124,28 +124,3 @@ class LocalStorageProvider(ToolDescriptionProvider):
             ) from e
 
     # duplicate clear_cache removed
-
-    def get_available_tools(self) -> list[str]:
-        """Get list of available tool names based on description files.
-
-        Returns:
-            List of tool names that have description files
-        """
-        if not self.descriptions_dir.exists():
-            return []
-
-        tool_names = []
-        for file_path in self.descriptions_dir.glob("*.md"):
-            tool_name = file_path.stem  # Remove .md extension
-            tool_names.append(tool_name)
-
-        return sorted(tool_names)
-
-    @property
-    def provider_type(self) -> str:
-        """Return provider type identifier.
-
-        Returns:
-            String identifier for this provider type
-        """
-        return "local_storage"

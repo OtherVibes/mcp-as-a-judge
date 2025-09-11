@@ -66,9 +66,7 @@ class LLMProvider:
             if provider.provider_type == "mcp_sampling":
                 # MCP sampling provider with SamplingMessage objects
                 # Type ignore because MCPSamplingProvider has send_message method
-                response = await provider.send_message(
-                    formatted_messages, config
-                )
+                response = await provider.send_message(formatted_messages, config)
             else:
                 # LLM API provider with universal Message objects
                 response = await provider.send_message(formatted_messages, config)

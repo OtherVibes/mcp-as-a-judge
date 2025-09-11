@@ -147,7 +147,9 @@ class TestConversationHistoryLifecycle:
         assert len(records_a) == 2
         sources_a = [r.source for r in records_a]
         # Check that we have the most recent 2 records (order may vary due to timestamp precision)
-        assert set(sources_a) == {"tool_A_2", "tool_A_1"}, f"Expected most recent 2, got {sources_a}"
+        assert set(sources_a) == {"tool_A_2", "tool_A_1"}, (
+            f"Expected most recent 2, got {sources_a}"
+        )
 
         # Verify session B has only 2 records (FIFO cleanup)
         records_b = await db.get_session_conversations("session_B")

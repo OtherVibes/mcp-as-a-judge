@@ -32,14 +32,12 @@ from mcp_as_a_judge.logging_config import (
 )
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import (
-    JudgeCodeChangeSystemVars,
     JudgeCodeChangeUserVars,
-    JudgeCodingPlanSystemVars,
     JudgeCodingPlanUserVars,
     JudgeResponse,
     ResearchValidationResponse,
-    ResearchValidationSystemVars,
     ResearchValidationUserVars,
+    SystemVars,
     WorkflowGuidance,
 )
 from mcp_as_a_judge.models.enhanced_responses import (
@@ -876,8 +874,9 @@ async def _validate_research_quality(
         dict with basic judge fields if research is insufficient, None if research is adequate
     """
     # Create system and user messages for research validation
-    system_vars = ResearchValidationSystemVars(
-        response_schema=json.dumps(ResearchValidationResponse.model_json_schema())
+    system_vars = SystemVars(
+        response_schema=json.dumps(ResearchValidationResponse.model_json_schema()),
+        max_tokens=MAX_TOKENS,
     )
     user_vars = ResearchValidationUserVars(
         user_requirements=user_requirements,
@@ -948,8 +947,9 @@ async def _evaluate_coding_plan(
         JudgeResponse with evaluation results
     """
     # Create system and user messages from templates
-    system_vars = JudgeCodingPlanSystemVars(
-        response_schema=json.dumps(JudgeResponse.model_json_schema())
+    system_vars = SystemVars(
+        response_schema=json.dumps(JudgeResponse.model_json_schema()),
+        max_tokens=MAX_TOKENS,
     )
     user_vars = JudgeCodingPlanUserVars(
         user_requirements=user_requirements,
@@ -1455,8 +1455,9 @@ async def judge_code_change(
         )
 
         # STEP 2: Create system and user messages with separate context and conversation history
-        system_vars = JudgeCodeChangeSystemVars(
-            response_schema=json.dumps(JudgeResponse.model_json_schema())
+        system_vars = SystemVars(
+            response_schema=json.dumps(JudgeResponse.model_json_schema()),
+            max_tokens=MAX_TOKENS,
         )
         user_vars = JudgeCodeChangeUserVars(
             user_requirements=user_requirements,
@@ -1716,14 +1717,15 @@ async def judge_testing_implementation(
 
         # Prepare comprehensive test evaluation using LLM
         from mcp_as_a_judge.models import (
-            JudgeCodingPlanSystemVars,
             JudgeCodingPlanUserVars,
+            SystemVars,
         )
         from mcp_as_a_judge.prompt_loader import create_separate_messages
 
         # Create system and user variables for testing evaluation
-        system_vars = JudgeCodingPlanSystemVars(
-            response_schema=json.dumps(JudgeResponse.model_json_schema())
+        system_vars = SystemVars(
+            response_schema=json.dumps(JudgeResponse.model_json_schema()),
+            max_tokens=MAX_TOKENS,
         )
         user_vars = JudgeCodingPlanUserVars(
             user_requirements=user_requirements,
