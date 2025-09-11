@@ -11,10 +11,10 @@ from datetime import UTC, datetime
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, desc, select
 
-from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.db.cleanup_service import ConversationCleanupService
+from mcp_as_a_judge.db.dynamic_token_limits import get_llm_input_limit
 from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
-from mcp_as_a_judge.db.token_utils import calculate_record_tokens
+from mcp_as_a_judge.db.token_utils import calculate_tokens_in_record, detect_model_name
 from mcp_as_a_judge.logging_config import get_logger
 
 # Set up logger
@@ -94,16 +94,14 @@ class SQLiteProvider(ConversationHistoryDB):
         """
         return self._cleanup_service.cleanup_excess_sessions()
 
-    def _cleanup_old_messages(self, session_id: str) -> int:
+    async def _cleanup_old_messages(self, session_id: str) -> int:
         """
-        Remove old messages from a session using efficient hybrid FIFO strategy.
+        Remove old messages from a session using token-based FIFO cleanup.
 
-        Two-step process:
-        1. If record count > max_records, remove oldest record
-        2. If total tokens > max_tokens, remove oldest records until within limit
+        Uses dynamic token limits based on current model (get_llm_input_limit).
+        Removes oldest records until total tokens are within the model's input limit.
 
         Optimization: Single DB query with ORDER BY, then in-memory list operations.
-        Eliminates 2 extra database queries compared to naive implementation.
         """
         with Session(self.engine) as session:
             # Get current records ordered by timestamp DESC (newest first for token calculation)
@@ -140,17 +138,21 @@ class SQLiteProvider(ConversationHistoryDB):
                 # Update our in-memory list to reflect the deletion
                 current_records.remove(oldest_record)
 
-            # STEP 2: Handle token limit (list is already sorted newest first - perfect for token calculation)
+            # STEP 2: Handle token limit using dynamic model-specific limits
             current_tokens = sum(record.tokens for record in current_records)
+
+            # Get dynamic token limit based on current model
+            model_name = await detect_model_name()
+            max_input_tokens = get_llm_input_limit(model_name)
 
             logger.info(
                 f"   🔢 {len(current_records)} records, {current_tokens} tokens "
-                f"(max: {MAX_CONTEXT_TOKENS})"
+                f"(max: {max_input_tokens} for model: {model_name or 'default'})"
             )
 
-            if current_tokens > MAX_CONTEXT_TOKENS:
+            if current_tokens > max_input_tokens:
                 logger.info(
-                    f"   🚨 Token limit exceeded, removing oldest records to fit within {MAX_CONTEXT_TOKENS} tokens"
+                    f"   🚨 Token limit exceeded, removing oldest records to fit within {max_input_tokens} tokens"
                 )
 
                 # Calculate which records to keep (newest first, within token limit)
@@ -158,7 +160,7 @@ class SQLiteProvider(ConversationHistoryDB):
                 running_tokens = 0
 
                 for record in current_records:  # Already ordered newest first
-                    if running_tokens + record.tokens <= MAX_CONTEXT_TOKENS:
+                    if running_tokens + record.tokens <= max_input_tokens:
                         records_to_keep.append(record)
                         running_tokens += record.tokens
                     else:
@@ -220,7 +222,7 @@ class SQLiteProvider(ConversationHistoryDB):
         is_new_session = self._is_new_session(session_id)
 
         # Calculate token count for input + output
-        token_count = calculate_record_tokens(input_data, output)
+        token_count = await calculate_tokens_in_record(input_data, output)
 
         # Create new record
         record = ConversationRecord(
@@ -244,9 +246,9 @@ class SQLiteProvider(ConversationHistoryDB):
             logger.info(f"🆕 New session detected: {session_id}, running LRU cleanup")
             self._cleanup_excess_sessions()
 
-        # Per-session FIFO cleanup: maintain max 20 records per session
+        # Per-session FIFO cleanup: maintain max records per session and model-specific token limits
         # (runs on every save)
-        self._cleanup_old_messages(session_id)
+        await self._cleanup_old_messages(session_id)
 
         return record_id
 

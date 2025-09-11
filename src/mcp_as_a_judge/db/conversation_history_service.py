@@ -13,7 +13,9 @@ from mcp_as_a_judge.db import (
     create_database_provider,
 )
 from mcp_as_a_judge.db.db_config import Config
-from mcp_as_a_judge.db.token_utils import filter_records_by_token_limit
+from mcp_as_a_judge.db.token_utils import (
+    filter_records_by_token_limit,
+)
 from mcp_as_a_judge.logging_config import get_logger
 
 # Set up logger
@@ -37,7 +39,7 @@ class ConversationHistoryService:
         self.db = db_provider or create_database_provider(config)
 
     async def load_filtered_context_for_enrichment(
-        self, session_id: str, current_prompt: str = ""
+        self, session_id: str, current_prompt: str = "", ctx=None
     ) -> list[ConversationRecord]:
         """
         Load recent conversation records for LLM context enrichment.
@@ -49,6 +51,7 @@ class ConversationHistoryService:
         Args:
             session_id: Session identifier
             current_prompt: Current prompt that will be sent to LLM (for token calculation)
+            ctx: MCP context for model detection and accurate token counting (optional)
 
         Returns:
             List of conversation records for LLM context (filtered for LLM limits)
@@ -63,8 +66,9 @@ class ConversationHistoryService:
 
         # Apply LLM context filtering: ensure history + current prompt will fit within token limit
         # This filters the list without modifying the database (only token limit matters for LLM)
-        filtered_records = filter_records_by_token_limit(
-            recent_records, current_prompt=current_prompt
+        # Pass ctx for accurate token counting when available
+        filtered_records = await filter_records_by_token_limit(
+            recent_records, current_prompt=current_prompt, ctx=ctx
         )
 
         logger.info(

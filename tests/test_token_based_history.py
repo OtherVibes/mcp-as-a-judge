@@ -22,19 +22,19 @@ from mcp_as_a_judge.db.token_utils import (
 class TestTokenBasedHistory:
     """Test token-based conversation history loading and filtering."""
 
-    def test_token_calculation(self):
+    async def test_token_calculation(self):
         """Test basic token calculation functionality."""
         print("\n🧮 TESTING TOKEN CALCULATION")
         print("=" * 50)
 
         # Test empty string
-        assert calculate_tokens("") == 0
+        assert await calculate_tokens("") == 0
         print("✅ Empty string: 0 tokens")
 
         # Test short strings (1 token ≈ 4 characters, rounded up)
-        assert calculate_tokens("Hi") == 1  # 2 chars -> 1 token
-        assert calculate_tokens("Hello") == 2  # 5 chars -> 2 tokens
-        assert calculate_tokens("Hello world") == 3  # 11 chars -> 3 tokens
+        assert await calculate_tokens("Hi") == 1  # 2 chars -> 1 token
+        assert await calculate_tokens("Hello") == 2  # 5 chars -> 2 tokens
+        assert await calculate_tokens("Hello world") == 3  # 11 chars -> 3 tokens
         print("✅ Short strings: correct token calculation")
 
         # Test longer strings
@@ -42,14 +42,16 @@ class TestTokenBasedHistory:
             "This is a longer text that should have more tokens" * 10
         )  # ~520 chars
         expected_tokens = (len(long_text) + 3) // 4  # Ceiling division
-        assert calculate_tokens(long_text) == expected_tokens
+        assert await calculate_tokens(long_text) == expected_tokens
         print(f"✅ Long text ({len(long_text)} chars): {expected_tokens} tokens")
 
         # Test record token calculation
         input_text = "Input data for testing"  # 22 chars -> 6 tokens
         output_text = "Output result from tool"  # 23 chars -> 6 tokens
-        total_tokens = calculate_record_tokens(input_text, output_text)
-        expected_total = calculate_tokens(input_text) + calculate_tokens(output_text)
+        total_tokens = await calculate_record_tokens(input_text, output_text)
+        expected_total = await calculate_tokens(input_text) + await calculate_tokens(
+            output_text
+        )
         assert total_tokens == expected_total
         print(f"✅ Record tokens: {total_tokens} total tokens")
 
@@ -192,7 +194,7 @@ class TestTokenBasedHistory:
         ]
 
         # Test with no current prompt - should filter to fit within 50,000 tokens
-        filtered = filter_records_by_token_limit(records)
+        filtered = await filter_records_by_token_limit(records)
         # Should keep newest (10,000) + recent (15,000) + older (20,000) = 45,000 tokens (within 50,000 limit)
         assert len(filtered) == 3
         assert filtered[0].name == "newest"
@@ -201,7 +203,7 @@ class TestTokenBasedHistory:
         print("✅ Records filtered to fit within MAX_CONTEXT_TOKENS")
 
         # Test with current prompt that pushes over the limit
-        filtered = filter_records_by_token_limit(
+        filtered = await filter_records_by_token_limit(
             records, current_prompt="A" * 80000
         )  # 20,000 tokens
         # Total would be 45,000 (first 3 records) + 20,000 = 65,000, so should filter to 2 records
@@ -217,12 +219,12 @@ class TestTokenBasedHistory:
             MockRecord(5000, "small2"),
             MockRecord(5000, "small3"),
         ]
-        filtered = filter_records_by_token_limit(small_records)
+        filtered = await filter_records_by_token_limit(small_records)
         assert len(filtered) == 3  # All should fit within 50,000 limit
         print("✅ All small records kept within limit")
 
         # Test with no current prompt (should return all records if within limit)
-        filtered = filter_records_by_token_limit(small_records)
+        filtered = await filter_records_by_token_limit(small_records)
         assert len(filtered) == 3  # All should fit within 50,000 token limit
         assert filtered[0].name == "small1"
         assert filtered[1].name == "small2"
@@ -272,13 +274,13 @@ class TestTokenBasedHistory:
         assert "small_3" in sources  # Most recent small record should be included
         print("✅ Most recent records prioritized correctly")
 
-    def test_edge_cases(self):
+    async def test_edge_cases(self):
         """Test edge cases for token calculation and filtering."""
         print("\n🔬 TESTING EDGE CASES")
         print("=" * 50)
 
         # Test empty records list
-        filtered = filter_records_by_token_limit([], current_prompt="test")
+        filtered = await filter_records_by_token_limit([], current_prompt="test")
         assert len(filtered) == 0
         print("✅ Empty records list handled")
 
@@ -288,7 +290,7 @@ class TestTokenBasedHistory:
                 self.tokens = tokens
 
         single_record = [MockRecord(500)]
-        filtered = filter_records_by_token_limit(
+        filtered = await filter_records_by_token_limit(
             single_record, current_prompt="A" * 4000
         )  # 1000 tokens
         assert len(filtered) == 1
@@ -296,7 +298,7 @@ class TestTokenBasedHistory:
 
         # Test single record exceeding limit (should still return 1 record)
         large_record = [MockRecord(2000)]
-        filtered = filter_records_by_token_limit(
+        filtered = await filter_records_by_token_limit(
             large_record, current_prompt="A" * 4000
         )  # 1000 tokens
         assert len(filtered) == 1  # Always return at least 1 record

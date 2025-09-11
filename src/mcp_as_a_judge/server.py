@@ -12,9 +12,10 @@ import json
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
-from mcp_as_a_judge.constants import MAX_RESPONSE_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
+from mcp_as_a_judge.db.dynamic_token_limits import get_llm_output_limit
+from mcp_as_a_judge.db.token_utils import detect_model_name
 from mcp_as_a_judge.elicitation_provider import elicitation_provider
 from mcp_as_a_judge.logging_config import (
     get_logger,
@@ -91,7 +92,7 @@ async def build_workflow(
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, json.dumps(original_input)
+                session_id, original_input, ctx
             )
         )
         history_json_array = (
@@ -116,11 +117,13 @@ async def build_workflow(
             user_vars,
         )
 
-        # STEP 3: Use messaging layer to get LLM evaluation
+        # STEP 3: Use messaging layer to get LLM evaluation with dynamic token limit
+        model_name = await detect_model_name(ctx)
+        dynamic_max_tokens = get_llm_output_limit(model_name)
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=MAX_RESPONSE_TOKENS,
+            max_tokens=dynamic_max_tokens,
             prefer_sampling=True,
         )
 
@@ -491,10 +494,13 @@ async def _evaluate_coding_plan(
         user_vars,
     )
 
+    # Use dynamic token limit for response
+    model_name = await detect_model_name(ctx)
+    dynamic_max_tokens = get_llm_output_limit(model_name)
     response_text = await llm_provider.send_message(
         messages=messages,
         ctx=ctx,
-        max_tokens=MAX_RESPONSE_TOKENS,
+        max_tokens=dynamic_max_tokens,
         prefer_sampling=True,
     )
 
@@ -566,7 +572,7 @@ async def judge_coding_plan(
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, json.dumps(original_input)
+                session_id, original_input, ctx
             )
         )
         history_json_array = (
@@ -654,7 +660,7 @@ async def judge_code_change(
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, json.dumps(original_input)
+                session_id, original_input, ctx
             )
         )
         history_json_array = (
@@ -682,11 +688,13 @@ async def judge_code_change(
             user_vars,
         )
 
-        # STEP 3: Use messaging layer for LLM evaluation
+        # STEP 3: Use messaging layer for LLM evaluation with dynamic token limit
+        model_name = await detect_model_name(ctx)
+        dynamic_max_tokens = get_llm_output_limit(model_name)
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=MAX_RESPONSE_TOKENS,
+            max_tokens=dynamic_max_tokens,
             prefer_sampling=True,
         )
 
