@@ -92,7 +92,7 @@ async def build_workflow(
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, original_input, ctx
+                session_id, current_prompt, ctx
             )
         )
         history_json_array = (
@@ -572,7 +572,7 @@ async def judge_coding_plan(
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, original_input, ctx
+                session_id, current_prompt, ctx
             )
         )
         history_json_array = (
@@ -660,7 +660,7 @@ async def judge_code_change(
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
-                session_id, original_input, ctx
+                session_id, current_prompt, ctx
             )
         )
         history_json_array = (

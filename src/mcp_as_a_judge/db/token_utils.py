@@ -6,6 +6,11 @@ using LiteLLM's token_counter for accurate model-specific token counting,
 with fallback to character-based approximation.
 """
 
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from mcp_as_a_judge.db import ConversationRecord
+
 from mcp_as_a_judge.db.dynamic_token_limits import get_llm_input_limit
 from mcp_as_a_judge.logging_config import get_logger
 
@@ -16,7 +21,7 @@ logger = get_logger(__name__)
 _cached_model_name: str | None = None
 
 
-async def detect_model_name(ctx=None) -> str | None:
+async def detect_model_name(ctx: Any = None) -> str | None:
     """
     Unified method to detect model name from either LLM config or MCP sampling.
 
@@ -62,7 +67,7 @@ async def detect_model_name(ctx=None) -> str | None:
 
             # Extract model name from response
             if hasattr(result, "model") and result.model:
-                return result.model
+                return str(result.model)
 
         except ImportError:
             logger.debug("MCP types not available for sampling")
@@ -74,7 +79,7 @@ async def detect_model_name(ctx=None) -> str | None:
     return None
 
 
-async def get_current_model_limits(ctx=None) -> tuple[int, int]:
+async def get_current_model_limits(ctx: Any = None) -> tuple[int, int]:
     """
     Simple wrapper: detect current model and return its token limits.
 
@@ -100,7 +105,7 @@ async def get_current_model_limits(ctx=None) -> tuple[int, int]:
 
 
 async def calculate_tokens_in_string(
-    text: str, model_name: str | None = None, ctx=None
+    text: str, model_name: str | None = None, ctx: Any = None
 ) -> int:
     """
     Calculate accurate token count from text using LiteLLM's token_counter.
@@ -145,7 +150,7 @@ async def calculate_tokens_in_string(
 
 
 async def calculate_tokens_in_record(
-    input_text: str, output_text: str, model_name: str | None = None, ctx=None
+    input_text: str, output_text: str, model_name: str | None = None, ctx: Any = None
 ) -> int:
     """
     Calculate total token count for input and output text.
@@ -181,7 +186,7 @@ def calculate_tokens_in_records(records: list) -> int:
 
 
 async def filter_records_by_token_limit(
-    records: list, current_prompt: str = "", ctx=None
+    records: list, current_prompt: str = "", ctx: Any = None
 ) -> list:
     """
     Filter conversation records to stay within token and record limits.

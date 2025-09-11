@@ -7,6 +7,8 @@ This service handles:
 3. Managing session-based conversation history
 """
 
+from typing import Any
+
 from mcp_as_a_judge.db import (
     ConversationHistoryDB,
     ConversationRecord,
@@ -39,7 +41,7 @@ class ConversationHistoryService:
         self.db = db_provider or create_database_provider(config)
 
     async def load_filtered_context_for_enrichment(
-        self, session_id: str, current_prompt: str = "", ctx=None
+        self, session_id: str, current_prompt: str = "", ctx: Any = None
     ) -> list[ConversationRecord]:
         """
         Load recent conversation records for LLM context enrichment.
