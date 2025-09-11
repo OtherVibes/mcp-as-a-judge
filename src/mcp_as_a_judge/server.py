@@ -120,11 +120,10 @@ async def build_workflow(
 
         # STEP 3: Use messaging layer to get LLM evaluation with dynamic token limit
         model_name = await detect_model_name(ctx)
-        dynamic_max_tokens = get_llm_output_limit(model_name)
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=dynamic_max_tokens,
+            max_tokens=get_llm_output_limit(model_name),
             prefer_sampling=True,
         )
 
@@ -497,11 +496,10 @@ async def _evaluate_coding_plan(
 
     # Use dynamic token limit for response
     model_name = await detect_model_name(ctx)
-    dynamic_max_tokens = get_llm_output_limit(model_name)
     response_text = await llm_provider.send_message(
         messages=messages,
         ctx=ctx,
-        max_tokens=dynamic_max_tokens,
+        max_tokens=get_llm_output_limit(model_name),
         prefer_sampling=True,
     )
 
@@ -695,11 +693,10 @@ async def judge_code_change(
 
         # STEP 3: Use messaging layer for LLM evaluation with dynamic token limit
         model_name = await detect_model_name(ctx)
-        dynamic_max_tokens = get_llm_output_limit(model_name)
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
-            max_tokens=dynamic_max_tokens,
+            max_tokens=get_llm_output_limit(model_name),
             prefer_sampling=True,
         )
 
