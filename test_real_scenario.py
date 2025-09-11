@@ -23,14 +23,14 @@ async def test_real_scenario():
         identified_gaps=[
             "Required fields for profile updates",
             "Validation rules for each field",
-            "Authentication requirements",
+            "Authentication requirements"
         ],
         specific_questions=[
             "What fields should be updatable?",
             "Should we validate email format?",
-            "Is admin approval required?",
+            "Is admin approval required?"
         ],
-        ctx=mock_ctx,
+        ctx=mock_ctx
     )
 
     print(f"Result type: {type(result)}")

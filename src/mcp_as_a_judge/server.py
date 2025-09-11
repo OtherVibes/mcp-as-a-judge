@@ -141,7 +141,7 @@ async def build_workflow(
         log_error(e, "build_workflow")
         # Return a default workflow guidance in case of error
         return WorkflowGuidance(
-            next_tool="raise_missing_requirements",
+            next_tool="elicit_missing_requirements",
             reasoning="An error occurred during workflow generation. Please provide more details.",
             preparation_needed=[
                 "Review the error and provide more specific requirements"
