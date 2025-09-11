@@ -5,7 +5,7 @@ This service handles LRU-based cleanup operations for conversation history recor
 removing least recently used sessions when session limits are exceeded.
 """
 
-from datetime import UTC, datetime
+
 
 from sqlalchemy import Engine, func
 from sqlmodel import Session, select
