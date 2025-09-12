@@ -21,29 +21,87 @@ Please evaluate the following coding plan:
 
 ## Research
 
-**Research must be based on: Current Repository + User Requirements + MANDATORY Online Investigation**
+{{ research|default("") }}
 
-{{ research }}
+{% if research_required %}
+## 🔍 External Research Analysis
 
-## Research URLs
+**Status:** REQUIRED (Scope: {{ research_scope }})
+**Rationale:** {{ research_rationale }}
+
+{% if expected_url_count > 0 %}
+### 🧠 Dynamic URL Requirements (LLM Analysis)
+**Expected URLs:** {{ expected_url_count }}
+**Minimum URLs:** {{ minimum_url_count }}
+**Reasoning:** {{ url_requirement_reasoning }}
+{% endif %}
 
 {% if research_urls %}
-The following URLs were visited during MANDATORY online research:
-
+**Research Sources Provided ({{ research_urls|length }} URLs):**
 {% for url in research_urls %}
 - {{ url }}
 {% endfor %}
 
-URLs should demonstrate:
-- Current repository analysis
-- Investigation of existing solutions (current repo capabilities, well-known libraries)
-- Preference for existing solutions over in-house development
-{% else %}
-🚨 **CRITICAL: NO RESEARCH URLS PROVIDED** - Online research is MANDATORY.
-AI assistant MUST perform online research and provide URLs demonstrating:
-- Current repository analysis
-- Investigation of existing solutions (current repo capabilities, well-known libraries)
-- Preference for existing solutions over in-house development
-
-**This submission should be REJECTED for lack of required online research.**
+**Validation Focus:** 
+- Ensure research demonstrates problem domain authority and established best practices
+{% if expected_url_count > 0 %}
+- Verify {{ research_urls|length }} URLs {% if research_urls|length >= expected_url_count %}meet{% else %}fall short of{% endif %} the expected {{ expected_url_count }} URLs for optimal coverage
+- Minimum {{ minimum_url_count }} URLs required for basic adequacy
 {% endif %}
+{% else %}
+⚠️ **MISSING:** External research is required but no URLs provided.
+{% if expected_url_count > 0 %}
+**Required:** At least {{ minimum_url_count }} URLs ({{ expected_url_count }} recommended)
+**Reason:** {{ url_requirement_reasoning }}
+{% endif %}
+{% endif %}
+{% endif %}
+
+{% if internal_research_required %}
+## 🏗️ Internal Codebase Analysis
+
+**Status:** REQUIRED - Task should leverage existing patterns.
+
+{% if related_code_snippets %}
+**Related Components:**
+{% for snippet in related_code_snippets %}
+- `{{ snippet }}`
+{% endfor %}
+
+**Validation Focus:** Ensure plan follows established patterns and reuses existing components.
+{% else %}
+⚠️ **MISSING:** Internal analysis required but no code components identified.
+{% endif %}
+{% endif %}
+
+{% if risk_assessment_required %}
+## ⚠️ Risk Assessment
+
+**Status:** REQUIRED - Change has potential to impact existing functionality.
+
+{% if identified_risks %}
+**Risk Areas:**
+{% for risk in identified_risks %}
+- {{ risk }}
+{% endfor %}
+{% endif %}
+
+{% if risk_mitigation_strategies %}
+**Mitigation Strategies:**
+{% for strategy in risk_mitigation_strategies %}
+- {{ strategy }}
+{% endfor %}
+{% endif %}
+
+**Validation Focus:** Ensure plan addresses risks with safeguards and rollback mechanisms.
+{% endif %}
+
+## Analysis Instructions
+
+As part of your evaluation, you must analyze the task requirements and update the task metadata with conditional requirements:
+
+1. **External Research Analysis**: Determine if external research is needed based on task complexity, specialized domains, or technologies
+2. **Internal Codebase Analysis**: Determine if understanding existing codebase patterns is needed
+3. **Risk Assessment**: Determine if the task poses risks to existing functionality or system stability
+
+Update the `current_task_metadata` in your response with your analysis of these conditional requirements.

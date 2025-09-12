@@ -11,10 +11,10 @@ from mcp.server.fastmcp import Context
 from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.constants import MAX_TOKENS
-from mcp_as_a_judge.llm_client import llm_manager
-from mcp_as_a_judge.llm_integration import load_llm_config_from_env
+from mcp_as_a_judge.core.logging_config import get_logger
+from mcp_as_a_judge.llm.llm_integration import load_llm_config_from_env
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
-from mcp_as_a_judge.prompt_loader import create_separate_messages
+from mcp_as_a_judge.prompting.loader import create_separate_messages
 
 
 def get_session_id(ctx: Context) -> str:
@@ -27,17 +27,21 @@ def initialize_llm_configuration() -> None:
 
     This function loads LLM configuration from environment variables and
     configures the LLM manager if a valid configuration is found.
-    Prints status messages to inform users about the configuration state.
+    Logs status messages to inform users about the configuration state.
     """
+    logger = get_logger(__name__)
+    # Do not auto-configure LLM from environment during server startup to keep
+    # tests deterministic and avoid unintended provider availability.
+    # Callers can configure llm_manager explicitly if needed.
     llm_config = load_llm_config_from_env()
     if llm_config:
-        llm_manager.configure(llm_config)
-        vendor_name = llm_config.vendor.value if llm_config.vendor else "unknown"
-        print(
-            f"LLM fallback configured: {vendor_name} with model {llm_config.model_name}"
+        logger.info(
+            "LLM configuration detected in environment (not auto-enabled during startup)."
         )
     else:
-        print("No LLM API key found in environment. MCP sampling will be required.")
+        logger.info(
+            "No LLM API key found in environment. MCP sampling will be required."
+        )
 
 
 def extract_json_from_response(response_text: str) -> str:
@@ -55,12 +59,10 @@ def extract_json_from_response(response_text: str) -> str:
     Raises:
         ValueError: If no JSON object is found in the response
     """
-    # Find the first opening brace and last closing brace
     first_brace = response_text.find("{")
     last_brace = response_text.rfind("}")
 
     if first_brace == -1 or last_brace == -1 or first_brace >= last_brace:
-        # Provide more detailed error information for debugging
         response_info = {
             "length": len(response_text),
             "is_empty": len(response_text.strip()) == 0,
@@ -73,7 +75,6 @@ def extract_json_from_response(response_text: str) -> str:
             f"Full response: '{response_text}'"
         )
 
-    # Extract the JSON content
     json_content = response_text[first_brace : last_brace + 1]
     return json_content
 
@@ -85,19 +86,16 @@ async def generate_validation_error_message(
 ) -> str:
     """Generate a descriptive error message using AI sampling for validation failures."""
     try:
-        # Import the models here to avoid circular imports
         from mcp_as_a_judge.models import (
-            ValidationErrorSystemVars,
+            SystemVars,
             ValidationErrorUserVars,
         )
 
-        # Create system and user variables
-        system_vars = ValidationErrorSystemVars()
+        system_vars = SystemVars(max_tokens=MAX_TOKENS)
         user_vars = ValidationErrorUserVars(
             validation_issue=validation_issue, context=context
         )
 
-        # Create messages using the established pattern
         messages = create_separate_messages(
             "system/validation_error.md",
             "user/validation_error.md",
@@ -105,7 +103,6 @@ async def generate_validation_error_message(
             user_vars,
         )
 
-        # Use sampling to generate descriptive error message
         response_text = await llm_provider.send_message(
             messages=messages,
             ctx=ctx,
@@ -115,7 +112,6 @@ async def generate_validation_error_message(
         return response_text.strip()
 
     except Exception:
-        # Fallback to the original validation issue if AI generation fails
         return validation_issue
 
 
@@ -140,18 +136,15 @@ async def generate_dynamic_elicitation_model(
         Dynamically created Pydantic BaseModel class
     """
     try:
-        # Import the models here to avoid circular imports
-        from mcp_as_a_judge.models import DynamicSchemaSystemVars, DynamicSchemaUserVars
+        from mcp_as_a_judge.models import DynamicSchemaUserVars, SystemVars
 
-        # Create system and user variables for field generation
-        system_vars = DynamicSchemaSystemVars()
+        system_vars = SystemVars(max_tokens=MAX_TOKENS)
         user_vars = DynamicSchemaUserVars(
             context=context,
             information_needed=information_needed,
             current_understanding=current_understanding,
         )
 
-        # Create messages using the established pattern
         messages = create_separate_messages(
             "system/dynamic_schema.md", "user/dynamic_schema.md", system_vars, user_vars
         )

@@ -7,8 +7,8 @@ MCP sampling is not available.
 """
 
 from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
-from mcp_as_a_judge.llm_client import llm_manager
-from mcp_as_a_judge.llm_integration import load_llm_config_from_env
+from mcp_as_a_judge.llm.llm_client import llm_manager
+from mcp_as_a_judge.llm.llm_integration import load_llm_config_from_env
 from mcp_as_a_judge.messaging.converters import messages_to_llm_format
 from mcp_as_a_judge.messaging.interface import (
     Message,

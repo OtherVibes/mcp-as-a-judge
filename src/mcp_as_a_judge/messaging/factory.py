@@ -4,10 +4,18 @@ Messaging provider factory for smart provider selection.
 This module implements the factory pattern for creating the appropriate
 messaging provider based on capabilities and preferences. It automatically
 detects MCP sampling capability and selects the best available provider.
+
+The factory handles ALL message format decisions to ensure consistency.
 """
+
+from typing import Any
 
 from mcp.server.fastmcp import Context
 
+from mcp_as_a_judge.messaging.converters import (
+    mcp_messages_to_universal,
+    validate_message_conversion,
+)
 from mcp_as_a_judge.messaging.interface import MessagingConfig, MessagingProvider
 from mcp_as_a_judge.messaging.llm_api_provider import LLMAPIProvider
 from mcp_as_a_judge.messaging.mcp_sampling_provider import MCPSamplingProvider
@@ -55,6 +63,64 @@ class MessagingProviderFactory:
             # Force LLM API only (no fallback to sampling)
             if llm_available:
                 return llm_provider
+
+        # No providers available
+        raise RuntimeError(
+            f"No messaging providers available. "
+            f"MCP sampling: {sampling_available}, LLM API: {llm_available}"
+        )
+
+    @staticmethod
+    def get_provider_with_messages(
+        ctx: Context, messages: list[Any], config: MessagingConfig
+    ) -> tuple[MessagingProvider, list[Any]]:
+        """
+        Get the appropriate provider and convert messages to the correct format.
+
+        This method makes ALL message format decisions at the factory level
+        to ensure consistency throughout the system.
+
+        Args:
+            ctx: MCP context for capability detection
+            messages: Input messages (typically SamplingMessage objects)
+            config: Messaging configuration
+
+        Returns:
+            Tuple of (provider, formatted_messages) where formatted_messages
+            are in the correct format for the selected provider
+        """
+        # Check provider availability
+        sampling_provider = MCPSamplingProvider(ctx)
+        llm_provider = LLMAPIProvider()
+
+        sampling_available = sampling_provider.is_available()
+        llm_available = llm_provider.is_available()
+
+        if config.prefer_sampling:
+            # Prefer sampling first, fall back to LLM API
+            if sampling_available:
+                # MCP sampling expects SamplingMessage objects directly
+                return sampling_provider, messages
+            elif llm_available:
+                # LLM API expects universal Message objects
+                universal_messages = mcp_messages_to_universal(messages)
+
+                # Validate conversion
+                if not validate_message_conversion(messages, universal_messages):
+                    raise ValueError("Failed to convert messages to universal format")
+
+                return llm_provider, universal_messages
+        else:
+            # Force LLM API only (no fallback to sampling)
+            if llm_available:
+                # LLM API expects universal Message objects
+                universal_messages = mcp_messages_to_universal(messages)
+
+                # Validate conversion
+                if not validate_message_conversion(messages, universal_messages):
+                    raise ValueError("Failed to convert messages to universal format")
+
+                return llm_provider, universal_messages
 
         # No providers available
         raise RuntimeError(

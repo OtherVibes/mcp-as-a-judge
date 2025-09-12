@@ -5,8 +5,8 @@ This module defines the abstract interface that all database providers
 must implement for storing and retrieving conversation history.
 """
 
+import time
 from abc import ABC, abstractmethod
-from datetime import datetime
 
 from sqlmodel import Field, SQLModel
 
@@ -24,9 +24,9 @@ class ConversationRecord(SQLModel, table=True):
     tokens: int = Field(
         default=0
     )  # combined token count for input + output (1 token ≈ 4 characters)
-    timestamp: datetime = Field(
-        default_factory=datetime.utcnow, index=True
-    )  # when the record was created
+    timestamp: int = Field(
+        default_factory=lambda: int(time.time()), index=True
+    )  # when the record was created (epoch seconds)
 
 
 class ConversationHistoryDB(ABC):
@@ -63,5 +63,18 @@ class ConversationHistoryDB(ABC):
 
         Returns:
             List of ConversationRecord objects
+        """
+        pass
+
+    @abstractmethod
+    async def get_recent_sessions(self, limit: int = 10) -> list[tuple[str, int]]:
+        """
+        Retrieve most recently active sessions.
+
+        Args:
+            limit: Maximum number of session IDs to return
+
+        Returns:
+            List of tuples: (session_id, last_activity_timestamp), ordered by most recent first
         """
         pass

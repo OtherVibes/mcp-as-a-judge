@@ -34,9 +34,9 @@ def test_judge_coding_plan_signature() -> None:
     assert sig.parameters["research"].default == inspect.Parameter.empty, (
         "research should be required"
     )
-    # research_urls is optional for backward compatibility but strongly encouraged
-    assert sig.parameters["research_urls"].default is None, (
-        "research_urls should have None default for backward compatibility"
+    # research_urls is now required
+    assert sig.parameters["research_urls"].default == inspect.Parameter.empty, (
+        "research_urls should be required"
     )
     print("✓ plan, design, and research are all required parameters")
 

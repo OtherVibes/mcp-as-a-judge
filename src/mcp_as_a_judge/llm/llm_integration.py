@@ -58,7 +58,6 @@ class LLMConfig(BaseModel):
     )
 
 
-# API key patterns for vendor detection
 # API key patterns for vendor detection (ordered by specificity)
 API_KEY_PATTERNS = {
     # Most specific patterns first
