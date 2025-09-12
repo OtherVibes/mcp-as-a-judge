@@ -180,8 +180,6 @@ class MCPSamplingProvider(MessagingProvider):
                         continue
             except Exception as e:
                 # Fall through to append original if normalization fails
-                self.logger.debug_sync(
-                    f"Failed to normalize message, using original: {e}"
-                )
+                self.logger.debug(f"Failed to normalize message, using original: {e}")
             normalized.append(msg)
         return normalized
