@@ -132,9 +132,7 @@ class LLMClient:
         wait=wait_exponential(multiplier=2, min=2, max=120),
         reraise=True,
     )
-    async def _generate_text_with_retry(
-        self, completion_params: dict[str, Any]
-    ) -> Any:
+    async def _generate_text_with_retry(self, completion_params: dict[str, Any]) -> Any:
         """Generate text with retry logic for rate limit errors.
 
         This method is decorated with tenacity retry logic to handle
@@ -150,7 +148,9 @@ class LLMClient:
             litellm.RateLimitError: If rate limit is exceeded after all retries
             Exception: For other LiteLLM errors
         """
-        logger.debug(f"Attempting LLM completion with model: {completion_params.get('model')}")
+        logger.debug(
+            f"Attempting LLM completion with model: {completion_params.get('model')}"
+        )
 
         # Run the synchronous LiteLLM call in a thread pool
         response = await asyncio.get_event_loop().run_in_executor(

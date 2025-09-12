@@ -130,7 +130,9 @@ class SQLiteProvider(ConversationHistoryDB):
                 oldest_stmt = (
                     select(ConversationRecord)
                     .where(ConversationRecord.session_id == session_id)
-                    .order_by(asc(ConversationRecord.timestamp), asc(ConversationRecord.id))
+                    .order_by(
+                        asc(ConversationRecord.timestamp), asc(ConversationRecord.id)
+                    )
                     .limit(1)
                 )
                 oldest_record = session.exec(oldest_stmt).first()

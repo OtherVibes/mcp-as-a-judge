@@ -12,6 +12,7 @@ from typing import Any
 from mcp.server.fastmcp import Context
 from mcp.types import SamplingMessage, TextContent
 
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.messaging.converters import messages_to_mcp_format
 from mcp_as_a_judge.messaging.interface import (
     Message,
@@ -36,6 +37,7 @@ class MCPSamplingProvider(MessagingProvider):
             context: MCP context with session for sampling
         """
         self.context = context
+        self.logger = get_logger(__name__)
 
     async def _send_message(
         self, messages: list[Message], config: MessagingConfig
@@ -176,8 +178,10 @@ class MCPSamplingProvider(MessagingProvider):
                             )
                         )
                         continue
-            except Exception:
+            except Exception as e:
                 # Fall through to append original if normalization fails
-                pass
+                self.logger.debug_sync(
+                    f"Failed to normalize message, using original: {e}"
+                )
             normalized.append(msg)
         return normalized

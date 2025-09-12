@@ -239,7 +239,9 @@ async def set_coding_task(
         return error_result
 
 
-@mcp.tool(description=tool_description_provider.get_description("get_current_coding_task"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(
+    description=tool_description_provider.get_description("get_current_coding_task")
+)  # type: ignore[misc,unused-ignore]
 async def get_current_coding_task(ctx: Context) -> dict:
     """Return the most recently active coding task's task_id and metadata.
 
@@ -284,7 +286,9 @@ async def get_current_coding_task(ctx: Context) -> dict:
                 mode="json", exclude_none=True
             )
         else:
-            response["note"] = "Task metadata not found in history for this session, but a session exists. Use this task_id UUID and proceed; if validation fails, recreate with set_coding_task."
+            response["note"] = (
+                "Task metadata not found in history for this session, but a session exists. Use this task_id UUID and proceed; if validation fails, recreate with set_coding_task."
+            )
 
         return response
     except Exception as e:
