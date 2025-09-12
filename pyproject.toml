@@ -1,7 +1,7 @@
 [project]
 name = "mcp-as-a-judge"
 version = "0.2.0"
-description = "MCP as a Judge: Prevent bad coding practices with AI-powered evaluation and user-driven decision making"
+description = "MCP as a Judge: An AI-powered Model Context Protocol server that provides code review, validation, and quality assessment tools for development workflows"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
@@ -33,7 +33,6 @@ dependencies = [
     "jinja2>=3.1.0",
     "litellm>=1.0.0",
     "sqlmodel>=0.0.24",
-    "tenacity>=8.0.0",
 ]
 
 [project.urls]
@@ -62,7 +61,6 @@ dev-dependencies = [
     "types-requests>=2.31.0",
     "pre-commit>=3.0.0",
     "bandit>=1.8.6",
-    "twine>=6.2.0",
 ]
 
 [tool.hatch.envs.default]
