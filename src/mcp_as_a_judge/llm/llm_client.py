@@ -9,13 +9,23 @@ import asyncio
 from typing import Any
 
 import litellm
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from mcp_as_a_judge.constants import DEFAULT_REASONING_EFFORT
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.llm.llm_integration import LLMConfig, LLMVendor
 
 # Set global drop_params to handle model-specific parameter restrictions
 # This is especially important for GPT-5 models which don't support temperature at all
 litellm.drop_params = True
+
+# Set up logger
+logger = get_logger(__name__)
 
 
 class LLMClient:
@@ -116,6 +126,40 @@ class LLMClient:
 
         return model_name
 
+    @retry(
+        retry=retry_if_exception_type(litellm.RateLimitError),
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=2, max=120),
+        reraise=True,
+    )
+    async def _generate_text_with_retry(
+        self, completion_params: dict[str, Any]
+    ) -> Any:
+        """Generate text with retry logic for rate limit errors.
+
+        This method is decorated with tenacity retry logic to handle
+        litellm.RateLimitError with exponential backoff.
+
+        Args:
+            completion_params: Parameters for LiteLLM completion
+
+        Returns:
+            LiteLLM response object
+
+        Raises:
+            litellm.RateLimitError: If rate limit is exceeded after all retries
+            Exception: For other LiteLLM errors
+        """
+        logger.debug(f"Attempting LLM completion with model: {completion_params.get('model')}")
+
+        # Run the synchronous LiteLLM call in a thread pool
+        response = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: self._litellm.completion(**completion_params)
+        )
+
+        logger.debug("LLM completion successful")
+        return response
+
     async def generate_text(
         self,
         messages: list[dict[str, str]],
@@ -165,10 +209,8 @@ class LLMClient:
             if kwargs.get("response_format") == "json":
                 completion_params["response_format"] = {"type": "json_object"}
 
-            # Run the synchronous LiteLLM call in a thread pool
-            response = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: self._litellm.completion(**completion_params)
-            )
+            # Use retry helper for rate limit handling
+            response = await self._generate_text_with_retry(completion_params)
 
             # Extract text from response
             if hasattr(response, "choices") and response.choices:
@@ -186,7 +228,13 @@ class LLMClient:
                 f"Unexpected response format from LLM. Response: {response}"
             )
 
+        except litellm.RateLimitError as e:
+            # Rate limit error with specific handling
+            logger.error(f"Rate limit exceeded after retries: {e}")
+            raise Exception(f"LLM generation failed due to rate limiting: {e}") from e
         except Exception as e:
+            # Other errors
+            logger.error(f"LLM generation failed: {e}")
             raise Exception(f"LLM generation failed: {e}") from e
 
     def is_available(self) -> bool:

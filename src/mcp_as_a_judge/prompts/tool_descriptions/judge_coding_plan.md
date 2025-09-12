@@ -27,3 +27,8 @@ Args:
 
 Returns:
     Enhanced response with approval status, detailed feedback, current task metadata, and workflow guidance for next steps
+
+IMPORTANT — TASK ID DISCIPLINE:
+- You MUST pass the exact `task_id` UUID returned by `set_coding_task`.
+- Do NOT invent, truncate, or transform it (e.g., `535` is invalid).
+- If you don’t have it, call `get_current_coding_task` to recover the last active task. If none exists, create one with `set_coding_task`.

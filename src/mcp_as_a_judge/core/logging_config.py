@@ -67,7 +67,7 @@ def setup_logging(level: str = "INFO") -> None:
     """
     if MCP_SDK_AVAILABLE and configure_logging is not None:
         # Use MCP SDK configure_logging for proper color support
-        configure_logging(level)  # type: ignore[misc]
+        configure_logging(level)  # type: ignore[arg-type]
     else:
         # Fallback to standard logging setup
         # Create custom formatter

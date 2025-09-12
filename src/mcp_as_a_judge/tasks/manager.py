@@ -138,8 +138,10 @@ async def load_task_metadata_from_history(
     """
     try:
         # Use task_id as primary key for conversation history
-        conversation_history = await conversation_service.get_conversation_history(
-            session_id=task_id
+        conversation_history = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id=task_id
+            )
         )
 
         # Look for the most recent task metadata record from any source
@@ -179,7 +181,7 @@ async def save_task_metadata_to_history(
     """
     try:
         # Use task_id as primary key for conversation history
-        await conversation_service.save_tool_interaction(
+        await conversation_service.save_tool_interaction_and_cleanup(
             session_id=task_metadata.task_id,
             tool_name="set_coding_task",
             tool_input=user_request,

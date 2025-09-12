@@ -36,6 +36,11 @@ This tool provides comprehensive assessment and final workflow guidance, serving
 - `quality_notes`: Notes about code quality, best practices, or improvements
 - `testing_status`: Status of testing (if applicable)
 
+IMPORTANT — TASK ID DISCIPLINE:
+- You MUST pass the exact `task_id` UUID returned by `set_coding_task`.
+- Do NOT invent, truncate, or transform it (e.g., `535` is invalid).
+- If you don’t have it, call `get_current_coding_task` to recover the last active task. If none exists, create one with `set_coding_task`.
+
 ## Validation Criteria
 
 **🔒 MANDATORY APPROVALS REQUIRED:**

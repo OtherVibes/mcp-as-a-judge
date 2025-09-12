@@ -91,6 +91,7 @@ User Request → set_coding_task → judge_coding_plan (rejected) → (fix plan)
 - Read and follow the detailed `guidance`
 - Trust the dynamic workflow - it adapts to your specific situation
 - Use the same `task_id` throughout the entire workflow
+- Ensure the `task_id` is the exact UUID returned by `set_coding_task` (never invent values like `535`). If you lose it, call `get_current_coding_task` to recover.
 
 ### ❌ DON'T
 - Assume a fixed sequence of tools
@@ -98,6 +99,7 @@ User Request → set_coding_task → judge_coding_plan (rejected) → (fix plan)
 - Ignore the `preparation_needed` steps
 - Call tools without checking if they're the recommended next step
 - Start new workflows without calling `set_coding_task` first
+- Invent or transform the `task_id`; if lost, call `get_current_coding_task` to recover the last active task. Only call `set_coding_task` to create a brand new task.
 
 ## Error Recovery
 

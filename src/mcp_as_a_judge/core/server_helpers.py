@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 
 from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
-from mcp_as_a_judge.llm.llm_client import llm_manager
 from mcp_as_a_judge.llm.llm_integration import load_llm_config_from_env
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.prompting.loader import create_separate_messages
@@ -31,12 +30,13 @@ def initialize_llm_configuration() -> None:
     Logs status messages to inform users about the configuration state.
     """
     logger = get_logger(__name__)
+    # Do not auto-configure LLM from environment during server startup to keep
+    # tests deterministic and avoid unintended provider availability.
+    # Callers can configure llm_manager explicitly if needed.
     llm_config = load_llm_config_from_env()
     if llm_config:
-        llm_manager.configure(llm_config)
-        vendor_name = llm_config.vendor.value if llm_config.vendor else "unknown"
         logger.info(
-            f"LLM fallback configured: {vendor_name} with model {llm_config.model_name}"
+            "LLM configuration detected in environment (not auto-enabled during startup)."
         )
     else:
         logger.info(

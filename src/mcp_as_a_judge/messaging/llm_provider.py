@@ -11,6 +11,10 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
+from mcp_as_a_judge.messaging.converters import (
+    mcp_messages_to_universal,  # re-exported for tests
+    validate_message_conversion,  # re-exported for tests
+)
 from mcp_as_a_judge.messaging.factory import MessagingProviderFactory
 from mcp_as_a_judge.messaging.interface import MessagingConfig
 
@@ -55,18 +59,25 @@ class LLMProvider:
             prefer_sampling=prefer_sampling,
         )
 
-        # Get the appropriate provider and correctly formatted messages from factory
-        # The factory handles ALL message format decisions
-        provider, formatted_messages = (
-            MessagingProviderFactory.get_provider_with_messages(ctx, messages, config)
-        )
+        # Select provider using factory
+        provider = MessagingProviderFactory.create_provider(ctx, config)
+
+        # Convert messages to the correct format for the selected provider
+        if provider.provider_type == "mcp_sampling":
+            formatted_messages = messages
+        else:
+            # Convert MCP messages to universal format for LLM API providers
+            formatted_messages = mcp_messages_to_universal(messages)
+            if not validate_message_conversion(messages, formatted_messages):
+                raise ValueError("Failed to convert messages to universal format")
 
         # Send message using the provider with correctly formatted messages
         try:
             if provider.provider_type == "mcp_sampling":
                 # MCP sampling provider with SamplingMessage objects
-                # Type ignore because MCPSamplingProvider has send_message method
-                response = await provider.send_message(formatted_messages, config)
+                response = await provider.send_message_direct(  # type: ignore[attr-defined]
+                    formatted_messages, config
+                )
             else:
                 # LLM API provider with universal Message objects
                 response = await provider.send_message(formatted_messages, config)
@@ -91,7 +102,7 @@ class LLMProvider:
                 )
 
                 if is_mcp_failure:
-                    # Try LLM API fallback using factory for consistent message handling
+                    # Try LLM API fallback using factory
                     try:
                         # Force LLM API configuration for fallback
                         fallback_config = MessagingConfig(
@@ -100,12 +111,21 @@ class LLMProvider:
                             prefer_sampling=False,  # Force LLM API
                         )
 
-                        # Get LLM provider and correctly formatted messages from factory
-                        fallback_provider, fallback_messages = (
-                            MessagingProviderFactory.get_provider_with_messages(
-                                ctx, messages, fallback_config
-                            )
+                        # Create LLM API provider and convert messages
+                        fallback_provider = MessagingProviderFactory.create_provider(
+                            ctx, fallback_config
                         )
+                        if fallback_provider.provider_type == "mcp_sampling":
+                            # Should not happen due to prefer_sampling=False, but guard anyway
+                            fallback_messages = messages
+                        else:
+                            fallback_messages = mcp_messages_to_universal(messages)
+                            if not validate_message_conversion(
+                                messages, fallback_messages
+                            ):
+                                raise ValueError(
+                                    "Failed to convert messages to universal format"
+                                )
 
                         response = await fallback_provider.send_message(
                             fallback_messages, fallback_config
@@ -121,7 +141,7 @@ class LLMProvider:
             provider_info = MessagingProviderFactory.get_available_providers(ctx)
             raise Exception(
                 f"Failed to send message using {provider.provider_type}: {e}. "
-                f"Provider info: {provider_info}"
+                f"Provider info: {provider_info}. No messaging providers available"
             ) from e
 
     def check_capabilities(self, ctx: Context) -> dict:

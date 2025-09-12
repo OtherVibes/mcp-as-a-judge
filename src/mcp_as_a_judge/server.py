@@ -43,8 +43,6 @@ from mcp_as_a_judge.models import (
 )
 from mcp_as_a_judge.models.enhanced_responses import (
     EnhancedResponseFactory,
-    MissingRequirementsResult,
-    ObstacleResult,
     TaskAnalysisResult,
     TaskCompletionResult,
 )
@@ -241,17 +239,80 @@ async def set_coding_task(
         return error_result
 
 
+@mcp.tool(description=tool_description_provider.get_description("get_current_coding_task"))  # type: ignore[misc,unused-ignore]
+async def get_current_coding_task(ctx: Context) -> dict:
+    """Return the most recently active coding task's task_id and metadata.
+
+    Use this when you lost the UUID. If none exists, the response includes
+    guidance to call set_coding_task to create a new task.
+    """
+    set_context_reference(ctx)
+    log_tool_execution("get_current_coding_task", "unknown")
+
+    try:
+        recent = await conversation_service.db.get_recent_sessions(limit=1)
+        if not recent:
+            return {
+                "found": False,
+                "feedback": "No existing coding task sessions found. Call set_coding_task to create a task and obtain a task_id UUID.",
+                "workflow_guidance": {
+                    "next_tool": "set_coding_task",
+                    "reasoning": "No recent sessions in conversation history",
+                    "preparation_needed": [
+                        "Provide user_request, task_title, task_description"
+                    ],
+                    "guidance": "Call set_coding_task to initialize a new task. Use the returned task_id UUID in all subsequent tool calls.",
+                },
+            }
+
+        task_id, last_activity = recent[0]
+
+        # Load task metadata from history if available
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id, conversation_service=conversation_service
+        )
+
+        response: dict = {
+            "found": True,
+            "task_id": task_id,
+            "last_activity": last_activity,
+        }
+        if task_metadata is not None:
+            response["current_task_metadata"] = task_metadata.model_dump(
+                mode="json", exclude_none=True
+            )
+        else:
+            response["note"] = "Task metadata not found in history for this session, but a session exists. Use this task_id UUID and proceed; if validation fails, recreate with set_coding_task."
+
+        return response
+    except Exception as e:
+        return {
+            "found": False,
+            "error": f"Failed to retrieve current task: {e!s}",
+            "workflow_guidance": {
+                "next_tool": "set_coding_task",
+                "reasoning": "Error while retrieving recent sessions",
+                "preparation_needed": [
+                    "Provide user_request, task_title, task_description"
+                ],
+                "guidance": "Call set_coding_task to initialize a new task and use its task_id UUID going forward.",
+            },
+        }
+
+
 @mcp.tool(description=tool_description_provider.get_description("raise_obstacle"))  # type: ignore[misc,unused-ignore]
 async def raise_obstacle(
     problem: str,
     research: str,
     options: list[str],
-    task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
-) -> ObstacleResult:
+    task_id: str | None = None,  # OPTIONAL: Task ID for context and memory
+) -> str:
     """Obstacle handling tool - description loaded from tool_description_provider."""
     # Log tool execution start
-    log_tool_execution("raise_obstacle", task_id)
+    log_tool_execution("raise_obstacle", task_id or "unknown")
 
     # Store original input for saving later
     original_input = {
@@ -266,7 +327,7 @@ async def raise_obstacle(
         from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         task_metadata = await load_task_metadata_from_history(
-            task_id=task_id,
+            task_id=task_id or "test_task",
             conversation_service=conversation_service,
         )
 
@@ -348,26 +409,20 @@ Please choose an option (by number or description) and provide any additional co
                 guidance="Call set_coding_task to update the task with any new requirements or clarifications from the obstacle resolution. Then continue with the workflow.",
             )
 
-            # Create enhanced response
-            result = ObstacleResult(
-                obstacle_acknowledged=True,
-                resolution_guidance=f"✅ OBSTACLE RESOLVED: {response_text}",
-                alternative_approaches=options,
-                current_task_metadata=task_metadata,
-                workflow_guidance=workflow_guidance,
-            )
+            # Create resolution text
+            result_text = f"✅ OBSTACLE RESOLVED: {response_text}"
 
             # Save successful interaction as conversation record
             await conversation_service.save_tool_interaction_and_cleanup(
-                session_id=task_id,  # Use task_id as primary key
+                session_id=task_metadata.task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    result.model_dump(mode="json", exclude_none=True)
+                    {"obstacle_acknowledged": True, "message": result_text}
                 ),
             )
 
-            return result
+            return result_text
 
         else:
             # Elicitation failed or not available - return the fallback message
@@ -378,25 +433,20 @@ Please choose an option (by number or description) and provide any additional co
                 guidance=f"Obstacle not resolved: {elicit_result.message}. Manual intervention required.",
             )
 
-            result = ObstacleResult(
-                obstacle_acknowledged=False,
-                resolution_guidance=elicit_result.message,
-                alternative_approaches=options,
-                current_task_metadata=task_metadata,
-                workflow_guidance=workflow_guidance,
-            )
-
             # Save failed interaction
             await conversation_service.save_tool_interaction_and_cleanup(
-                session_id=task_id,  # Use task_id as primary key
+                session_id=task_metadata.task_id,  # Use task_id as primary key
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    result.model_dump(mode="json", exclude_none=True)
+                    {"obstacle_acknowledged": False, "message": elicit_result.message}
                 ),
             )
 
-            return result
+            return (
+                f"❌ ERROR: Failed to elicit user decision: {elicit_result.message}. "
+                f"No messaging providers available"
+            )
 
     except Exception as e:
         # Create error response
@@ -407,26 +457,26 @@ Please choose an option (by number or description) and provide any additional co
             guidance=f"Error handling obstacle: {e!s}. Manual intervention required.",
         )
 
-        error_result = ObstacleResult(
-            obstacle_acknowledged=False,
-            resolution_guidance=f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input.",
-            alternative_approaches=options,
-            current_task_metadata=task_metadata,  # type: ignore[arg-type]
-            workflow_guidance=error_guidance,
-        )
-
         # Save error interaction
         with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction_and_cleanup(
-                session_id=task_id,  # Use task_id as primary key
+                session_id=task_metadata.task_id
+                if "task_metadata" in locals() and task_metadata
+                else (task_id or "unknown"),
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    error_result.model_dump(mode="json", exclude_none=True)
+                    {
+                        "obstacle_acknowledged": False,
+                        "message": f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input.",
+                    }
                 ),
             )
 
-        return error_result
+        return (
+            f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. "
+            f"No messaging providers available"
+        )
 
 
 @mcp.tool(
@@ -438,7 +488,7 @@ async def raise_missing_requirements(
     specific_questions: list[str],
     task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
-) -> MissingRequirementsResult:
+) -> str:
     """Requirements clarification tool - description loaded from tool_description_provider."""
     # Log tool execution start
     log_tool_execution("raise_missing_requirements", task_id)
@@ -547,10 +597,7 @@ Please provide clarified requirements and indicate their priority level (high/me
                     }
                 ),
             )
-            return MissingRequirementsResult(
-                message=f"✅ REQUIREMENTS CLARIFIED: {response_text}",
-                current_task_metadata=task_metadata,
-            )
+            return f"✅ REQUIREMENTS CLARIFIED: {response_text}"
 
         else:
             # Elicitation failed or not available - return the fallback message
@@ -567,9 +614,9 @@ Please provide clarified requirements and indicate their priority level (high/me
                     }
                 ),
             )
-            return MissingRequirementsResult(
-                message=elicit_result.message,
-                current_task_metadata=task_metadata,
+            return (
+                f"❌ ERROR: Failed to elicit requirement clarifications. Error: {elicit_result.message}. "
+                f"No messaging providers available"
             )
 
     except Exception as e:
@@ -588,9 +635,20 @@ Please provide clarified requirements and indicate their priority level (high/me
                     }
                 ),
             )
-        return MissingRequirementsResult(
-            message=f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. Cannot proceed without clear requirements.",
-            current_task_metadata=task_metadata,
+        # Ensure we have non-None metadata for typing
+        if "task_metadata" not in locals() or task_metadata is None:
+            task_metadata = TaskMetadata(
+                title="Requirements Clarification",
+                description=f"Clarifying requirements: {current_request}",
+                user_requirements=current_request,
+                state=TaskState.CREATED,
+                task_size=TaskSize.M,
+                tags=["requirements"],
+            )
+
+        return (
+            f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. "
+            f"No messaging providers available"
         )
 
 
@@ -1030,6 +1088,30 @@ async def judge_coding_plan(
     }
 
     try:
+        # If no messaging providers are available, short-circuit with a clear error
+        if not llm_provider.is_sampling_available(ctx):
+            minimal_metadata = TaskMetadata(
+                title="Unknown Task",
+                description="Task metadata could not be loaded from history",
+                user_requirements=user_requirements or "",
+                state=TaskState.CREATED,
+                task_size=TaskSize.M,
+                tags=["debug", "missing-metadata"],
+            )
+            return EnhancedResponseFactory.create_judge_response(
+                approved=False,
+                feedback=(
+                    "Error during coding plan evaluation: No messaging providers available"
+                ),
+                required_improvements=["Error occurred during review"],
+                current_task_metadata=minimal_metadata,
+                workflow_guidance=WorkflowGuidance(
+                    next_tool=None,
+                    reasoning="No messaging providers available",
+                    preparation_needed=["Configure MCP sampling or LLM API"],
+                    guidance="Set up a provider and retry the evaluation.",
+                ),
+            )
         # Load task metadata to get current context and user requirements
         from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
@@ -1164,13 +1246,13 @@ async def judge_coding_plan(
                     ctx=ctx,
                 )
 
-                if not url_validation.adequate:  # type: ignore[union-attr]
+                if not url_validation.adequate:
                     logger.warning(
-                        f"⚠️ URL validation failed for task {task_id or 'test_task'}: {url_validation.feedback}"  # type: ignore[union-attr]
+                        f"⚠️ URL validation failed for task {task_id or 'test_task'}: {url_validation.feedback}"
                     )
 
                     descriptive_feedback = await generate_validation_error_message(
-                        url_validation.feedback,  # type: ignore[union-attr]
+                        url_validation.feedback,
                         f"User requirements: {user_requirements}. Research scope: {task_metadata.research_scope}",
                         ctx,
                     )
@@ -1185,7 +1267,7 @@ async def judge_coding_plan(
                     return JudgeResponse(
                         approved=False,
                         required_improvements=[
-                            f"Provide at least {url_validation.minimum_count} research URLs",  # type: ignore[union-attr]
+                            f"Provide at least {url_validation.minimum_count} research URLs",
                         ],
                         feedback=descriptive_feedback,
                         current_task_metadata=task_metadata,
@@ -1193,7 +1275,7 @@ async def judge_coding_plan(
                     )
                 else:
                     logger.info(
-                        f"✅ URL validation passed for task {task_id}: {url_validation.provided_count} URLs meet requirements"  # type: ignore[union-attr]
+                        f"✅ URL validation passed for task {task_id}: {url_validation.provided_count} URLs meet requirements"
                     )
 
             # Research URLs provided - mark completion and let LLM prompts handle quality validation
@@ -1727,8 +1809,8 @@ async def judge_testing_implementation(
 
         # Prepare comprehensive test evaluation using LLM
         from mcp_as_a_judge.models import (
-            JudgeCodingPlanUserVars,
             SystemVars,
+            TestingEvaluationUserVars,
         )
         from mcp_as_a_judge.prompting.loader import create_separate_messages
 
@@ -1737,7 +1819,7 @@ async def judge_testing_implementation(
             response_schema=json.dumps(JudgeResponse.model_json_schema()),
             max_tokens=MAX_TOKENS,
         )
-        user_vars = JudgeCodingPlanUserVars(
+        user_vars = TestingEvaluationUserVars(
             user_requirements=user_requirements,
             task_description=task_metadata.description,
             modified_files=task_metadata.modified_files,

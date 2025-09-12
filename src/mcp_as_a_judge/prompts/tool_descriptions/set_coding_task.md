@@ -72,6 +72,16 @@ User Coding Request → set_coding_task (REQUIRED) → Follow workflow_guidance.
 - **Workflow Guidance**: Provides intelligent next steps using LLM-driven guidance
 - **Memory Integration**: Uses task_id as primary key for conversation history storage
 
+## Task ID Discipline (MANDATORY)
+
+- The server returns an immutable `task_id` UUID when a task is created.
+- For the entire lifetime of the task, you MUST use exactly this `task_id` in all subsequent tool calls.
+- Never invent, guess, shorten, or transform the `task_id`.
+  - Examples of INVALID values: `535`, `task-1`, `"auth"`, truncated or reformatted IDs.
+- The `task_id` must be a valid UUID string (e.g., `550e8400-e29b-41d4-a716-446655440000`).
+- If you don’t have the `task_id` (e.g., lost context), first call `get_current_coding_task` to recover the last active task. If none exists, create one with `set_coding_task` and then use its UUID going forward.
+- Using any value other than the exact UUID returned by `set_coding_task` will break context and cause validation to fail.
+
 ## Parameters
 
 ### Required for New Tasks
@@ -192,6 +202,7 @@ Every Coding Request → set_coding_task → workflow_guidance.next_tool → wor
 - Use workflow_guidance.preparation_needed and guidance for context
 - Update task state as work progresses
 - Use the returned task_id for all subsequent operations
+- Ensure the `task_id` you pass is the exact UUID returned by `set_coding_task` (do NOT invent values like `535`). If lost, recover it with `get_current_coding_task`.
 - Trust the dynamic workflow - each tool knows what should come next
 
 ## Integration

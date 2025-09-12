@@ -6,9 +6,11 @@ which is the preferred method when available as it uses the client's
 existing AI model without requiring separate API keys.
 """
 
+import json
 from typing import Any
 
 from mcp.server.fastmcp import Context
+from mcp.types import SamplingMessage, TextContent
 
 from mcp_as_a_judge.messaging.converters import messages_to_mcp_format
 from mcp_as_a_judge.messaging.interface import (
@@ -53,6 +55,9 @@ class MCPSamplingProvider(MessagingProvider):
         # Convert to MCP format
         mcp_messages = messages_to_mcp_format(messages)
 
+        # Normalize to ensure TextContent.text is always a plain string
+        mcp_messages = self._normalize_mcp_messages(mcp_messages)
+
         # Send via MCP sampling
         result = await self.context.session.create_message(
             messages=mcp_messages,
@@ -80,6 +85,9 @@ class MCPSamplingProvider(MessagingProvider):
         Raises:
             Exception: If MCP sampling fails
         """
+        # Normalize messages defensively
+        mcp_messages = self._normalize_mcp_messages(mcp_messages)
+
         # Send via MCP sampling with original messages
         result = await self.context.session.create_message(
             messages=mcp_messages,
@@ -137,3 +145,39 @@ class MCPSamplingProvider(MessagingProvider):
             String identifier for this provider type
         """
         return "mcp_sampling"
+
+    def _normalize_mcp_messages(self, mcp_messages: list[Any]) -> list[Any]:
+        """Ensure TextContent.text fields are plain strings.
+
+        Guards against callers accidentally nesting TextContent or passing
+        non-string types. If non-string is encountered, it is coerced to str,
+        unwrapping a nested TextContent if present.
+        """
+        normalized: list[Any] = []
+        for msg in mcp_messages or []:
+            try:
+                # If this already looks like a SamplingMessage with TextContent
+                if isinstance(msg, SamplingMessage) and hasattr(msg, "content"):
+                    content = msg.content
+                    if getattr(content, "type", None) == "text":
+                        text_val = getattr(content, "text", "")
+                        # Unwrap nested TextContent or coerce to string
+                        if isinstance(text_val, TextContent):
+                            text_val = text_val.text
+                        if not isinstance(text_val, str):
+                            try:
+                                text_val = str(text_val)
+                            except Exception:
+                                text_val = json.dumps(text_val, default=str)
+                        normalized.append(
+                            SamplingMessage(
+                                role=msg.role,
+                                content=TextContent(type="text", text=text_val),
+                            )
+                        )
+                        continue
+            except Exception:
+                # Fall through to append original if normalization fails
+                pass
+            normalized.append(msg)
+        return normalized

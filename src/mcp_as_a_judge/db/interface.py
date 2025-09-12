@@ -65,3 +65,16 @@ class ConversationHistoryDB(ABC):
             List of ConversationRecord objects
         """
         pass
+
+    @abstractmethod
+    async def get_recent_sessions(self, limit: int = 10) -> list[tuple[str, int]]:
+        """
+        Retrieve most recently active sessions.
+
+        Args:
+            limit: Maximum number of session IDs to return
+
+        Returns:
+            List of tuples: (session_id, last_activity_timestamp), ordered by most recent first
+        """
+        pass

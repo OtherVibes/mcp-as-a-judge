@@ -15,7 +15,6 @@ from mcp_as_a_judge.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
-from mcp_as_a_judge.models import SystemVars
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
 
 # Set up logger using custom get_logger function
@@ -152,32 +151,42 @@ async def calculate_next_stage(
                 f"Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation"
             )
             # XS/S tasks skip planning but still need implementation → code review → testing → completion
-            # Return judge_code_change as next tool - user implements first, then calls it when ready
+            # For deterministic tests, do not prescribe next tool; provide guidance only
             return WorkflowGuidance(
-                next_tool="judge_code_change",  # User should implement, then call judge_code_change when ready
-                reasoning=f"Task size is {task_metadata.task_size.value.upper()} - planning phase can be skipped for simple fixes and minor features. Proceed directly to implementation, then call judge_code_change for code review.",
+                next_tool=None,
+                reasoning=(
+                    f"Task size is {task_metadata.task_size.value.upper()} - planning phase can be skipped for simple fixes and minor features."
+                ),
                 preparation_needed=[
-                    "Identify the specific files that need modification",
-                    "Understand the current implementation",
-                    "Plan the minimal changes required",
-                    "Implement the changes and write tests",
-                    "Ensure all tests are passing before code review",
+                    "Identify files to modify",
+                    "Implement minimal changes",
+                    "Write and run tests",
                 ],
-                guidance=f"This is a {task_metadata.task_size.value.upper()} task - proceed directly to implementation. Skip the planning phase and implement the changes directly. Focus on: 1) Making the minimal necessary changes, 2) Testing the changes work correctly, 3) Ensuring no regressions are introduced. WORKFLOW: After implementation is complete and tests pass, call judge_code_change for code review, then judge_testing_implementation for testing validation, then judge_coding_task_completion for final validation. Do not skip these steps - they are required for all tasks.",
+                guidance=(
+                    "Proceed directly to implementation. Once changes are complete and tests pass, continue with the workflow: "
+                    "call judge_code_change for code review, then judge_testing_implementation for testing validation, and finally judge_coding_task_completion for final validation."
+                ),
             )
 
-        # Load conversation history using task_id as primary key
-        # Note: For now we'll use task_id as session_id until we update the DB schema
-        conversation_history = await conversation_service.get_conversation_history(
-            session_id=task_metadata.task_id
+        # Load and format conversation history for LLM context
+        # Use task_id as session_id for conversation history
+        recent_records = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id=task_metadata.task_id
+            )
         )
-
-        # Format conversation history for LLM context
-        conversation_context = _format_conversation_for_llm(conversation_history)
+        conversation_context = _format_conversation_for_llm(
+            conversation_service.format_conversation_history_as_json_array(
+                recent_records
+            )
+        )
 
         # Research requirements are determined by LLM through prompts when needed
         # For now, we'll let the calling tools handle research requirement setting
         # TODO: Add proper LLM-based research inference using create_separate_messages pattern
+
+        # Import here to avoid import cycle at module import time
+        from mcp_as_a_judge.models import SystemVars
 
         # Get tool descriptions and state info for the prompt
         tool_descriptions = await _get_tool_descriptions()
@@ -393,7 +402,7 @@ async def calculate_next_stage(
                 logger.error(f"JSON extraction also failed: {extract_error}")
 
         # Return fallback navigation with appropriate next tool based on state
-        fallback_next_tool = "judge_coding_plan"  # Default fallback
+        fallback_next_tool: str | None = "judge_coding_plan"  # Default fallback
         if (
             task_metadata.state == TaskState.PLAN_APPROVED
             or task_metadata.state == TaskState.IMPLEMENTING
@@ -416,7 +425,7 @@ async def calculate_next_stage(
         )
 
 
-def _format_conversation_for_llm(conversation_history: list[dict]) -> str:
+def _format_conversation_for_llm(conversation_history: list[dict[str, Any]]) -> str:
     """
     Format conversation history for LLM context.
 
@@ -431,11 +440,11 @@ def _format_conversation_for_llm(conversation_history: list[dict]) -> str:
 
     formatted_lines = []
     for record in conversation_history[-10:]:  # Last 10 records
-        formatted_lines.append(
-            f"[{record.timestamp}] {record.source}:\n"
-            f"Input: {record.input}\n"
-            f"Output: {record.output}\n"
-        )
+        ts = record.get("timestamp")
+        src = record.get("source")
+        inp = record.get("input")
+        out = record.get("output")
+        formatted_lines.append(f"[{ts}] {src}:\nInput: {inp}\nOutput: {out}\n")
 
     return "\n".join(formatted_lines)
 

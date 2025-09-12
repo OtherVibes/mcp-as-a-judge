@@ -124,3 +124,8 @@ The response will guide whether testing is adequate or if additional testing wor
 - **Precedes**: `judge_coding_task_completion` (when all tests validated)
 - **May Loop**: Back to code review if tests reveal code issues
 - **Tracks**: Test files and results in task metadata for comprehensive validation
+
+IMPORTANT — TASK ID DISCIPLINE:
+- You MUST pass the exact `task_id` UUID returned by `set_coding_task`.
+- Do NOT invent, truncate, or transform it (e.g., `535` is invalid).
+- If you don’t have it, call `get_current_coding_task` to recover the last active task. If none exists, create one with `set_coding_task`.
