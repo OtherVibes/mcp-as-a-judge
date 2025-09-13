@@ -39,6 +39,12 @@ Each state has specific requirements and valid next steps:
 
 {{ tool_descriptions }}
 
+## Allowed Tool Names (Closed List)
+
+- Only choose from this exact list for `next_tool`:
+  
+  {{ allowed_tool_names_json }}
+
 ## Conversation History (Task-ID Based)
 
 {{ conversation_context }}
@@ -91,7 +97,7 @@ When recommending judge_coding_plan, you MUST check the task metadata and includ
 
 **Check Task Metadata for Conditional Requirements:**
 - **research_required = true**: Include "Research [domain] and gather [X] authoritative URLs"
-- **internal_research_required = true**: Include "Analyze existing codebase patterns and identify related components"
+- **internal_research_required = true AND repository contains relevant components**: Include "Analyze existing codebase patterns and identify related components"; otherwise omit this step and note that no relevant components exist.
 - **risk_assessment_required = true**: Include "Assess potential risks and document mitigation strategies"
 
 **Example Conditional Logic:**
@@ -169,7 +175,9 @@ If task has risk_assessment_required=true:
 
 You MUST respond with ONLY a valid JSON object that exactly matches the WorkflowGuidance schema.
 
-**CRITICAL**: {% if current_state == "created" %}For NEW CREATED tasks, you MUST include the research requirement fields (research_required, research_scope, research_rationale, internal_research_required, risk_assessment_required) as specified in the schema below.{% else %}For existing tasks (not CREATED state), the research requirement fields should be null or omitted.{% endif %}
+**CRITICAL**:
+- `next_tool` must be one of the allowed tool names shown above (closed options), or null ONLY if the workflow is complete.
+- {% if current_state == "created" %}For NEW CREATED tasks, you MUST include the research requirement fields (research_required, research_scope, research_rationale, internal_research_required, risk_assessment_required) as specified in the schema below.{% else %}For existing tasks (not CREATED state), the research requirement fields should be null or omitted.{% endif %}
 
 **Use this exact schema (provided programmatically):**
 {{ response_schema }}
@@ -229,5 +237,5 @@ Use the dynamic logic above to determine the appropriate response based on curre
 - **Consider Context**: Use conversation history to inform decisions
 - **Follow States**: Respect the state transition flow
 - **JSON Only**: Return only the JSON object, no additional text
-- **Tool Validation**: Ensure the next_tool exists in the available tools list
+- **Tool Validation**: Ensure the next_tool is in the closed allowed list above
 - **Null Handling**: Use null (not "null" string) when workflow is complete

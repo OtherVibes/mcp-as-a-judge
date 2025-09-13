@@ -11,7 +11,7 @@ import uuid
 from sqlalchemy import create_engine, func
 from sqlmodel import Session, SQLModel, asc, desc, select
 
-from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
+from mcp_as_a_judge.core.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.db.cleanup_service import ConversationCleanupService
 from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord

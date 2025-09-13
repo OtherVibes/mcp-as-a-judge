@@ -8,7 +8,7 @@ with model-specific limits from LiteLLM.
 
 from dataclasses import dataclass
 
-from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS, MAX_RESPONSE_TOKENS
+from mcp_as_a_judge.core.constants import MAX_CONTEXT_TOKENS, MAX_RESPONSE_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
 
 # Set up logger

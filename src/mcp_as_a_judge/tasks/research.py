@@ -9,7 +9,7 @@ complexity, domain specialization, and implementation risk.
 import json
 from typing import Any
 
-from mcp_as_a_judge.constants import MAX_TOKENS
+from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.core.server_helpers import extract_json_from_response
 from mcp_as_a_judge.messaging.llm_provider import llm_provider

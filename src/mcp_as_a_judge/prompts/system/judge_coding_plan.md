@@ -49,6 +49,10 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - Does the plan follow established architectural patterns?
 - Are opportunities to reuse existing components identified?
 
+IMPORTANT applicability rule:
+- Only enforce internal codebase analysis if you can identify concrete, repository-local components relevant to this task.
+- If the repository does not contain such components (or they cannot be identified from available files/history), DO NOT block on this. Set internal_research_required to false in current_task_metadata and include a brief note explaining that the repository lacks relevant components.
+
 **IMPORTANT:** External and internal research are completely independent. A task may require:
 - External research only
 - Internal analysis only
@@ -199,6 +203,12 @@ Evaluate submissions against the following comprehensive SWE best practices:
 
 ## Conditional Feature Analysis
 
+### Human-in-the-Loop (HITL) Guidance
+- If foundational choices are ambiguous, missing, or changed (framework/library, UI vs CLI, web vs desktop, API style, auth, hosting):
+  - Include a required improvement to elicit user input via `raise_missing_requirements` (for unclear/missing decisions) or `raise_obstacle` (for proposed changes)
+  - Specify exactly which decision(s) need HITL and why
+  - Avoid assuming defaults when ambiguity exists — defer to user input
+
 As part of your evaluation, analyze the task requirements and determine:
 
 ### External Research Requirements
@@ -209,7 +219,7 @@ As part of your evaluation, analyze the task requirements and determine:
 ### Internal Codebase Analysis
 - **Analyze** if the task requires understanding existing codebase patterns or components
 - **Determine** if internal research is needed (extending existing functionality, following patterns)
-- **Set** internal_research_required and related_code_snippets in task metadata
+- **Only set** internal_research_required to true if you can list specific related_code_snippets that exist in this repository. Otherwise, set it to false and explain why.
 
 ### Risk Assessment
 - **Analyze** if the task could impact existing functionality, security, or system stability

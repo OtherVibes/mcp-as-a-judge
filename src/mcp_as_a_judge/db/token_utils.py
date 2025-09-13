@@ -182,7 +182,7 @@ async def filter_records_by_token_limit(
         return []
 
     # Use configured MAX_CONTEXT_TOKENS for filtering
-    from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS as _MAX
+    from mcp_as_a_judge.core.constants import MAX_CONTEXT_TOKENS as _MAX
 
     context_limit = _MAX
 

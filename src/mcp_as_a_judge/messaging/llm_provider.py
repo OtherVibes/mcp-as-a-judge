@@ -10,7 +10,7 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
-from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
+from mcp_as_a_judge.core.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
 from mcp_as_a_judge.messaging.converters import (
     mcp_messages_to_universal,  # re-exported for tests
     validate_message_conversion,  # re-exported for tests

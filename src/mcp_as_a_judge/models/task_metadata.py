@@ -100,6 +100,8 @@ class RequirementsVersion(BaseModel):
     timestamp: int = Field(default_factory=lambda: int(time.time()))
 
 
+
+
 class TaskMetadata(BaseModel):
     """
     Lightweight metadata for coding tasks that flows with memory layer.
@@ -156,6 +158,8 @@ class TaskMetadata(BaseModel):
         description="Last update timestamp (epoch seconds)",
     )
     tags: list[str] = Field(default_factory=list, description="Coding-related tags")
+
+    # (No explicit decision ledger; decisions are handled via LLM-driven elicitation and conversation history)
 
     # RESEARCH TRACKING FIELDS - Added for workflow-driven research validation
     research_required: bool | None = Field(
@@ -342,6 +346,8 @@ class TaskMetadata(BaseModel):
         change_entry = {**change_data, "timestamp": int(time.time())}
         self.accumulated_diff[file_path].append(change_entry)
         self.updated_at = int(time.time())
+
+    # (Decision helpers intentionally omitted to keep HITL logic LLM-driven)
 
     def get_current_state_info(self) -> dict[str, str]:
         """

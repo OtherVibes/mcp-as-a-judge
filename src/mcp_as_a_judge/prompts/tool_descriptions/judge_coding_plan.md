@@ -1,34 +1,29 @@
-DYNAMIC WORKFLOW: This tool is called when the workflow guidance indicates `next_tool: "judge_coding_plan"`.
+# Judge Coding Plan
 
-The AI assistant should follow the dynamic workflow by:
-1. Always check the `workflow_guidance.next_tool` field from previous tool responses
-2. Call the tool specified in `next_tool` with the guidance provided
-3. Use the `workflow_guidance.preparation_needed` and `guidance` fields for context
+## Description
+Validate a proposed plan and design against requirements, research needs, and risks. Called when `workflow_guidance.next_tool == "judge_coding_plan"`.
 
-BEFORE calling this tool, ensure you have:
-1. Analyzed the user requirements thoroughly
-2. Created a comprehensive system design
-3. Developed a detailed implementation plan
+## Prerequisites
+- Thoroughly analyze requirements, propose a concrete plan, and produce a system design
 
-CONDITIONAL ANALYSIS (automatically determined by the system):
-- **External Research**: System determines if online research is needed based on task complexity
-- **Internal Research**: System identifies if existing codebase patterns should be analyzed
-- **Risk Assessment**: System evaluates if the change poses risks to existing functionality
+## Human-in-the-Loop (HITL) checks
+- If foundational choices are ambiguous or missing (e.g., framework/library, UI vs CLI, web vs desktop, API style, auth, hosting), first call `raise_missing_requirements` to elicit user preferences
+- If the plan proposes changing an already understood fundamental choice, call `raise_obstacle` to involve the user’s decision
+- These HITL tools do not return `next_tool`; rely on workflow guidance to determine the next tool after elicitation
 
-NOTE: These are independent - a task may require external research only, internal analysis only, both, or neither.
+## Args
+- `task_id`: string — Task UUID (required)
+- `plan`: string — Detailed implementation plan (required)
+- `design`: string — Architecture, components, data flow, key decisions (required)
+- `research`: string — Findings and rationale (provide if available)
+- `research_urls`: list[string] — URLs for external research (if required)
+- `context`: string — Additional project context
 
-Args:
-    task_id: Task UUID for context and validation (REQUIRED)
-    plan: The detailed coding plan to be reviewed (REQUIRED)
-    design: Detailed system design including architecture, components, data flow, and technical decisions (REQUIRED)
-    research: Research findings on existing solutions, libraries, frameworks, and best practices (provide if you have research)
-    research_urls: 🌐 URLs from online research (only required if system determines external research is needed)
-    context: Additional context about the project, requirements, or constraints
+## Returns
+- Response JSON schema (JudgeResponse):
+```json
+{{ JUDGE_RESPONSE_SCHEMA }}
+```
 
-Returns:
-    Enhanced response with approval status, detailed feedback, current task metadata, and workflow guidance for next steps
-
-IMPORTANT — TASK ID DISCIPLINE:
-- You MUST pass the exact `task_id` UUID returned by `set_coding_task`.
-- Do NOT invent, truncate, or transform it (e.g., `535` is invalid).
-- If you don’t have it, call `get_current_coding_task` to recover the last active task. If none exists, create one with `set_coding_task`.
+## Notes
+- Follow `workflow_guidance.next_tool` for the next step. Use the exact `task_id` from `set_coding_task`; recover via `get_current_coding_task` if missing.

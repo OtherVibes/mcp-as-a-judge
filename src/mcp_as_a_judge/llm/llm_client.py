@@ -16,7 +16,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from mcp_as_a_judge.constants import DEFAULT_REASONING_EFFORT
+from mcp_as_a_judge.core.constants import DEFAULT_REASONING_EFFORT
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.llm.llm_integration import LLMConfig, LLMVendor
 

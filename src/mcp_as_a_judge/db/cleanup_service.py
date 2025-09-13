@@ -8,7 +8,7 @@ removing least recently used sessions when session limits are exceeded.
 from sqlalchemy import Engine, func
 from sqlmodel import Session, select
 
-from mcp_as_a_judge.constants import MAX_TOTAL_SESSIONS
+from mcp_as_a_judge.core.constants import MAX_TOTAL_SESSIONS
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.db.interface import ConversationRecord
 

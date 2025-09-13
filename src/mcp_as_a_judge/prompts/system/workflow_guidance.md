@@ -69,6 +69,15 @@ CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TES
 - **COMPLETED** → Workflow finished (next_tool: null)
 - **BLOCKED** → Resolve obstacles (raise_obstacle)
 
+### Human-in-the-Loop (HITL) Triggers
+
+Before proceeding with planning, code review, or testing, check for fundamental decisions:
+
+- Fundamental areas: database, framework, ui_type (CLI/GUI), app_type (web/desktop), api_style, auth, hosting
+- If any are relevant now and not yet decided/approved → next_tool: `raise_missing_requirements`
+- If the plan/code proposes changing an approved decision → next_tool: `raise_obstacle`
+- Prepare options with concise pros/cons and a recommended default; capture constraints
+
 ### CRITICAL: judge_coding_plan Preparation Requirements
 
 When recommending judge_coding_plan, the preparation_needed MUST include ALL elements that will be validated:
@@ -82,7 +91,7 @@ When recommending judge_coding_plan, the preparation_needed MUST include ALL ele
 - **If research_required = true**: Gather research URLs (minimum based on research_scope)
   - Light scope: 2-3 authoritative URLs
   - Deep scope: 5+ comprehensive research URLs
-- **If internal_research_required = true**: Identify related code snippets and existing patterns
+- **If internal_research_required = true AND the repository contains relevant components**: Identify related code snippets and existing patterns
 - **If risk_assessment_required = true**: Document potential risks and mitigation strategies
 
 **Preparation Template for judge_coding_plan:**
@@ -196,6 +205,8 @@ When analyzing a **NEW task in CREATED state**, you MUST also determine research
 - Tasks requiring understanding of existing codebase
 - Modifications to existing systems
 - Integration with current architecture
+
+Important: Only set this to true if you can identify concrete, repository-local components that are relevant to the task. If none exist (or cannot be identified), set `internal_research_required: false` and explain why.
 
 **risk_assessment_required: true** for:
 - Database schema changes

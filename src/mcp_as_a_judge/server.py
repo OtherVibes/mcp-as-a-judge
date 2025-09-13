@@ -13,7 +13,7 @@ import time
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
 
-from mcp_as_a_judge.constants import MAX_TOKENS
+from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import (
     get_context_aware_logger,
     get_logger,
@@ -30,7 +30,7 @@ from mcp_as_a_judge.core.server_helpers import (
 )
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
-from mcp_as_a_judge.elicitation_provider import elicitation_provider
+from mcp_as_a_judge.elicitation import elicitation_provider
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
 from mcp_as_a_judge.models import (
     JudgeCodeChangeUserVars,
@@ -57,7 +57,7 @@ from mcp_as_a_judge.tasks.manager import (
     save_task_metadata_to_history,
     update_existing_coding_task,
 )
-from mcp_as_a_judge.tool_description_provider import (
+from mcp_as_a_judge.tool_description.factory import (
     tool_description_provider,
 )
 from mcp_as_a_judge.workflow import calculate_next_stage
@@ -84,7 +84,7 @@ async def set_coding_task(
     task_id: str | None = None,  # REQUIRED when updating existing task
     user_requirements: str | None = None,  # Updates current requirements
     # OPTIONAL
-    tags: list[str] | None = None,
+    tags: list[str] = [],
 ) -> TaskAnalysisResult:
     """Create or update coding task metadata with enhanced workflow management."""
     task_id_for_logging = task_id or "new_task"
@@ -113,7 +113,7 @@ async def set_coding_task(
                 task_description=task_description,
                 user_requirements=user_requirements,
                 state=None,  # State updates not allowed via set_coding_task
-                tags=tags or [],
+                tags=tags,
                 conversation_service=conversation_service,
             )
             action = "updated"
@@ -125,7 +125,7 @@ async def set_coding_task(
                 task_title=task_title,
                 task_description=task_description,
                 user_requirements=user_requirements or "",
-                tags=tags or [],
+                tags=tags,
                 conversation_service=conversation_service,
                 task_size=task_size,
             )
@@ -194,7 +194,11 @@ async def set_coding_task(
             session_id=task_metadata.task_id,
             tool_name="set_coding_task",
             tool_input=json.dumps(original_input),
-            tool_output=json.dumps(result.model_dump(mode="json", exclude_none=True)),
+            tool_output=json.dumps(
+                result.model_dump(
+                    mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                )
+            ),
         )
 
         return result
@@ -207,7 +211,7 @@ async def set_coding_task(
             user_requirements=user_requirements or "",
             state=TaskState.CREATED,
             task_size=TaskSize.M,
-            tags=tags or [],
+            tags=tags,
         )
 
         error_guidance = WorkflowGuidance(
@@ -232,7 +236,9 @@ async def set_coding_task(
                 tool_name="set_coding_task",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    error_result.model_dump(mode="json", exclude_none=True)
+                    error_result.model_dump(
+                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    )
                 ),
             )
 
@@ -281,14 +287,39 @@ async def get_current_coding_task(ctx: Context) -> dict:
             "task_id": task_id,
             "last_activity": last_activity,
         }
+
         if task_metadata is not None:
             response["current_task_metadata"] = task_metadata.model_dump(
-                mode="json", exclude_none=True
+                mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+            )
+
+            # Generate workflow guidance for the current task state
+            from mcp_as_a_judge.workflow.workflow_guidance import calculate_next_stage
+
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="get_current_coding_task_found",
+                conversation_service=conversation_service,
+                ctx=ctx,
+            )
+
+            response["workflow_guidance"] = workflow_guidance.model_dump(
+                mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
             )
         else:
             response["note"] = (
                 "Task metadata not found in history for this session, but a session exists. Use this task_id UUID and proceed; if validation fails, recreate with set_coding_task."
             )
+            # Provide basic workflow guidance even without metadata
+            response["workflow_guidance"] = {
+                "next_tool": "set_coding_task",
+                "reasoning": "Task metadata not found in history, may need to recreate task",
+                "preparation_needed": [
+                    "Verify task_id is correct",
+                    "If validation fails, recreate with set_coding_task"
+                ],
+                "guidance": "Try using this task_id with other tools. If validation fails, call set_coding_task to recreate the task with proper metadata.",
+            }
 
         return response
     except Exception as e:
@@ -313,6 +344,9 @@ async def raise_obstacle(
     options: list[str],
     ctx: Context,
     task_id: str | None = None,  # OPTIONAL: Task ID for context and memory
+    # Optional HITL assistance inputs
+    decision_area: str | None = None,
+    constraints: list[str] | None = None,
 ) -> str:
     """Obstacle handling tool - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -324,6 +358,8 @@ async def raise_obstacle(
         "research": research,
         "options": options,
         "task_id": task_id,
+        "decision_area": decision_area,
+        "constraints": constraints or [],
     }
 
     try:
@@ -356,7 +392,15 @@ async def raise_obstacle(
         context_info = (
             "Agent encountered an obstacle and needs user decision on how to proceed"
         )
-        information_needed = "User needs to choose from available options and provide any additional context"
+        info_extra = []
+        if decision_area:
+            info_extra.append(f"Decision area: {decision_area}")
+        if constraints:
+            info_extra.append("Constraints: " + ", ".join(constraints))
+        information_needed = (
+            "User needs to choose from available options and provide any additional context"
+            + (". " + "; ".join(info_extra) if info_extra else "")
+        )
         current_understanding = (
             f"Problem: {problem}. Research: {research}. Options: {formatted_options}"
         )
@@ -375,6 +419,11 @@ Research Done: {research}
 
 Available Options:
 {formatted_options}
+
+Decision Area: {decision_area or 'Not specified'}
+
+Constraints:
+{chr(10).join(f"- {c}" for c in (constraints or [])) or 'None provided'}
 
 Please choose an option (by number or description) and provide any additional context or modifications you'd like.""",
             schema=dynamic_model,
@@ -492,6 +541,10 @@ async def raise_missing_requirements(
     specific_questions: list[str],
     task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
+    # Optional HITL assistance inputs
+    decision_areas: list[str] | None = None,
+    options: list[str] | None = None,
+    constraints: list[str] | None = None,
 ) -> str:
     """Requirements clarification tool - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -503,6 +556,9 @@ async def raise_missing_requirements(
         "identified_gaps": identified_gaps,
         "specific_questions": specific_questions,
         "task_id": task_id,
+        "decision_areas": decision_areas or [],
+        "options": options or [],
+        "constraints": constraints or [],
     }
 
     try:
@@ -531,11 +587,24 @@ async def raise_missing_requirements(
             f"{i + 1}. {question}" for i, question in enumerate(specific_questions)
         )
 
-        context_info = "Agent needs clarification on user requirements to proceed with implementation"
+        context_info = (
+            "Agent needs clarification on user requirements and confirmation of key decisions to proceed"
+        )
+        info_extra = []
+        if decision_areas:
+            info_extra.append(
+                "Decisions to confirm: " + ", ".join(decision_areas)
+            )
+        if constraints:
+            info_extra.append("Constraints: " + ", ".join(constraints))
         information_needed = (
             "Clarified requirements, answers to specific questions, and priority levels"
+            + (". " + "; ".join(info_extra) if info_extra else "")
         )
-        current_understanding = f"Current request: {current_request}. Gaps: {formatted_gaps}. Questions: {formatted_questions}"
+        current_understanding = (
+            f"Current request: {current_request}. Gaps: {formatted_gaps}. Questions: {formatted_questions}"
+            + (f". Candidate options: {'; '.join(options or [])}" if options else "")
+        )
 
         dynamic_model = await generate_dynamic_elicitation_model(
             context_info, information_needed, current_understanding, ctx
@@ -552,6 +621,15 @@ Identified Requirement Gaps:
 
 Specific Questions:
 {formatted_questions}
+
+Decisions To Confirm:
+{chr(10).join(f"- {a}" for a in (decision_areas or [])) or 'None provided'}
+
+Candidate Options:
+{chr(10).join(f"- {o}" for o in (options or [])) or 'None provided'}
+
+Constraints:
+{chr(10).join(f"- {c}" for c in (constraints or [])) or 'None provided'}
 
 Please provide clarified requirements and indicate their priority level (high/medium/low).""",
             schema=dynamic_model,
@@ -873,7 +951,11 @@ async def judge_coding_task_completion(
             session_id=task_id,  # Use task_id as primary key
             tool_name="judge_coding_task_completion",
             tool_input=json.dumps(original_input),
-            tool_output=json.dumps(result.model_dump(mode="json", exclude_none=True)),
+            tool_output=json.dumps(
+                result.model_dump(
+                    mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                )
+            ),
         )
 
         return result
@@ -915,7 +997,9 @@ async def judge_coding_task_completion(
                 tool_name="judge_coding_task_completion",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    error_result.model_dump(mode="json", exclude_none=True)
+                    error_result.model_dump(
+                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    )
                 ),
             )
 
@@ -1092,8 +1176,10 @@ async def judge_coding_plan(
     }
 
     try:
-        # If no messaging providers are available, short-circuit with a clear error
-        if not llm_provider.is_sampling_available(ctx):
+        # If neither MCP sampling nor LLM API are available, short-circuit with a clear error
+        sampling_available = llm_provider.is_sampling_available(ctx)
+        llm_available = llm_provider.is_llm_api_available()
+        if not (sampling_available or llm_available):
             minimal_metadata = TaskMetadata(
                 title="Unknown Task",
                 description="Task metadata could not be loaded from history",
@@ -1170,6 +1256,7 @@ async def judge_coding_plan(
             if user_requirements is not None
             else task_metadata.user_requirements
         )
+        
 
         # NOTE: Conditional research, internal analysis, and risk assessment requirements
         # are now determined dynamically by the LLM through the workflow guidance system
@@ -1302,6 +1389,8 @@ async def judge_coding_plan(
             if research_urls:
                 logger.info(f"Optional research provided: {len(research_urls)} URLs")
 
+        # HITL is guided by workflow prompts and elicitation tools, not rule-based gating here
+
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = (
             await conversation_service.load_filtered_context_for_enrichment(
@@ -1315,13 +1404,29 @@ async def judge_coding_plan(
         )
 
         # STEP 4: Use helper function for main evaluation with JSON array conversation history
+        # Provide contextual note to avoid blocking on non-existent internal components
+        eval_context = ""
+        try:
+            if (
+                task_metadata.internal_research_required is True
+                and not task_metadata.related_code_snippets
+            ):
+                eval_context = (
+                    "No repository-local related components are currently identified in task metadata. "
+                    "If none can be found in this repository, do not block on internal codebase analysis; "
+                    "set internal_research_required=false in current_task_metadata and proceed with clear rationale."
+                )
+        except Exception:
+            # Be resilient; context is optional
+            eval_context = ""
+
         evaluation_result = await _evaluate_coding_plan(
             plan,
             design,
             research,
             research_urls,
             user_requirements,
-            "",  # Empty context for now - can be enhanced later
+            eval_context,
             history_json_array,
             task_metadata,  # Pass task metadata for conditional features
             ctx,
@@ -1383,7 +1488,11 @@ async def judge_coding_plan(
             session_id=task_id or "test_task",  # Use task_id as primary key
             tool_name="judge_coding_plan",
             tool_input=json.dumps(original_input),
-            tool_output=json.dumps(result.model_dump(mode="json", exclude_none=True)),
+            tool_output=json.dumps(
+                result.model_dump(
+                    mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                )
+            ),
         )
 
         return result
@@ -1435,7 +1544,9 @@ async def judge_coding_plan(
                 tool_name="judge_coding_plan",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    error_result.model_dump(mode="json", exclude_none=True)
+                    error_result.model_dump(
+                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    )
                 ),
             )
 
@@ -1622,7 +1733,9 @@ async def judge_code_change(
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    result.model_dump(mode="json", exclude_none=True)
+                    result.model_dump(
+                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    )
                 ),
             )
 
@@ -1678,7 +1791,9 @@ async def judge_code_change(
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    error_result.model_dump(mode="json", exclude_none=True)
+                    error_result.model_dump(
+                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    )
                 ),
             )
 
@@ -2003,7 +2118,11 @@ async def judge_testing_implementation(
             session_id=task_id,  # Use task_id as primary key
             tool_name="judge_testing_implementation",
             tool_input=json.dumps(original_input),
-            tool_output=json.dumps(result.model_dump(mode="json", exclude_none=True)),
+            tool_output=json.dumps(
+                result.model_dump(
+                    mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                )
+            ),
         )
 
         return result
@@ -2050,7 +2169,9 @@ async def judge_testing_implementation(
                 tool_name="judge_testing_implementation",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
-                    error_result.model_dump(mode="json", exclude_none=True)
+                    error_result.model_dump(
+                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    )
                 ),
             )
 

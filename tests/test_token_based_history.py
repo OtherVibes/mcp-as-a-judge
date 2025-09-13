@@ -8,7 +8,7 @@ import asyncio
 
 import pytest
 
-from mcp_as_a_judge.constants import MAX_CONTEXT_TOKENS
+from mcp_as_a_judge.core.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider

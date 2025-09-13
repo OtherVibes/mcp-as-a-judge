@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, DEFAULT_TIMEOUT, MAX_TOKENS
+from mcp_as_a_judge.core.constants import DEFAULT_TEMPERATURE, DEFAULT_TIMEOUT, MAX_TOKENS
 
 
 class Message(BaseModel):

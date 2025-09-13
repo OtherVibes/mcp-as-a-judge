@@ -10,7 +10,7 @@ import json
 from mcp.server.fastmcp import Context
 from pydantic import BaseModel, Field
 
-from mcp_as_a_judge.constants import MAX_TOKENS
+from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.llm.llm_integration import load_llm_config_from_env
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
@@ -228,3 +228,6 @@ def create_pydantic_model_from_fields(fields_dict: dict) -> type[BaseModel]:
     )
 
     return dynamic_elicitation_model
+
+
+# (Removed rule-based decision extraction and gating to keep HITL LLM-driven)

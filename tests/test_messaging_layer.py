@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, DEFAULT_TIMEOUT, MAX_TOKENS
+from mcp_as_a_judge.core.constants import DEFAULT_TEMPERATURE, DEFAULT_TIMEOUT, MAX_TOKENS
 from mcp_as_a_judge.messaging.converters import (
     mcp_messages_to_universal,
     messages_to_llm_format,

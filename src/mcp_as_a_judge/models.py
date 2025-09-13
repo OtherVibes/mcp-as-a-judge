@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
-from mcp_as_a_judge.constants import MAX_TOKENS
+from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize
 
 if TYPE_CHECKING:  # Avoid import cycle at runtime

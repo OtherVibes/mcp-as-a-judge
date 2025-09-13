@@ -144,18 +144,70 @@ async def load_task_metadata_from_history(
             )
         )
 
-        # Look for the most recent task metadata record from any source
-        # (not just set_coding_task, since other tools also save task metadata)
+        # Strategy: prefer the most recent record that explicitly includes a state.
+        # Some tool outputs serialize with exclude_defaults=True, which can omit
+        # default-valued fields like state when it's 'created'. That can cause
+        # state to be implicitly reset to CREATED when reloading. To guard
+        # against that, we (1) look for the newest record with an explicit state;
+        # if not found, (2) take the newest metadata snapshot and backfill the
+        # state from the most recent earlier snapshot that has it.
+
+        latest_snapshot: dict | None = None
+
+        # Pass 1: newest → oldest, return first snapshot with explicit state
         for record in reversed(conversation_history):
             try:
-                # Parse the record output to look for task metadata
                 output_data = json.loads(record.output)
-                if "current_task_metadata" in output_data:
-                    metadata_dict = output_data["current_task_metadata"]
-                    return TaskMetadata.model_validate(metadata_dict)
-            except (json.JSONDecodeError, ValidationError):
-                # Skip records that can't be parsed or validated
+            except json.JSONDecodeError:
                 continue
+
+            if not isinstance(output_data, dict):
+                continue
+
+            if "current_task_metadata" not in output_data:
+                continue
+
+            metadata_dict = output_data["current_task_metadata"]
+            if not isinstance(metadata_dict, dict):
+                continue
+
+            # Keep the newest snapshot as a fallback for pass 2
+            if latest_snapshot is None:
+                latest_snapshot = dict(metadata_dict)
+
+            # Prefer snapshots that explicitly carry state
+            if "state" in metadata_dict and metadata_dict["state"]:
+                try:
+                    return TaskMetadata.model_validate(metadata_dict)
+                except ValidationError:
+                    # If this specific snapshot fails validation, keep searching
+                    continue
+
+        # Pass 2: if newest snapshot lacks state, try to backfill from older records
+        if latest_snapshot is not None and "state" not in latest_snapshot:
+            for record in reversed(conversation_history):
+                try:
+                    output_data = json.loads(record.output)
+                except json.JSONDecodeError:
+                    continue
+
+                if not isinstance(output_data, dict):
+                    continue
+
+                if "current_task_metadata" not in output_data:
+                    continue
+
+                older_md = output_data["current_task_metadata"]
+                if isinstance(older_md, dict) and "state" in older_md and older_md["state"]:
+                    # Backfill only the missing state to avoid unintended resets
+                    latest_snapshot["state"] = older_md["state"]
+                    break
+
+            try:
+                return TaskMetadata.model_validate(latest_snapshot)
+            except ValidationError:
+                # Fall through to None if even the merged snapshot is invalid
+                pass
 
         return None
 

@@ -1,32 +1,30 @@
-DYNAMIC WORKFLOW: This tool is called when the workflow guidance indicates `next_tool: "judge_code_change"` and ALL implementation work is complete.
+# Judge Code Change
 
-**IMPORTANT: Only use when ALL code is ready for comprehensive review**
+## Description
+Review implementation code (not tests) once all implementation work is complete and tests are passing. Called when `workflow_guidance.next_tool == "judge_code_change"`.
 
-This tool should be called when:
-- ALL implementation files AND tests have been written/modified
-- ALL tests are passing with good coverage
-- The complete implementation is ready for code review
-- Task is transitioning from IMPLEMENTING to REVIEW_READY state
-- You need validation of implementation code (NOT tests - tests are reviewed separately)
+{% include 'shared/critical_tool_warnings.md' %}
 
-Do NOT use for individual file changes during implementation.
-Do NOT include test files in the code review - only implementation code.
+## When to use
+- All implementation files written/modified, tests exist and pass; ready for review
 
-Args:
-    task_id: Task UUID for context and validation (REQUIRED)
-    code_change: The exact code that was written to a file (REQUIRED)
-    file_path: Path to the file that was created/modified
-    change_description: Description of what the code accomplishes
+## Human-in-the-Loop (HITL) checks
+- If foundational choices are unclear or need confirmation (e.g., framework/library, UI vs CLI, web vs desktop, API style, auth, hosting), first call `raise_missing_requirements` to elicit the user’s intent
+- If the implementation proposes changing a previously described/understood fundamental choice, call `raise_obstacle` to involve the user in selecting the new direction
+- These HITL tools do not return `next_tool`; follow workflow guidance for the next step after elicitation
 
-Returns:
-    Enhanced response with approval status, detailed feedback, current task metadata, and workflow guidance for next steps
+## Args
+- `task_id`: string — Task UUID (required)
+- `code_change`: string — Exact code content for the file (required)
+- `file_path`: string — Path to the created/modified file
+- `change_description`: string — What the change accomplishes
 
-WORKFLOW INTEGRATION:
-- Approved files are automatically tracked in task metadata
-- Workflow guidance will suggest next steps based on task state and progress
-- Follow the `workflow_guidance.next_tool` field for dynamic workflow navigation
+## Returns
+- Response JSON schema (JudgeResponse):
+```json
+{{ JUDGE_RESPONSE_SCHEMA }}
+```
 
-IMPORTANT — TASK ID DISCIPLINE:
-- You MUST pass the exact `task_id` UUID returned by `set_coding_task`.
-- Do NOT invent, truncate, or transform it (e.g., `535` is invalid).
-- If you don’t have it, call `get_current_coding_task` to recover the last active task. If none exists, create one with `set_coding_task`.
+## Notes
+- Review only implementation code here; tests are validated via `judge_testing_implementation`. Always use the exact `task_id`.
+- If HITL was performed, update the task description/requirements via `set_coding_task` if text needs to be clarified for future steps

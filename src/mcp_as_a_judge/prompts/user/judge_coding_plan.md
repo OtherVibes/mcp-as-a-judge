@@ -60,7 +60,7 @@ Please evaluate the following coding plan:
 {% if internal_research_required %}
 ## 🏗️ Internal Codebase Analysis
 
-**Status:** REQUIRED - Task should leverage existing patterns.
+**Status:** REQUIRED - Task should leverage existing patterns when available.
 
 {% if related_code_snippets %}
 **Related Components:**
@@ -70,7 +70,7 @@ Please evaluate the following coding plan:
 
 **Validation Focus:** Ensure plan follows established patterns and reuses existing components.
 {% else %}
-⚠️ **MISSING:** Internal analysis required but no code components identified.
+Note: Internal analysis is marked required but no repository-local components were identified in the provided context. Do not block solely on this. If you cannot identify concrete related components in this repository, set `internal_research_required=false` in current_task_metadata and include a brief note explaining the absence; otherwise, list the specific components.
 {% endif %}
 {% endif %}
 

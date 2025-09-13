@@ -10,8 +10,9 @@ import json
 from typing import Any
 
 from pydantic import BaseModel, Field
+from copy import deepcopy
 
-from mcp_as_a_judge.constants import MAX_TOKENS
+from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
@@ -104,6 +105,13 @@ class WorkflowGuidanceUserVars(BaseModel):
     )
     state_transitions: str = Field(description="State transition diagram")
     tool_descriptions: str = Field(description="Available tool descriptions")
+    allowed_tool_names: list[str] = Field(
+        default_factory=list, description="Closed list of valid tool names"
+    )
+    allowed_tool_names_json: str = Field(
+        default="[]",
+        description="JSON array of valid tool names (for strict selection)",
+    )
     conversation_context: str = Field(description="Formatted conversation history")
     operation_context: str = Field(description="Current operation context")
     response_schema: str = Field(
@@ -168,6 +176,50 @@ async def calculate_next_stage(
                 ),
             )
 
+        # Deterministic routing for set_coding_task updates: do not send the agent
+        # back to planning if the task is already beyond planning states.
+        if current_operation.startswith("set_coding_task"):
+            if task_metadata.state in (TaskState.PLAN_APPROVED, TaskState.IMPLEMENTING):
+                return WorkflowGuidance(
+                    next_tool="judge_code_change",
+                    reasoning="Plan approved; proceed with implementation and submit changes for review.",
+                    preparation_needed=[
+                        "Implement according to the approved plan",
+                        "Prepare code changes and file path for review",
+                    ],
+                    guidance=(
+                        "Continue implementation. When ready, call judge_code_change with the file path, change description or diff, and any relevant context."
+                    ),
+                )
+            if task_metadata.state == TaskState.REVIEW_READY:
+                return WorkflowGuidance(
+                    next_tool="judge_testing_implementation",
+                    reasoning="Implementation is review-ready; validate testing to progress.",
+                    preparation_needed=[
+                        "Ensure tests exist and are passing",
+                        "Collect test results and coverage info",
+                    ],
+                    guidance=(
+                        "Run tests and ensure they pass, then call judge_testing_implementation with a summary of tests and results."
+                    ),
+                )
+            if task_metadata.state == TaskState.TESTING:
+                return WorkflowGuidance(
+                    next_tool="judge_testing_implementation",
+                    reasoning="Task is in testing; validate tests to move forward.",
+                    preparation_needed=["Run tests and capture results"],
+                    guidance=(
+                        "Call judge_testing_implementation with details on implemented tests and their results."
+                    ),
+                )
+            if task_metadata.state == TaskState.COMPLETED:
+                return WorkflowGuidance(
+                    next_tool=None,
+                    reasoning="Task already completed.",
+                    preparation_needed=[],
+                    guidance="No further action required.",
+                )
+
         # Load and format conversation history for LLM context
         # Use task_id as session_id for conversation history
         recent_records = (
@@ -190,6 +242,8 @@ async def calculate_next_stage(
 
         # Get tool descriptions and state info for the prompt
         tool_descriptions = await _get_tool_descriptions()
+        available_name_set = await _get_available_tool_names()
+        available_tool_names = sorted(list(available_name_set))
         state_info = task_metadata.get_current_state_info()
 
         # Prepare operation context
@@ -283,9 +337,28 @@ async def calculate_next_stage(
             "shared/task_size_definitions.md"
         )
 
+        # Build a dynamic response schema that constrains next_tool to allowed tools
+        base_schema = WorkflowGuidance.model_json_schema()
+        dynamic_schema = deepcopy(base_schema)
+        try:
+            props = dynamic_schema.get("properties", {})
+            if "next_tool" in props:
+                # Preserve description if present
+                desc = props["next_tool"].get("description", "Next tool to call")
+                props["next_tool"] = {
+                    "anyOf": [
+                        {"type": "string", "enum": available_tool_names},
+                        {"type": "null"},
+                    ],
+                    "description": desc,
+                }
+        except Exception:
+            # Fall back silently to base schema if anything goes wrong
+            dynamic_schema = base_schema
+
         # Create system and user variables for the workflow guidance
         system_vars = SystemVars(
-            response_schema=json.dumps(WorkflowGuidance.model_json_schema()),
+            response_schema=json.dumps(dynamic_schema),
             task_size_definitions=task_size_definitions,
             max_tokens=MAX_TOKENS,
         )
@@ -301,9 +374,11 @@ async def calculate_next_stage(
             task_size_definitions=task_size_definitions,
             state_transitions="CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED",
             tool_descriptions=tool_descriptions,
+            allowed_tool_names=available_tool_names,
+            allowed_tool_names_json=json.dumps(available_tool_names),
             conversation_context=conversation_context,
             operation_context=operation_context_str,
-            response_schema=json.dumps(WorkflowGuidance.model_json_schema(), indent=2),
+            response_schema=json.dumps(dynamic_schema, indent=2),
         )
 
         # Create messages using the established pattern with dedicated workflow guidance prompts
@@ -350,12 +425,16 @@ async def calculate_next_stage(
                 f"Missing required fields in LLM response: {missing_fields}"
             )
 
-        # Normalize next_tool (convert "null" string to None)
+        # Normalize next_tool (convert "null" string to None) and validate
         if navigation_data["next_tool"] in ["null", "None", ""]:
             navigation_data["next_tool"] = None
 
+        normalized_next_tool = _normalize_next_tool_name(
+            navigation_data.get("next_tool"), task_metadata, set(available_tool_names)
+        )
+
         workflow_guidance = WorkflowGuidance(
-            next_tool=navigation_data.get("next_tool"),
+            next_tool=normalized_next_tool,
             reasoning=navigation_data.get("reasoning", ""),
             preparation_needed=navigation_data.get("preparation_needed", []),
             guidance=navigation_data.get("guidance", ""),
@@ -463,20 +542,14 @@ async def _get_tool_descriptions() -> str:
         # Import the global MCP server instance
         from mcp_as_a_judge.server import mcp
 
-        # Get the tool manager from the FastMCP server
-        tool_manager = mcp._tool_manager
-
-        # Get all registered tools
-        tools_dict = {}
-        for tool_name, tool_info in tool_manager._tools.items():
-            # Extract description from the tool info
-            description = tool_info.description or f"Tool: {tool_name}"
-            tools_dict[tool_name] = description
+        # Use the public FastMCP API to list tools
+        tools = await mcp.list_tools()
 
         # Format as markdown list
-        formatted_descriptions = []
-        for tool_name, description in sorted(tools_dict.items()):
-            formatted_descriptions.append(f"- **{tool_name}**: {description}")
+        formatted_descriptions: list[str] = []
+        for t in sorted(tools, key=lambda x: x.name):
+            description = t.description or f"Tool: {t.name}"
+            formatted_descriptions.append(f"- **{t.name}**: {description}")
 
         return "\n".join(formatted_descriptions)
 
@@ -485,10 +558,78 @@ async def _get_tool_descriptions() -> str:
         # Fallback to static descriptions
         return """
 - **set_coding_task**: Create or update task metadata (entry point for all coding work)
-- **judge_coding_plan**: Validate coding plan with mandatory code analysis requirements
+- **judge_coding_plan**: Validate coding plans with conditional research, internal analysis (when applicable), and risk assessment
 - **judge_testing_implementation**: Validate testing implementation and test coverage (mandatory after implementation)
 - **judge_code_change**: Validate COMPLETE code implementations (only when all code is ready for review)
 - **judge_coding_task_completion**: Final validation of task completion against requirements
 - **raise_obstacle**: Handle obstacles that prevent task completion
 - **raise_missing_requirements**: Handle unclear or incomplete requirements
 """
+
+
+async def _get_available_tool_names() -> set[str]:
+    """Return the set of registered tool names using the FastMCP server API.
+
+    Falls back to a static set if the server object is unavailable.
+    """
+    try:
+        from mcp_as_a_judge.server import mcp  # Local import to avoid cycles
+
+        # Use the public async API to list tools
+        tools = await mcp.list_tools()
+        return {t.name for t in tools}
+    except Exception:
+        # Conservative fallback to known tools in this project
+        return {
+            "set_coding_task",
+            "get_current_coding_task",
+            "judge_coding_plan",
+            "judge_code_change",
+            "judge_testing_implementation",
+            "judge_coding_task_completion",
+            "raise_obstacle",
+            "raise_missing_requirements",
+        }
+
+
+def _normalize_next_tool_name(
+    next_tool_raw: str | None, task_metadata: TaskMetadata, available: set[str]
+) -> str | None:
+    """Normalize and validate the next_tool name produced by the LLM.
+
+    - Fix common typos/synonyms (e.g., "judge_code_chnage" → "judge_code_change",
+      "implement_coding_plan" → "judge_code_change").
+    - Ensure the final value exists in the registered tool set.
+    - If still invalid, choose a sensible fallback based on the task state.
+    """
+    if not next_tool_raw:
+        return None
+
+    candidate = next_tool_raw.strip()
+    # Normalize case and whitespace
+    key = candidate.lower().replace(" ", "_")
+
+    # Minimal, surgical synonym/typo map based on observed LLM outputs
+    synonyms: dict[str, str] = {
+        # Typos
+        "judge_code_chnage": "judge_code_change",
+        # Misinterpreted actions (implementation is not a tool; route to code review gate)
+        "implement_coding_plan": "judge_code_change",
+    }
+
+    mapped = synonyms.get(key, key)
+
+    if mapped in available:
+        return mapped
+
+    # If still invalid, choose a fallback consistent with current state
+    # Mirror the fallback used in exception handling for consistency
+    if task_metadata.state in (TaskState.PLAN_APPROVED, TaskState.IMPLEMENTING, TaskState.REVIEW_READY):
+        return "judge_code_change"
+    if task_metadata.state == TaskState.TESTING:
+        return "judge_testing_implementation"
+    if task_metadata.state == TaskState.COMPLETED:
+        return None
+
+    # Default conservative fallback
+    return "judge_coding_plan"

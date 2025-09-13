@@ -97,6 +97,12 @@ Evaluate code content against the following comprehensive criteria:
 - **Context-Driven**: Consider complexity, timeline, and constraints when evaluating
 - **Constructive Feedback**: Provide actionable guidance for improvement
 
+### Human-in-the-Loop (HITL) Guidance
+- If foundational choices appear ambiguous, missing, or changed (framework/library, UI vs CLI, web vs desktop, API style, auth, hosting):
+  - Include a required improvement to elicit user input via `raise_missing_requirements` (for unclear/missing decisions) or `raise_obstacle` (for proposed changes)
+  - Clearly state which decision(s) require HITL and why
+  - Do not assume a default; involve the user to confirm
+
 ### APPROVE when:
 
 - Code is readable and follows reasonable conventions
