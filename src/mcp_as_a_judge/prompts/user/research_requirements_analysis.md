@@ -58,7 +58,7 @@ Provide specific recommendations including:
 
 1. **Expected URL Count**: The recommended number for optimal research coverage
 2. **Minimum URL Count**: The absolute minimum for basic adequacy
-3. **Detailed Reasoning**: Comprehensive explanation of your analysis and recommendations
+3. **Detailed Reasoning**: Comprehensive explanation of your analysis and recommendations, including how the research plan maps to ALL major aspects implied by the user requirements (each referenced system, framework, protocol, integration)
 4. **Complexity Factors**: Breakdown of the factors that influenced your assessment
 5. **Quality Requirements**: Specific guidance on the types and quality of sources needed
 

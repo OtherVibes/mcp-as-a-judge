@@ -62,9 +62,9 @@ CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TES
   - For XS/S tasks: Skip planning, proceed to implementation (next_tool: null, but guidance must explain: implement → judge_code_change → judge_testing_implementation → judge_coding_task_completion)
   - For M/L/XL tasks: Recommend planning tools (judge_coding_plan)
 - **PLANNING** → Validate plan or gather more requirements
-- **PLAN_APPROVED** → Start implementation (implement ALL code AND tests, ensure tests pass)
-- **IMPLEMENTING** → Continue implementation until ALL code AND tests are complete and passing, then call judge_code_change
-- **REVIEW_READY** → Validate implementation code (judge_code_change for code review ONLY, not tests)
+- **PLAN_APPROVED** → Start implementation (begin coding; tests may be written before or after review)
+- **IMPLEMENTING** → After code changes are ready, call judge_code_change to review implementation; then proceed to testing
+- **REVIEW_READY** → Optional state if used by client; otherwise proceed directly from IMPLEMENTING to judge_code_change
 - **TESTING** → Validate test results and coverage (judge_testing_implementation ONLY)
 - **COMPLETED** → Workflow finished (next_tool: null)
 - **BLOCKED** → Resolve obstacles (raise_obstacle)
@@ -86,6 +86,7 @@ When recommending judge_coding_plan, the preparation_needed MUST include ALL ele
 - Detailed implementation plan with code examples
 - System design with architecture and data flow
 - List of files to be modified or created
+ - Research coverage plan that maps to ALL major aspects in the user requirements (each referenced system, framework, protocol, integration). Avoid focusing on a single subset; ensure multi-aspect coverage.
 
 **Conditionally Required (check task metadata):**
 - **If research_required = true**: Gather research URLs (minimum based on research_scope)
@@ -130,14 +131,13 @@ preparation_needed: [
 - judge_code_change has been approved
 - Code review is complete and implementation approved
 - Ready for test results and coverage validation
-- The task is transitioning from REVIEW_READY to TESTING state
+- The task is in or transitioning to TESTING state
 
 **DO NOT call judge_code_change for:**
-- Individual file changes during implementation
-- Partial implementations
-- Work-in-progress code
-- Single file modifications
-- Before testing validation is complete
+- Clearly incomplete, non-compilable, or placeholder code
+- Changes unrelated to the approved plan
+
+Note: You may call judge_code_change for a logical code change even if tests are not yet written or are failing. Tests are validated separately after code review.
 
 ### Task Completion Logic
 

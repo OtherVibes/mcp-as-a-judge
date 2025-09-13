@@ -83,6 +83,7 @@ async def set_coding_task(
     # FOR UPDATING EXISTING TASKS ONLY
     task_id: str | None = None,  # REQUIRED when updating existing task
     user_requirements: str | None = None,  # Updates current requirements
+    state: TaskState | None = None,  # Optional: update task state with validation when updating existing task
     # OPTIONAL
     tags: list[str] = [],
 ) -> TaskAnalysisResult:
@@ -102,6 +103,7 @@ async def set_coding_task(
         "task_id": task_id,
         "user_requirements": user_requirements,
         "tags": tags,
+        "state": state.value if isinstance(state, TaskState) else state,
     }
 
     try:
@@ -112,7 +114,7 @@ async def set_coding_task(
                 task_title=task_title,
                 task_description=task_description,
                 user_requirements=user_requirements,
-                state=None,  # State updates not allowed via set_coding_task
+                state=state,  # Allow optional state transition with validation
                 tags=tags,
                 conversation_service=conversation_service,
             )
@@ -1483,9 +1485,12 @@ async def judge_coding_plan(
             workflow_guidance=workflow_guidance,
         )
 
-        # STEP 3: Save tool interaction to conversation history
+        # STEP 3: Save tool interaction to conversation history using the REAL task_id
+        save_session_id = (
+            updated_task_metadata.task_id if getattr(updated_task_metadata, "task_id", None) else (task_id or "test_task")
+        )
         await conversation_service.save_tool_interaction_and_cleanup(
-            session_id=task_id or "test_task",  # Use task_id as primary key
+            session_id=save_session_id,  # Always prefer real task_id
             tool_name="judge_coding_plan",
             tool_input=json.dumps(original_input),
             tool_output=json.dumps(
@@ -1727,9 +1732,12 @@ async def judge_code_change(
                 workflow_guidance=workflow_guidance,
             )
 
-            # STEP 4: Save tool interaction to conversation history
+            # STEP 4: Save tool interaction to conversation history using the REAL task_id
+            save_session_id = (
+                task_metadata.task_id if getattr(task_metadata, "task_id", None) else (task_id or "test_task")
+            )
             await conversation_service.save_tool_interaction_and_cleanup(
-                session_id=task_id or "test_task",  # Use task_id as primary key
+                session_id=save_session_id,  # Always prefer real task_id
                 tool_name="judge_code_change",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(

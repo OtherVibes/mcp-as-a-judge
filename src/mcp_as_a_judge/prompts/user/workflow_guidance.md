@@ -53,18 +53,9 @@ Each state has specific requirements and valid next steps:
 
 {{ operation_context }}
 
-### Test Status Validation
+### Test Status Considerations
 
-**CRITICAL**: Before recommending judge_code_change, verify:
-- Test coverage summary shows all_tests_passing: true
-- If all_tests_passing is false, tests are failing
-- **NEVER** proceed to code review with failing tests
-
-**When tests are failing:**
-- Set next_tool to null (do not proceed to code review)
-- Provide specific guidance to fix test failures
-- Include details about which tests are failing and why
-- Guide the AI to install missing dependencies, fix imports, or correct test logic
+Tests are validated by `judge_testing_implementation` after code review. You may recommend `judge_code_change` even if tests are not yet written or are failing. If tests exist and are failing, call out likely failures and suggest fixes in guidance, but prioritize the code review when implementation changes are ready.
 
 ## Navigation Analysis
 
@@ -94,6 +85,7 @@ When recommending judge_coding_plan, you MUST check the task metadata and includ
 - Detailed implementation plan with code examples
 - System design with architecture and data flow
 - List of files to be modified or created
+ - Research coverage plan that maps to ALL major aspects in the user requirements (each referenced system, framework, protocol, integration). Avoid focusing on a single subset; ensure multi-aspect coverage.
 
 **Check Task Metadata for Conditional Requirements:**
 - **research_required = true**: Include "Research [domain] and gather [X] authoritative URLs"
@@ -140,19 +132,9 @@ If task has risk_assessment_required=true:
 - If state is **TESTING** → Next tool should be "judge_testing_implementation" for test validation, then "judge_coding_task_completion"
 - If state is **COMPLETED** → Workflow is finished (next_tool: null)
 
-### CRITICAL RULE: judge_code_change Usage
+### Code Review Timing
 
-**NEVER recommend judge_code_change unless:**
-- Task state is REVIEW_READY
-- ALL implementation work AND tests are complete and passing
-- Ready for code review (implementation code only, not tests)
-- Tests have been written and are passing before code review
-- **MANDATORY**: all_tests_passing must be true in test coverage summary
-
-**If tests are failing:**
-- Set next_tool to "judge_testing_implementation"
-- Provide guidance to fix test failures first
-- Do NOT proceed to code review until all tests pass
+Recommend `judge_code_change` when implementation changes are ready for review, even if tests are not yet written or are failing. Tests are evaluated after code review via `judge_testing_implementation`.
 
 ### TASK COMPLETION RULE
 
@@ -200,10 +182,10 @@ You MUST respond with ONLY a valid JSON object that exactly matches the Workflow
 
 {% elif current_state == "implementing" %}
 **Current Scenario: Implementation Phase**
-- **next_tool**: "judge_code_change" (when implementation complete) OR "judge_testing_implementation" (if tests failing)
-- **reasoning**: Based on whether implementation is complete and tests are passing
-- **preparation_needed**: Focus on completing implementation and ensuring tests pass
-- **guidance**: Continue implementation or proceed to code review if ready
+- **next_tool**: "judge_code_change" when implementation changes are ready; after review approval, proceed to "judge_testing_implementation"
+- **reasoning**: Code review should happen promptly after changes; tests are validated next
+- **preparation_needed**: Ensure code compiles and is cohesive for review; outline test plan
+- **guidance**: Proceed to code review for the implemented changes; then validate tests
 
 {% else %}
 **Current Scenario: {{ current_state.title() }} State**

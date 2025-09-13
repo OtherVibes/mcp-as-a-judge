@@ -86,6 +86,7 @@ Always emphasize research quality over pure quantity:
 - Recency and relevance to current technology versions
 - Practical applicability to the specific task context
 - Coverage of implementation details and edge cases
+ - Multi-aspect coverage: Ensure the research plan explicitly maps to ALL major aspects implied by the user requirements (each referenced system, framework, protocol, integration), rather than focusing on a single subset.
 
 ## Analysis Output Requirements
 

@@ -203,6 +203,26 @@ async def load_task_metadata_from_history(
                     latest_snapshot["state"] = older_md["state"]
                     break
 
+            # As a final safeguard, infer a reasonable state from approval markers
+            # if no explicit state could be found in history.
+            if "state" not in latest_snapshot:
+                try:
+                    # If testing was approved, task must be at least TESTING
+                    if latest_snapshot.get("testing_approved_at"):
+                        latest_snapshot["state"] = TaskState.TESTING.value
+                    # If any code files were approved, the task transitioned to TESTING after review
+                    elif latest_snapshot.get("code_approved_files"):
+                        if isinstance(latest_snapshot.get("code_approved_files"), dict) and len(
+                            latest_snapshot.get("code_approved_files")
+                        ) > 0:
+                            latest_snapshot["state"] = TaskState.TESTING.value
+                    # If plan was approved, set PLAN_APPROVED
+                    elif latest_snapshot.get("plan_approved_at"):
+                        latest_snapshot["state"] = TaskState.PLAN_APPROVED.value
+                except Exception:
+                    # Best-effort inference only
+                    pass
+
             try:
                 return TaskMetadata.model_validate(latest_snapshot)
             except ValidationError:

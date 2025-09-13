@@ -3,6 +3,8 @@
 ## Description
 Validate a proposed plan and design against requirements, research needs, and risks. Called when `workflow_guidance.next_tool == "judge_coding_plan"`.
 
+{% include 'shared/critical_tool_warnings.md' %}
+
 ## Prerequisites
 - Thoroughly analyze requirements, propose a concrete plan, and produce a system design
 

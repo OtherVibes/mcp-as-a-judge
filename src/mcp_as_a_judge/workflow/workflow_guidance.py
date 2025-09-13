@@ -263,7 +263,7 @@ async def calculate_next_stage(
                 f"- Modified Files ({len(task_metadata.modified_files)}): {', '.join(task_metadata.modified_files)}"
             )
 
-            # Check implementation progress (code review comes AFTER tests are written and passing)
+            # Check implementation progress (code review happens once implementation changes are ready; tests are validated separately)
             if (
                 len(task_metadata.modified_files) > 0
                 and task_metadata.state == TaskState.IMPLEMENTING

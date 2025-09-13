@@ -15,6 +15,7 @@ Create or update coding task metadata and receive dynamic workflow guidance. Thi
 - `task_size`: enum — One of `xs|s|m|l|xl` (default `m`)
 - `task_id`: string — Task UUID when updating an existing task (optional)
 - `user_requirements`: string — Updated requirements (optional)
+- `state`: enum — Optional state transition when updating an existing task. Valid transitions are enforced (e.g., `plan_approved` → `implementing`).
 - `tags`: list[string] — Task tags (optional)
 
 ## Returns

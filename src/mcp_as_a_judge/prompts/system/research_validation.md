@@ -43,6 +43,7 @@ Evaluate if the research is comprehensive enough and if the design is properly b
 - **REJECT IF MISSING**: No URLs provided means no online research was performed - REJECT immediately
 - **ONLINE RESEARCH EVIDENCE**: Do URLs demonstrate actual online research into implementation approaches and existing libraries?
 - **EXISTING SOLUTIONS FOCUS**: Do URLs show research into current repo capabilities, well-known libraries, and best practices?
+- **FULL REQUIREMENTS COVERAGE**: Do the provided URLs collectively cover ALL major aspects implied by the user requirements (each named system, framework, protocol, integration), rather than focusing on a single subset?
 - **REJECT IMMEDIATELY**: Missing URLs, insufficient online research, or failure to investigate existing solutions first
 
 ## Response Requirements

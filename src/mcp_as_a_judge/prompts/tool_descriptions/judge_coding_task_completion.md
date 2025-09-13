@@ -24,4 +24,5 @@ Final validation gate before declaring a task complete. Called when `workflow_gu
 ```
 
 ## Notes
-- Do not present completion summaries to the user without calling this tool. Always use the exact `task_id`.
+- The AI coding assistant MUST NOT present or claim task completion, or provide a final completion summary to the user, without successfully calling this tool and receiving approval.
+- Always use the exact `task_id`; if missing due to memory limits, recover it via `get_current_coding_task`.

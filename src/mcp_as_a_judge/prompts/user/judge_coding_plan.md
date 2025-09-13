@@ -100,7 +100,7 @@ Note: Internal analysis is marked required but no repository-local components we
 
 As part of your evaluation, you must analyze the task requirements and update the task metadata with conditional requirements:
 
-1. **External Research Analysis**: Determine if external research is needed based on task complexity, specialized domains, or technologies
+1. **External Research Analysis**: Determine if external research is needed based on task complexity, specialized domains, or technologies. Ensure research coverage maps to ALL major aspects implied by the user requirements (each named framework, protocol, pattern, integration, system), not just a subset.
 2. **Internal Codebase Analysis**: Determine if understanding existing codebase patterns is needed
 3. **Risk Assessment**: Determine if the task poses risks to existing functionality or system stability
 

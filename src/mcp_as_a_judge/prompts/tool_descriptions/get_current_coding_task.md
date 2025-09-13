@@ -3,6 +3,8 @@
 ## Description
 Retrieve the most recently active coding task UUID (task_id) and metadata from conversation history. Use when the task_id is missing from context.
 
+{% include 'shared/critical_tool_warnings.md' %}
+
 ## When to use
 - Need the task_id for follow-up tool calls
 - Want to resume the last active coding task

@@ -42,6 +42,7 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - Is there evidence of understanding industry best practices?
 - Are trade-offs between different approaches analyzed?
 - Does the research demonstrate avoiding reinventing the wheel?
+ - Does research explicitly cover all major aspects implied by the user requirements, not just a subset (e.g., cover each system, protocol, framework, or integration mentioned)?
 
 **🏗️ Internal Codebase Analysis (ONLY evaluate if Status: REQUIRED):**
 - Validate that existing codebase patterns are properly considered
@@ -156,7 +157,7 @@ IMPORTANT applicability rule:
 ### 1. User Requirements Alignment
 
 - Does the plan directly address the user's stated requirements?
-- Are all user requirements covered in the implementation plan?
+- Are all user requirements decomposed into explicit sub-aspects (components, integrations, protocols, patterns) and covered in the implementation plan and research?
 - Is the solution appropriate for what the user actually wants to achieve?
 - Flag any misalignment between user needs and proposed solution
 

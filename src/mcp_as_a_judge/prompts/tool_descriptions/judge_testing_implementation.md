@@ -3,6 +3,8 @@
 ## Description
 Validate test quality, coverage, and execution results after code review is approved. Called when `workflow_guidance.next_tool == "judge_testing_implementation"`.
 
+{% include 'shared/critical_tool_warnings.md' %}
+
 ## Args
 - `task_id`: string — Task UUID (required)
 - `test_summary`: string — Summary of the implemented tests (required)
@@ -21,4 +23,5 @@ Validate test quality, coverage, and execution results after code review is appr
 ```
 
 ## Notes
-- Use after `judge_code_change` is approved. Follow `workflow_guidance.next_tool` for the next step. Always use the exact `task_id`.
+- Use after `judge_code_change` is approved. Follow `workflow_guidance.next_tool` for the next step.
+- Always use the exact `task_id`; recover it via `get_current_coding_task` if missing.

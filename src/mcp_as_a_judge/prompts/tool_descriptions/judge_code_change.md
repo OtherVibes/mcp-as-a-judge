@@ -1,12 +1,12 @@
 # Judge Code Change
 
 ## Description
-Review implementation code (not tests) once all implementation work is complete and tests are passing. Called when `workflow_guidance.next_tool == "judge_code_change"`.
+Review implementation code (not tests) when implementation changes are ready for review. Tests are validated separately by `judge_testing_implementation`. Called when `workflow_guidance.next_tool == "judge_code_change"`.
 
 {% include 'shared/critical_tool_warnings.md' %}
 
 ## When to use
-- All implementation files written/modified, tests exist and pass; ready for review
+- After creating or modifying implementation code and a review is needed. Tests may be written before or after review; they are validated via `judge_testing_implementation`.
 
 ## Human-in-the-Loop (HITL) checks
 - If foundational choices are unclear or need confirmation (e.g., framework/library, UI vs CLI, web vs desktop, API style, auth, hosting), first call `raise_missing_requirements` to elicit the user’s intent
@@ -25,6 +25,6 @@ Review implementation code (not tests) once all implementation work is complete 
 {{ JUDGE_RESPONSE_SCHEMA }}
 ```
 
-## Notes
-- Review only implementation code here; tests are validated via `judge_testing_implementation`. Always use the exact `task_id`.
+- Review only implementation code here; tests are validated via `judge_testing_implementation`.
+- Always use the exact `task_id`; recover it via `get_current_coding_task` if missing.
 - If HITL was performed, update the task description/requirements via `set_coding_task` if text needs to be clarified for future steps
