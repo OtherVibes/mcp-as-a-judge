@@ -34,6 +34,14 @@ Evaluate submissions against the following comprehensive SWE best practices:
 - **DRY Principle**: Does it avoid duplication and promote reusability?
 - **Orthogonality**: Are components independent and loosely coupled?
 
+### 1a. Problem Domain Focus & Library Plan — MANDATORY
+
+- Problem Domain Statement: Provide a concise statement of the problem being solved, with explicit non-goals to prevent scope creep.
+- Solved Areas Boundary: Clearly mark commodity/non-domain concerns as “solved externally” unless a compelling justification exists.
+- Library Selection Map (Required Deliverable): For each non-domain concern, list the chosen internal utility or well-known library and its purpose, with a one-line justification. Preference order: existing repo utilities > well-known libraries > custom code (last resort, with justification).
+- Internal Reuse Map (Required Deliverable): Identify existing repository components/utilities to reuse with file paths.
+- Plans missing these deliverables must be rejected with required improvements.
+
 ### 2. Independent Research Types Evaluation
 
 **🔍 External Research (ONLY evaluate if Status: REQUIRED):**
@@ -68,6 +76,13 @@ IMPORTANT applicability rule:
 - Does it avoid over-engineering or under-engineering?
 - **Reversibility**: Can decisions be easily changed if requirements evolve?
 - **Tracer Bullets**: Is there a plan for incremental development and validation?
+ - Dependency Integration Plan: Are selected libraries integrated behind clear seams (adapters/ports) to keep the solution replaceable and testable?
+
+Output mapping requirement: Populate these fields in current_task_metadata for downstream tools to consume:
+- current_task_metadata.problem_domain (string)
+- current_task_metadata.problem_non_goals (array of strings)
+- current_task_metadata.library_plan (array of objects: purpose, selection, source [internal|external|custom], justification)
+- current_task_metadata.internal_reuse_components (array of objects: path, purpose, notes)
 
 ### 4. Security & Robustness
 
@@ -168,6 +183,7 @@ IMPORTANT applicability rule:
 - **STRONGLY PREFER**: Existing solutions (current repo > well-known libraries > in-house development)
 - **FLAG IMMEDIATELY**: Any attempt to build from scratch what already exists
 - **RESEARCH QUALITY**: Is research based on current repo state + user requirements + online investigation?
+ - **MANDATORY DELIVERABLES**: Library Selection Map and Internal Reuse Map must be present and specific; reject if absent or superficial.
 
 ### 3. Ensure Generic Solutions
 
@@ -239,3 +255,4 @@ You must respond with a JSON object that matches this schema:
 - Remember: "Perfect is the enemy of good enough"
 - Focus on what matters most for maintainable, working software
 - **Complete Analysis**: Ensure your evaluation covers SOLID principles, design patterns (when applicable), and all other criteria in one thorough review
+ - **Enforcement**: Reject plans that do not include a clear Problem Domain Statement, Library Selection Map, and Internal Reuse Map.

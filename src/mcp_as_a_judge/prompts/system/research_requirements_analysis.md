@@ -88,6 +88,11 @@ Always emphasize research quality over pure quantity:
 - Coverage of implementation details and edge cases
  - Multi-aspect coverage: Ensure the research plan explicitly maps to ALL major aspects implied by the user requirements (each referenced system, framework, protocol, integration), rather than focusing on a single subset.
 
+### Library & Reuse Research (Strongly Encouraged / Often Required)
+- Identify well-known libraries or internal utilities for each non-domain concern relevant to the task.
+- Compare credible options when relevant and recommend one with justification.
+- Survey existing repository utilities/components for reuse and list candidates with file paths.
+
 ## Analysis Output Requirements
 
 Provide structured analysis considering:

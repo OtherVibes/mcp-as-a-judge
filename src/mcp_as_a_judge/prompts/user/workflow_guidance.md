@@ -86,6 +86,9 @@ When recommending judge_coding_plan, you MUST check the task metadata and includ
 - System design with architecture and data flow
 - List of files to be modified or created
  - Research coverage plan that maps to ALL major aspects in the user requirements (each referenced system, framework, protocol, integration). Avoid focusing on a single subset; ensure multi-aspect coverage.
+ - Problem Domain Statement (goals and non-goals) to keep focus on the domain and avoid re-solving commodity problems
+ - Library Selection Map: well-known libraries by purpose with brief justifications; show preference order (repo utilities > well-known libs > custom)
+ - Internal Reuse Map: list existing repository utilities/components to reuse with file paths
 
 **Check Task Metadata for Conditional Requirements:**
 - **research_required = true**: Include "Research [domain] and gather [X] authoritative URLs"

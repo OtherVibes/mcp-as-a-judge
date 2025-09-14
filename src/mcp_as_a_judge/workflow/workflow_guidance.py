@@ -185,10 +185,10 @@ async def calculate_next_stage(
                     reasoning="Plan approved; proceed with implementation and submit changes for review.",
                     preparation_needed=[
                         "Implement according to the approved plan",
-                        "Prepare code changes and file path for review",
+                        "Prepare a unified Git diff patch for review",
                     ],
                     guidance=(
-                        "Continue implementation. When ready, call judge_code_change with the file path, change description or diff, and any relevant context."
+                        "Continue implementation. When ready, prepare a unified Git diff patch of the changes and call judge_code_change (include file_path only if a single file is modified)."
                     ),
                 )
             if task_metadata.state == TaskState.REVIEW_READY:
@@ -197,7 +197,7 @@ async def calculate_next_stage(
                     reasoning="Implementation is review-ready; validate testing to progress.",
                     preparation_needed=[
                         "Ensure tests exist and are passing",
-                        "Collect test results and coverage info",
+                        "Collect raw test output and coverage info",
                     ],
                     guidance=(
                         "Run tests and ensure they pass, then call judge_testing_implementation with a summary of tests and results."
@@ -219,6 +219,8 @@ async def calculate_next_stage(
                     preparation_needed=[],
                     guidance="No further action required.",
                 )
+
+        # From here on, defer navigation to LLM prompt logic (dynamic, state-aware)
 
         # Load and format conversation history for LLM context
         # Use task_id as session_id for conversation history
@@ -448,6 +450,23 @@ async def calculate_next_stage(
             risk_assessment_required=navigation_data.get("risk_assessment_required"),
         )
 
+        # Fallback: if next_tool missing/None and not completed, route to get_current_coding_task
+        if workflow_guidance.next_tool is None and task_metadata.state != TaskState.COMPLETED:
+            if "get_current_coding_task" in available_name_set:
+                workflow_guidance.next_tool = "get_current_coding_task"
+            else:
+                # As a last resort, pick judge_coding_plan for created/planning; judge_code_change otherwise
+                if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
+                    workflow_guidance.next_tool = "judge_coding_plan"
+                elif task_metadata.state in (
+                    TaskState.PLAN_APPROVED,
+                    TaskState.IMPLEMENTING,
+                    TaskState.REVIEW_READY,
+                ):
+                    workflow_guidance.next_tool = "judge_code_change"
+                elif task_metadata.state == TaskState.TESTING:
+                    workflow_guidance.next_tool = "judge_testing_implementation"
+
         logger.info(
             f"Calculated next stage: next_tool={workflow_guidance.next_tool}, "
             f"instructions_length={len(workflow_guidance.instructions)}"
@@ -619,6 +638,37 @@ def _normalize_next_tool_name(
 
     mapped = synonyms.get(key, key)
 
+    # Guardrail: avoid spurious routing back to set_coding_task
+    if mapped == "set_coding_task":
+        # During planning/created, keep planning loop unless the user explicitly updates requirements
+        if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
+            return "judge_coding_plan"
+        if task_metadata.state in (
+            TaskState.PLAN_APPROVED,
+            TaskState.IMPLEMENTING,
+            TaskState.REVIEW_READY,
+        ):
+            return "judge_code_change"
+        if task_metadata.state == TaskState.TESTING:
+            return "judge_testing_implementation"
+        if task_metadata.state == TaskState.COMPLETED:
+            return None
+
+    # Guardrail: avoid premature completion calls — route to the correct gate
+    if mapped == "judge_coding_task_completion":
+        if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
+            return "judge_coding_plan"
+        if task_metadata.state in (
+            TaskState.PLAN_APPROVED,
+            TaskState.IMPLEMENTING,
+            TaskState.REVIEW_READY,
+        ):
+            return "judge_code_change"
+        if task_metadata.state == TaskState.TESTING:
+            return "judge_testing_implementation"
+        if task_metadata.state == TaskState.COMPLETED:
+            return None
+
     if mapped in available:
         return mapped
 
@@ -631,5 +681,5 @@ def _normalize_next_tool_name(
     if task_metadata.state == TaskState.COMPLETED:
         return None
 
-    # Default conservative fallback
-    return "judge_coding_plan"
+    # Default conservative fallback: let the system recover the active task id/state
+    return "get_current_coding_task"

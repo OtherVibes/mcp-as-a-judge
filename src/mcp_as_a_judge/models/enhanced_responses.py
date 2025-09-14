@@ -34,6 +34,15 @@ class JudgeResponse(TrimmedBaseModel):
     )
     feedback: str = Field(description="Detailed feedback about the validation")
 
+    # Optional unified Git diff with suggested fixes or refinements
+    suggested_diff: str | None = Field(
+        default=None,
+        description=(
+            "Unified Git diff patch with suggested changes (optional). "
+            "Provide when rejecting with concrete fixes or when proposing minor refinements."
+        ),
+    )
+
     current_task_metadata: TaskMetadata = Field(
         default_factory=lambda: TaskMetadata(
             title="Unknown Task",

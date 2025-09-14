@@ -161,6 +161,51 @@ class TaskMetadata(BaseModel):
 
     # (No explicit decision ledger; decisions are handled via LLM-driven elicitation and conversation history)
 
+    # PROBLEM DOMAIN & REUSE/DEPENDENCIES PLAN - For enforcing domain focus and avoiding reinvention
+    problem_domain: str = Field(
+        default="",
+        description="Concise statement of the problem domain and scope for this task",
+    )
+    problem_non_goals: list[str] = Field(
+        default_factory=list,
+        description="Explicit non-goals/boundaries to prevent scope creep and re-solving commodity concerns",
+    )
+
+    class LibraryPlanItem(BaseModel):
+        purpose: str = Field(
+            description="Non-domain concern or integration point this library addresses"
+        )
+        selection: str = Field(
+            description="Chosen library or internal utility (name and optional version)"
+        )
+        source: str = Field(
+            description="Source of solution: 'internal' for repo utility, 'external' for well-known library, 'custom' for in-house code"
+        )
+        justification: str = Field(
+            default="",
+            description="One-line rationale for the selection and any trade-offs",
+        )
+
+    library_plan: list[LibraryPlanItem] = Field(
+        default_factory=list,
+        description=(
+            "Planned libraries/utilities per purpose; prefer internal reuse and well-known libraries; custom code only with justification"
+        ),
+    )
+
+    class ReuseComponent(BaseModel):
+        path: str = Field(description="Repository path to the reusable component")
+        purpose: str = Field(
+            default="",
+            description="What part of the task this component will support",
+        )
+        notes: str = Field(default="", description="Any integration notes or caveats")
+
+    internal_reuse_components: list[ReuseComponent] = Field(
+        default_factory=list,
+        description="Existing repository components/utilities to reuse with paths and purposes",
+    )
+
     # RESEARCH TRACKING FIELDS - Added for workflow-driven research validation
     research_required: bool | None = Field(
         default=None,

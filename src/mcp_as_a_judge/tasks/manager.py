@@ -154,8 +154,10 @@ async def load_task_metadata_from_history(
 
         latest_snapshot: dict | None = None
 
+        # IMPORTANT: conversation_history is returned in reverse chronological order
+        # (newest first). Iterate in that order so we always prefer the latest state.
         # Pass 1: newest → oldest, return first snapshot with explicit state
-        for record in reversed(conversation_history):
+        for record in conversation_history:
             try:
                 output_data = json.loads(record.output)
             except json.JSONDecodeError:
@@ -171,7 +173,7 @@ async def load_task_metadata_from_history(
             if not isinstance(metadata_dict, dict):
                 continue
 
-            # Keep the newest snapshot as a fallback for pass 2
+            # Keep the newest snapshot as a fallback for pass 2 (first iteration)
             if latest_snapshot is None:
                 latest_snapshot = dict(metadata_dict)
 
@@ -185,7 +187,7 @@ async def load_task_metadata_from_history(
 
         # Pass 2: if newest snapshot lacks state, try to backfill from older records
         if latest_snapshot is not None and "state" not in latest_snapshot:
-            for record in reversed(conversation_history):
+            for record in conversation_history:
                 try:
                     output_data = json.loads(record.output)
                 except json.JSONDecodeError:

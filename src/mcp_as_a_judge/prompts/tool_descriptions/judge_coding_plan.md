@@ -7,6 +7,7 @@ Validate a proposed plan and design against requirements, research needs, and ri
 
 ## Prerequisites
 - Thoroughly analyze requirements, propose a concrete plan, and produce a system design
+ - Include a Problem Domain Statement, a Library Selection Map (well-known libraries by purpose, with justifications), and an Internal Reuse Map (existing repo components with paths)
 
 ## Human-in-the-Loop (HITL) checks
 - If foundational choices are ambiguous or missing (e.g., framework/library, UI vs CLI, web vs desktop, API style, auth, hosting), first call `raise_missing_requirements` to elicit user preferences
@@ -29,3 +30,4 @@ Validate a proposed plan and design against requirements, research needs, and ri
 
 ## Notes
 - Follow `workflow_guidance.next_tool` for the next step. Use the exact `task_id` from `set_coding_task`; recover via `get_current_coding_task` if missing.
+ - Plans missing a library selection map and internal reuse map will be rejected.

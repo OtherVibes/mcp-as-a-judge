@@ -109,6 +109,51 @@ class ResearchValidationResponse(BaseModel):
     )
 
 
+class ResearchAspect(BaseModel):
+    """A major aspect that research must cover (LLM-extracted)."""
+
+    name: str = Field(description="Canonical aspect name relevant to the task")
+    synonyms: list[str] = Field(
+        default_factory=list,
+        description="List of synonymous terms or phrases that indicate coverage",
+    )
+    required: bool = Field(
+        default=True,
+        description="Whether coverage of this aspect is required for approval",
+    )
+    category: str | None = Field(
+        default=None,
+        description="Optional category, e.g., 'protocol', 'framework', 'deployment'",
+    )
+    rationale: str = Field(
+        default="",
+        description="Why this aspect is required for this task",
+    )
+
+
+class ResearchAspectsExtraction(BaseModel):
+    """LLM-extracted research aspects that should be covered."""
+
+    aspects: list[ResearchAspect] = Field(
+        default_factory=list,
+        description="List of aspects that research must cover for this task",
+    )
+    notes: str = Field(
+        default="",
+        description="Additional notes about coverage or prioritization",
+    )
+
+
+class ResearchAspectsUserVars(BaseModel):
+    """Variables for research aspects extraction user prompt."""
+
+    task_title: str = Field(description="Title of the coding task")
+    task_description: str = Field(description="Detailed description of the task")
+    user_requirements: str = Field(description="User requirements for the task")
+    plan: str = Field(description="Implementation plan text (can be brief)")
+    design: str = Field(description="Design summary (can be brief)")
+
+
 class ResearchComplexityFactors(BaseModel):
     """Analysis factors for determining research complexity."""
 
@@ -265,7 +310,9 @@ class JudgeCodeChangeUserVars(BaseModel):
     )
     file_path: str = Field(description="Path to the file being changed")
     change_description: str = Field(description="Description of what the change does")
-    code_change: str = Field(description="The actual code content being reviewed")
+    code_change: str = Field(
+        description="Unified Git diff patch representing the code changes under review"
+    )
     context: str = Field(description="Additional context about the code change")
     conversation_history: list = Field(
         default_factory=list,

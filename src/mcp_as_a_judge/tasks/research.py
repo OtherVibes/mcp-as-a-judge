@@ -19,6 +19,8 @@ from mcp_as_a_judge.models import (
     ResearchRequirementsAnalysisUserVars,
     SystemVars,
     URLValidationResult,
+    ResearchAspectsExtraction,
+    ResearchAspectsUserVars,
 )
 from mcp_as_a_judge.models.task_metadata import TaskMetadata
 from mcp_as_a_judge.prompting.loader import create_separate_messages
@@ -216,3 +218,81 @@ def update_task_metadata_with_analysis(
         f"Updated task metadata with research analysis: "
         f"Expected={analysis.expected_url_count}, Minimum={analysis.minimum_url_count}"
     )
+
+
+async def analyze_research_aspects(
+    *,
+    task_title: str,
+    task_description: str,
+    user_requirements: str,
+    plan: str,
+    design: str,
+    ctx: Any,
+) -> ResearchAspectsExtraction:
+    """Use LLM to extract a generic list of research aspects to cover.
+
+    The LLM should infer systems, frameworks, protocols, integrations, and deployment concerns
+    from the requirements/plan/design, and output canonical aspect names with synonyms.
+    """
+    system_vars = SystemVars(
+        response_schema=json.dumps(ResearchAspectsExtraction.model_json_schema()),
+        max_tokens=MAX_TOKENS,
+    )
+    user_vars = ResearchAspectsUserVars(
+        task_title=task_title,
+        task_description=task_description,
+        user_requirements=user_requirements,
+        plan=plan,
+        design=design,
+    )
+    messages = create_separate_messages(
+        "system/research_aspects.md",
+        "user/research_aspects.md",
+        system_vars,
+        user_vars,
+    )
+
+    try:
+        response_text = await llm_provider.send_message(
+            messages=messages, ctx=ctx, max_tokens=MAX_TOKENS, prefer_sampling=True
+        )
+        json_content = extract_json_from_response(response_text)
+        aspects = ResearchAspectsExtraction.model_validate_json(json_content)
+        return aspects
+    except Exception as e:
+        logger.warning(f"Failed to extract research aspects via LLM: {e}")
+        # Fallback to empty aspects (no additional gating)
+        return ResearchAspectsExtraction(aspects=[], notes="fallback-empty")
+
+
+def validate_aspect_coverage(
+    research_text: str, research_urls: list[str], aspects: ResearchAspectsExtraction
+) -> tuple[bool, list[str]]:
+    """Check that each required aspect is covered by research text or URLs using LLM-provided synonyms.
+
+    Returns:
+      (covered_fully, missing_aspect_names)
+    """
+    rt = (research_text or "").lower()
+    url_lc = [u.lower() for u in (research_urls or [])]
+
+    missing: list[str] = []
+    for aspect in aspects.aspects:
+        if not aspect.required:
+            continue
+
+        # Build a set of needles: canonical name + synonyms, lowercased and space/sep-insensitive for URLs
+        needles = [aspect.name.lower()] + [s.lower() for s in (aspect.synonyms or [])]
+        # Check research text
+        found_text = any(n in rt for n in needles)
+        # Check URLs (normalize by removing spaces for match resilience)
+        def in_url(n: str) -> bool:
+            n2 = n.replace(" ", "").strip()
+            return any(n2 in u.replace(" ", "") for u in url_lc)
+
+        found_url = any(in_url(n) for n in needles)
+
+        if not (found_text or found_url):
+            missing.append(aspect.name)
+
+    return (len(missing) == 0, missing)

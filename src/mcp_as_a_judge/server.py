@@ -9,6 +9,7 @@ import builtins
 import contextlib
 import json
 import time
+import re
 
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
@@ -217,10 +218,15 @@ async def set_coding_task(
         )
 
         error_guidance = WorkflowGuidance(
-            next_tool=None,
-            reasoning="Error occurred during task creation/update",
-            preparation_needed=["Review error details", "Check task parameters"],
-            guidance=f"Error occurred: {e!s}. Please review task parameters and try again.",
+            next_tool="get_current_coding_task",
+            reasoning="Task update failed or task_id not found; retrieve the latest valid task_id and metadata.",
+            preparation_needed=[
+                "Call get_current_coding_task to fetch active task_id",
+                "Retry with the returned task_id if needed",
+            ],
+            guidance=(
+                f"Error occurred: {e!s}. Use get_current_coding_task to retrieve the most recent task_id, then retry the operation with that ID."
+            ),
         )
 
         error_result = EnhancedResponseFactory.create_task_analysis_result(
@@ -818,12 +824,15 @@ async def judge_coding_task_completion(
                 feedback=f"Task {task_id} not found in conversation history. This usually means set_coding_task was not called first, or the server was restarted and lost the in-memory data.",
                 current_task_metadata=task_metadata,
                 workflow_guidance=WorkflowGuidance(
-                    next_tool="set_coding_task",
-                    reasoning="Task metadata not found in history",
+                    next_tool="get_current_coding_task",
+                    reasoning="Task metadata not found; recover the active task context before proceeding.",
                     preparation_needed=[
-                        "Call set_coding_task first to create the task"
+                        "Call get_current_coding_task to fetch the active task_id",
+                        "Retry completion or proceed per recovered state",
                     ],
-                    guidance="You must call set_coding_task before calling judge_coding_task_completion. The task_id must come from a successful set_coding_task call.",
+                    guidance=(
+                        "Use get_current_coding_task to retrieve the most recent task_id and metadata. Then continue the workflow based on the recovered state (typically judge_code_change → judge_testing_implementation → judge_coding_task_completion)."
+                    ),
                 ),
             )
 
@@ -933,11 +942,55 @@ async def judge_coding_task_completion(
 
             feedback += "\n\n📋 **Complete all required approvals and remaining work before resubmitting for final approval.**"
 
-            workflow_guidance = await calculate_next_stage(
-                task_metadata=task_metadata,
-                current_operation="judge_coding_task_completion_incomplete",
-                conversation_service=conversation_service,
-                ctx=ctx,
+            # Deterministic next step based on missing approvals
+            next_tool = None
+            if any("plan approval" in m for m in missing_approvals):
+                next_tool = "judge_coding_plan"
+            elif any("code approval" in m for m in missing_approvals) or (
+                approval_status.get("code_files_approved", 0)
+                < len(task_metadata.modified_files or [])
+            ):
+                next_tool = "judge_code_change"
+            elif any("testing approval" in m for m in missing_approvals):
+                next_tool = "judge_testing_implementation"
+            else:
+                # Default to code review gate for safety
+                next_tool = "judge_code_change"
+
+            # Construct guidance tailored to the required step
+            if next_tool == "judge_coding_plan":
+                reasoning = "Missing plan approval; revise and resubmit the plan."
+                prep = [
+                    "Address required improvements in the plan",
+                    "Ensure design, file list, and research coverage are complete",
+                ]
+                guidance = (
+                    "Update the plan addressing all feedback and call judge_coding_plan. After approval, proceed to implementation and code review."
+                )
+            elif next_tool == "judge_code_change":
+                reasoning = "Code has not been reviewed/approved; submit implementation for review."
+                prep = [
+                    "Implement or finalize code changes per requirements",
+                    "Prepare file paths and a concise change summary",
+                ]
+                guidance = (
+                    "Call judge_code_change with the modified files and a concise summary or diff. After approval, implement/verify tests and validate via judge_testing_implementation."
+                )
+            else:  # judge_testing_implementation
+                reasoning = "Testing approval missing; run and validate tests."
+                prep = [
+                    "Run the test suite and capture results",
+                    "Provide coverage details if available",
+                ]
+                guidance = (
+                    "Call judge_testing_implementation with test files, execution results, and coverage details. After approval, resubmit completion."
+                )
+
+            workflow_guidance = WorkflowGuidance(
+                next_tool=next_tool,
+                reasoning=reasoning,
+                preparation_needed=prep,
+                guidance=guidance,
             )
 
             result = TaskCompletionResult(
@@ -965,10 +1018,13 @@ async def judge_coding_task_completion(
     except Exception as e:
         # Create error response
         error_guidance = WorkflowGuidance(
-            next_tool=None,
-            reasoning="Error occurred while validating task completion",
-            preparation_needed=["Review error details", "Check task parameters"],
-            guidance=f"Error validating task completion: {e!s}. Please review and try again.",
+            next_tool="get_current_coding_task",
+            reasoning="Error occurred; recover active task context and continue with the correct step.",
+            preparation_needed=[
+                "Call get_current_coding_task to fetch active task_id",
+                "Retry with the returned task_id or proceed based on recovered state",
+            ],
+            guidance=f"Error validating task completion: {e!s}. Use get_current_coding_task to recover the current task_id and continue the workflow (judge_code_change → judge_testing_implementation → judge_coding_task_completion).",
         )
 
         # Create minimal task metadata for error case
@@ -1032,7 +1088,7 @@ async def _validate_research_quality(
         design=design,
         research=research,
         research_urls=research_urls,
-        context="",  # No additional context for research validation
+        context="",
         conversation_history=[],  # No conversation history for research validation
     )
     messages = create_separate_messages(
@@ -1074,6 +1130,40 @@ async def _validate_research_quality(
         raise ValueError(
             f"Failed to parse research validation response: {e}. Raw response: {research_response_text}"
         ) from e
+
+    # LLM-driven aspects extraction and coverage validation (no hardcoded topics)
+    try:
+        from mcp_as_a_judge.tasks.research import (
+            analyze_research_aspects,
+            validate_aspect_coverage,
+        )
+
+        aspects = await analyze_research_aspects(
+            task_title="",
+            task_description="",
+            user_requirements=user_requirements,
+            plan=plan,
+            design=design,
+            ctx=ctx,
+        )
+        covered, missing = validate_aspect_coverage(research, research_urls, aspects)
+        if not covered and missing:
+            issue = "Insufficient research coverage for required aspects"
+            descriptive_feedback = await generate_validation_error_message(
+                issue,
+                f"Missing aspects: {', '.join(missing)}. URLs provided: {research_urls}",
+                ctx,
+            )
+            return {
+                "approved": False,
+                "required_improvements": [
+                    f"Add authoritative research covering: {name}" for name in missing
+                ],
+                "feedback": descriptive_feedback,
+            }
+    except Exception:
+        # Be resilient; failing aspects extraction should not crash validation
+        pass
 
     return None
 
@@ -1462,24 +1552,102 @@ async def judge_coding_plan(
         # Use the updated task metadata from the evaluation result (includes conditional requirements)
         updated_task_metadata = evaluation_result.current_task_metadata
 
-        # Calculate workflow guidance for successful evaluation
+        # Enforce mandatory planning deliverables: problem_domain and library_plan
+        # If missing but the plan was approved, convert to required improvements
+        missing_deliverables: list[str] = []
+        try:
+            if not getattr(updated_task_metadata, "problem_domain", "").strip():
+                missing_deliverables.append("Add a clear Problem Domain Statement with explicit non-goals")
+            # library_plan is a list of LibraryPlanItem entries
+            if not getattr(updated_task_metadata, "library_plan", []) or len(
+                getattr(updated_task_metadata, "library_plan", [])
+            ) == 0:
+                missing_deliverables.append(
+                    "Provide a Library Selection Map (purpose → internal/external library with justification)"
+                )
+        except Exception:
+            # Be resilient; do not crash on schema variations
+            pass
+
+        effective_approved = evaluation_result.approved and not missing_deliverables
+        effective_required_improvements = list(evaluation_result.required_improvements)
+        if missing_deliverables:
+            # Merge missing deliverables to required improvements
+            effective_required_improvements.extend(missing_deliverables)
+
+        # Preserve canonical task_id so we never drift across sessions due to LLM outputs
+        canonical_task_id = None
+        if task_metadata and getattr(task_metadata, "task_id", None):
+            canonical_task_id = task_metadata.task_id
+        elif task_id:
+            canonical_task_id = task_id
+
+        if canonical_task_id and getattr(updated_task_metadata, "task_id", None) != canonical_task_id:
+            try:
+                # Overwrite to ensure consistency across conversation history and routing
+                updated_task_metadata.task_id = canonical_task_id  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+        # Calculate workflow guidance for the effective outcome
+        # Build a synthetic validation_result with the effective approval and improvements
+        synthetic_eval = EnhancedResponseFactory.create_judge_response(
+            approved=effective_approved,
+            feedback=evaluation_result.feedback,
+            required_improvements=effective_required_improvements,
+            current_task_metadata=updated_task_metadata,
+            workflow_guidance=WorkflowGuidance(
+                next_tool=None,
+                reasoning="",
+                preparation_needed=[],
+                guidance="",
+            ),
+        )
         workflow_guidance = await calculate_next_stage(
             task_metadata=updated_task_metadata,
             current_operation="judge_coding_plan_completed",
             conversation_service=conversation_service,
             ctx=ctx,
-            validation_result=evaluation_result,
+            validation_result=synthetic_eval,
         )
 
-        # Create enhanced judge response
-        if evaluation_result.approved:
+        # Deterministic next step for coding plan outcome to avoid loops
+        if effective_approved:
             # Mark plan as approved for completion validation and update state
             updated_task_metadata.mark_plan_approved()
             updated_task_metadata.update_state(TaskState.PLAN_APPROVED)
+            # Force next step to code review implementation gate
+            workflow_guidance.next_tool = "judge_code_change"
+            if not workflow_guidance.reasoning:
+                workflow_guidance.reasoning = "Plan approved; proceed with implementation and code review."
+            if not workflow_guidance.preparation_needed:
+                workflow_guidance.preparation_needed = [
+                    "Implement according to the approved plan",
+                    "Prepare file paths and change summary for review",
+                ]
+            if not workflow_guidance.guidance:
+                workflow_guidance.guidance = (
+                    "Start implementation. When a cohesive set of changes is ready, call judge_code_change with file paths and a concise summary or diff."
+                )
+        else:
+            # Keep/return to planning state and request plan improvements
+            updated_task_metadata.update_state(TaskState.PLANNING)
+            workflow_guidance.next_tool = "judge_coding_plan"
+            if not workflow_guidance.reasoning:
+                workflow_guidance.reasoning = "Plan not approved; address feedback and resubmit."
+            if not workflow_guidance.preparation_needed:
+                workflow_guidance.preparation_needed = [
+                    "Revise plan per required improvements",
+                    "Ensure design, file list, and research coverage meet requirements",
+                ]
+            if not workflow_guidance.guidance:
+                workflow_guidance.guidance = (
+                    "Update the plan addressing all required improvements and resubmit to judge_coding_plan."
+                )
 
         result = JudgeResponse(
-            approved=evaluation_result.approved,
-            required_improvements=evaluation_result.required_improvements,
+            approved=effective_approved,
+            required_improvements=effective_required_improvements,
             feedback=evaluation_result.feedback,
             current_task_metadata=updated_task_metadata,
             workflow_guidance=workflow_guidance,
@@ -1487,7 +1655,10 @@ async def judge_coding_plan(
 
         # STEP 3: Save tool interaction to conversation history using the REAL task_id
         save_session_id = (
-            updated_task_metadata.task_id if getattr(updated_task_metadata, "task_id", None) else (task_id or "test_task")
+            (task_metadata.task_id if task_metadata else None)
+            or task_id
+            or getattr(updated_task_metadata, "task_id", None)
+            or "test_task"
         )
         await conversation_service.save_tool_interaction_and_cleanup(
             session_id=save_session_id,  # Always prefer real task_id
@@ -1512,10 +1683,13 @@ async def judge_coding_plan(
 
         # Create error guidance
         error_guidance = WorkflowGuidance(
-            next_tool=None,
-            reasoning="Error occurred during coding plan evaluation",
-            preparation_needed=["Review error details", "Check task parameters"],
-            guidance=f"Error during plan review: {e!s}. Please review and try again.",
+            next_tool="get_current_coding_task",
+            reasoning="Error occurred during coding plan evaluation; recover active task context and retry.",
+            preparation_needed=[
+                "Call get_current_coding_task to fetch active task_id",
+                "Retry evaluation with the returned task_id",
+            ],
+            guidance=f"Error during plan review: {e!s}. Use get_current_coding_task to recover the current task_id and retry.",
         )
 
         # Create minimal task metadata for error case
@@ -1651,6 +1825,50 @@ async def judge_code_change(
             if user_requirements is not None
             else task_metadata.user_requirements
         )
+
+        # QUICK VALIDATION: Require a unified Git diff to avoid generic approvals
+        def _looks_like_unified_diff(text: str) -> bool:
+            # Accept standard unified git diffs and our patch wrapper for flexibility
+            if not text:
+                return False
+            has_git_headers = bool(
+                re.search(r"^diff --git a/.+ b/.+", text, flags=re.MULTILINE)
+            )
+            has_unified_hunks = all(
+                token in text for token in ("--- ", "+++ ", "@@")
+            )
+            has_apply_patch_wrapper = "*** Begin Patch" in text
+            return has_git_headers or has_unified_hunks or has_apply_patch_wrapper
+
+        if not _looks_like_unified_diff(code_change):
+            # Do not proceed to LLM; return actionable guidance to provide a diff
+            guidance = WorkflowGuidance(
+                next_tool="judge_code_change",
+                reasoning=(
+                    "Code review requires a unified Git diff to evaluate specific changes."
+                ),
+                preparation_needed=[
+                    "Generate a unified Git diff (e.g., `git diff`)",
+                    "Include all relevant files in one patch",
+                    "Pass it to judge_code_change as `code_change`",
+                ],
+                guidance=(
+                    "Provide a unified Git diff patch of your changes. Avoid narrative summaries. "
+                    "Example: run `git diff --unified` and pass the output."
+                ),
+            )
+            return JudgeResponse(
+                approved=False,
+                required_improvements=[
+                    "Provide a unified Git diff patch of the changes for review"
+                ],
+                feedback=(
+                    "The input to judge_code_change must be a unified Git diff (with 'diff --git', '---', '+++', '@@'). "
+                    "Received non-diff content; cannot perform a precise code review."
+                ),
+                current_task_metadata=task_metadata,
+                workflow_guidance=guidance,
+            )
 
         # STEP 1: Load conversation history and format as JSON array
         conversation_history = (
@@ -1888,6 +2106,63 @@ async def judge_testing_implementation(
                     ],
                     guidance="You must call set_coding_task before calling judge_testing_implementation. The task_id must come from a successful set_coding_task call.",
                 ),
+            )
+
+        # Early validation: require credible test evidence
+        def _looks_like_test_output(text: str) -> bool:
+            if not text:
+                return False
+            patterns = [
+                r"collected \d+ items",  # pytest
+                r"=+\s*\d+ passed",      # pytest summary
+                r"\d+ passed, \d+ failed",  # common summary
+                r"Ran \d+ tests in",     # unittest/pytest
+                r"OK\b",                  # unittest
+                r"FAILURES?\b",          # unittest/pytest
+                r"Test Suites?:\s*\d+\s*passed",  # jest
+                r"\d+ tests? passed",    # jest/mocha
+                r"go test",               # go test
+                r"BUILD SUCCESS",         # maven/gradle
+                r"\[INFO\].*?Surefire", # maven surefire
+                r"JUnit",                  # junit marker
+            ]
+            return any(re.search(p, text, flags=re.IGNORECASE | re.MULTILINE) for p in patterns)
+
+        missing_evidence: list[str] = []
+        if not test_files:
+            missing_evidence.append("List the test files created/modified")
+        if not _looks_like_test_output(test_execution_results or ""):
+            missing_evidence.append("Provide raw test runner output including pass/fail summary")
+
+        if missing_evidence:
+            # Minimal metadata if not loaded yet
+            minimal_metadata = task_metadata or TaskMetadata(
+                title="Testing Validation",
+                description="Insufficient test evidence provided",
+                user_requirements="",
+                state=TaskState.TESTING,
+                task_size=TaskSize.M,
+            )
+            guidance = WorkflowGuidance(
+                next_tool="judge_testing_implementation",
+                reasoning="Testing validation requires raw runner output and listed test files",
+                preparation_needed=[
+                    "Run the test suite (e.g., pytest -q, npm test, go test)",
+                    "Copy/paste the raw test output with the summary",
+                    "List test file paths",
+                    "Include coverage summary if available",
+                ],
+                guidance=(
+                    "Please rerun tests and provide the raw output (not a narrative). "
+                    "Include pass/fail counts and list the test files modified."
+                ),
+            )
+            return JudgeResponse(
+                approved=False,
+                required_improvements=missing_evidence,
+                feedback="Insufficient evidence to validate testing results.",
+                current_task_metadata=minimal_metadata,
+                workflow_guidance=guidance,
             )
 
         # Track test files in task metadata

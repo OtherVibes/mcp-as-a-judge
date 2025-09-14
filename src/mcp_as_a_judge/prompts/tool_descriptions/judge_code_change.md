@@ -1,12 +1,12 @@
 # Judge Code Change
 
 ## Description
-Review implementation code (not tests) when implementation changes are ready for review. Tests are validated separately by `judge_testing_implementation`. Called when `workflow_guidance.next_tool == "judge_code_change"`.
+Review implementation code changes (not tests) strictly based on a unified Git diff patch. Tests are validated separately by `judge_testing_implementation`. Called when `workflow_guidance.next_tool == "judge_code_change"`.
 
 {% include 'shared/critical_tool_warnings.md' %}
 
 ## When to use
-- After creating or modifying implementation code and a review is needed. Tests may be written before or after review; they are validated via `judge_testing_implementation`.
+- After creating or modifying implementation code and a review is needed. Provide a unified Git diff of the changes. Tests may be written before or after review; they are validated via `judge_testing_implementation`.
 
 ## Human-in-the-Loop (HITL) checks
 - If foundational choices are unclear or need confirmation (e.g., framework/library, UI vs CLI, web vs desktop, API style, auth, hosting), first call `raise_missing_requirements` to elicit the user’s intent
@@ -15,8 +15,8 @@ Review implementation code (not tests) when implementation changes are ready for
 
 ## Args
 - `task_id`: string — Task UUID (required)
-- `code_change`: string — Exact code content for the file (required)
-- `file_path`: string — Path to the created/modified file
+- `code_change`: string — Unified Git diff patch representing the changes (REQUIRED)
+- `file_path`: string — Path to the primary created/modified file (optional; use when diff covers a single file)
 - `change_description`: string — What the change accomplishes
 
 ## Returns
@@ -26,5 +26,7 @@ Review implementation code (not tests) when implementation changes are ready for
 ```
 
 - Review only implementation code here; tests are validated via `judge_testing_implementation`.
+- The `code_change` MUST be a unified Git diff (e.g., contains `diff --git`, `---`, `+++`, `@@`). If a diff is not provided, this tool will return `approved: false` and request a proper diff.
 - Always use the exact `task_id`; recover it via `get_current_coding_task` if missing.
 - If HITL was performed, update the task description/requirements via `set_coding_task` if text needs to be clarified for future steps
+- Implementations that re-solve commodity concerns will be rejected unless a strong justification is provided. Prefer existing repo utilities or well-known libraries over custom code.
