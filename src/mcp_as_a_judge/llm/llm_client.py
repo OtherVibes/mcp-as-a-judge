@@ -20,10 +20,8 @@ from mcp_as_a_judge.core.constants import DEFAULT_REASONING_EFFORT
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.llm.llm_integration import LLMConfig, LLMVendor
 
-# Configure LiteLLM to handle parameter restrictions and suppress warnings
 litellm.drop_params = True
 litellm.suppress_debug_info = True
-# Suppress Pydantic serialization warnings from LiteLLM
 litellm.set_verbose = False
 
 # Set up logger
