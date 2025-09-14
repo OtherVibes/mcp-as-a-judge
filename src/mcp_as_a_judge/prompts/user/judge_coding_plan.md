@@ -19,6 +19,32 @@ Please evaluate the following coding plan:
 
 {{ design }}
 
+## Problem Domain Statement
+
+{{ problem_domain or "" }}
+
+{% if problem_non_goals %}
+### Non-Goals
+{% for item in problem_non_goals %}- {{ item }}
+{% endfor %}
+{% endif %}
+
+{% if library_plan %}
+## Library Selection Map (Purpose → Selection)
+
+```
+{{ library_plan }}
+```
+{% endif %}
+
+{% if internal_reuse_components %}
+## Internal Reuse Map (Repo Components)
+
+```
+{{ internal_reuse_components }}
+```
+{% endif %}
+
 ## Research
 
 {{ research|default("") }}

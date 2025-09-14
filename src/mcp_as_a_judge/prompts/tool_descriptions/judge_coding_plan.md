@@ -21,6 +21,10 @@ Validate a proposed plan and design against requirements, research needs, and ri
 - `research`: string — Findings and rationale (provide if available)
 - `research_urls`: list[string] — URLs for external research (if required)
 - `context`: string — Additional project context
+ - `problem_domain`: string — Concise problem domain statement (optional but recommended)
+ - `problem_non_goals`: list[string] — Non-goals/out-of-scope items (optional)
+ - `library_plan`: list[object] — Library Selection Map entries: {purpose, selection, source: internal|external|custom, justification}
+ - `internal_reuse_components`: list[object] — Internal Reuse Map entries: {path, purpose, notes}
 
 ## Returns
 - Response JSON schema (JudgeResponse):

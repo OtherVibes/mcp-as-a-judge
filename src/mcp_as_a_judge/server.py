@@ -1178,6 +1178,10 @@ async def _evaluate_coding_plan(
     conversation_history: list[dict],
     task_metadata: TaskMetadata,
     ctx: Context,
+    problem_domain: str | None = None,
+    problem_non_goals: list[str] | None = None,
+    library_plan: list[dict] | None = None,
+    internal_reuse_components: list[dict] | None = None,
 ) -> JudgeResponse:
     """Evaluate coding plan using AI judge.
 
@@ -1216,6 +1220,11 @@ async def _evaluate_coding_plan(
         else False,
         identified_risks=task_metadata.identified_risks or [],
         risk_mitigation_strategies=task_metadata.risk_mitigation_strategies or [],
+        # Domain focus and reuse maps (optional explicit inputs)
+        problem_domain=problem_domain or "",
+        problem_non_goals=problem_non_goals or [],
+        library_plan=library_plan or [],
+        internal_reuse_components=internal_reuse_components or [],
     )
     messages = create_separate_messages(
         "system/judge_coding_plan.md",
@@ -1252,6 +1261,11 @@ async def judge_coding_plan(
     context: str = "",
     # OPTIONAL override
     user_requirements: str | None = None,
+    # OPTIONAL explicit inputs to avoid rejection on missing deliverables
+    problem_domain: str | None = None,
+    problem_non_goals: list[str] | None = None,
+    library_plan: list[dict] | None = None,
+    internal_reuse_components: list[dict] | None = None,
 ) -> JudgeResponse:
     """Coding plan evaluation tool - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -1265,6 +1279,10 @@ async def judge_coding_plan(
         "research": research,
         "context": context,
         "research_urls": research_urls,
+        "problem_domain": problem_domain,
+        "problem_non_goals": problem_non_goals,
+        "library_plan": library_plan,
+        "internal_reuse_components": internal_reuse_components,
     }
 
     try:
@@ -1522,6 +1540,10 @@ async def judge_coding_plan(
             history_json_array,
             task_metadata,  # Pass task metadata for conditional features
             ctx,
+            problem_domain=problem_domain,
+            problem_non_goals=problem_non_goals,
+            library_plan=library_plan,
+            internal_reuse_components=internal_reuse_components,
         )
 
         # Additional research validation if approved
@@ -1556,17 +1578,22 @@ async def judge_coding_plan(
         # If missing but the plan was approved, convert to required improvements
         missing_deliverables: list[str] = []
         try:
+            # Fill from explicit inputs if LLM omitted them in metadata
+            if problem_domain and not getattr(updated_task_metadata, "problem_domain", "").strip():
+                updated_task_metadata.problem_domain = problem_domain  # type: ignore[attr-defined]
+            if problem_non_goals and not getattr(updated_task_metadata, "problem_non_goals", None):
+                updated_task_metadata.problem_non_goals = problem_non_goals  # type: ignore[attr-defined]
+            if library_plan and (not getattr(updated_task_metadata, "library_plan", None) or len(getattr(updated_task_metadata, "library_plan", [])) == 0):
+                updated_task_metadata.library_plan = library_plan  # type: ignore[attr-defined]
+            if internal_reuse_components and (not getattr(updated_task_metadata, "internal_reuse_components", None) or len(getattr(updated_task_metadata, "internal_reuse_components", [])) == 0):
+                updated_task_metadata.internal_reuse_components = internal_reuse_components  # type: ignore[attr-defined]
+
+            # Now check for missing deliverables
             if not getattr(updated_task_metadata, "problem_domain", "").strip():
                 missing_deliverables.append("Add a clear Problem Domain Statement with explicit non-goals")
-            # library_plan is a list of LibraryPlanItem entries
-            if not getattr(updated_task_metadata, "library_plan", []) or len(
-                getattr(updated_task_metadata, "library_plan", [])
-            ) == 0:
-                missing_deliverables.append(
-                    "Provide a Library Selection Map (purpose → internal/external library with justification)"
-                )
+            if not getattr(updated_task_metadata, "library_plan", []) or len(getattr(updated_task_metadata, "library_plan", [])) == 0:
+                missing_deliverables.append("Provide a Library Selection Map (purpose → internal/external library with justification)")
         except Exception:
-            # Be resilient; do not crash on schema variations
             pass
 
         effective_approved = evaluation_result.approved and not missing_deliverables

@@ -259,6 +259,28 @@ class JudgeCodingPlanUserVars(BaseModel):
         description="Previous conversation history as JSON array with timestamps",
     )
 
+    # Domain focus and reuse/dependency planning (explicit inputs so plans don't get rejected)
+    problem_domain: str = Field(
+        default="",
+        description="Concise statement of the problem domain being solved",
+    )
+    problem_non_goals: list[str] = Field(
+        default_factory=list,
+        description="Explicit non-goals/out-of-scope items to prevent scope creep",
+    )
+    # Library selection map and internal reuse map are free-form lists of objects
+    # Using list[dict] to keep input flexible for different ecosystems
+    library_plan: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "List of {purpose, selection, source: internal|external|custom, justification}"
+        ),
+    )
+    internal_reuse_components: list[dict] = Field(
+        default_factory=list,
+        description="List of {path, purpose, notes} for reusable repo components",
+    )
+
     # Conditional research fields
     research_required: bool = Field(
         default=False, description="Whether external research is required for this task"
