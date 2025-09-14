@@ -451,7 +451,10 @@ async def calculate_next_stage(
         )
 
         # Fallback: if next_tool missing/None and not completed, route to get_current_coding_task
-        if workflow_guidance.next_tool is None and task_metadata.state != TaskState.COMPLETED:
+        if (
+            workflow_guidance.next_tool is None
+            and task_metadata.state != TaskState.COMPLETED
+        ):
             if "get_current_coding_task" in available_name_set:
                 workflow_guidance.next_tool = "get_current_coding_task"
             else:
@@ -674,7 +677,11 @@ def _normalize_next_tool_name(
 
     # If still invalid, choose a fallback consistent with current state
     # Mirror the fallback used in exception handling for consistency
-    if task_metadata.state in (TaskState.PLAN_APPROVED, TaskState.IMPLEMENTING, TaskState.REVIEW_READY):
+    if task_metadata.state in (
+        TaskState.PLAN_APPROVED,
+        TaskState.IMPLEMENTING,
+        TaskState.REVIEW_READY,
+    ):
         return "judge_code_change"
     if task_metadata.state == TaskState.TESTING:
         return "judge_testing_implementation"

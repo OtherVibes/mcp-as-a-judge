@@ -87,7 +87,9 @@ class TestImprovedTokenCounting:
 
         # Test with known models (should use approximation fallback)
         tokens_gpt4 = await calculate_tokens(text, model_name="gpt-4")
-        tokens_claude = await calculate_tokens(text, model_name="claude-3-sonnet-20240229")
+        tokens_claude = await calculate_tokens(
+            text, model_name="claude-3-sonnet-20240229"
+        )
 
         # Both should return reasonable token counts
         assert tokens_gpt4 > 0

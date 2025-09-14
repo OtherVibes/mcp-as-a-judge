@@ -86,7 +86,8 @@ async def set_coding_task(
     # FOR UPDATING EXISTING TASKS ONLY
     task_id: str | None = None,  # REQUIRED when updating existing task
     user_requirements: str | None = None,  # Updates current requirements
-    state: TaskState | None = None,  # Optional: update task state with validation when updating existing task
+    state: TaskState
+    | None = None,  # Optional: update task state with validation when updating existing task
     # OPTIONAL
     tags: list[str] | None = None,
 ) -> TaskAnalysisResult:
@@ -205,7 +206,10 @@ async def set_coding_task(
             tool_input=json.dumps(original_input),
             tool_output=json.dumps(
                 result.model_dump(
-                    mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    mode="json",
+                    exclude_unset=True,
+                    exclude_none=True,
+                    exclude_defaults=True,
                 )
             ),
         )
@@ -251,7 +255,10 @@ async def set_coding_task(
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
                     error_result.model_dump(
-                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                        mode="json",
+                        exclude_unset=True,
+                        exclude_none=True,
+                        exclude_defaults=True,
                     )
                 ),
             )
@@ -304,7 +311,10 @@ async def get_current_coding_task(ctx: Context) -> dict:
 
         if task_metadata is not None:
             response["current_task_metadata"] = task_metadata.model_dump(
-                mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                mode="json",
+                exclude_unset=True,
+                exclude_none=True,
+                exclude_defaults=True,
             )
 
             # Generate workflow guidance for the current task state
@@ -318,7 +328,10 @@ async def get_current_coding_task(ctx: Context) -> dict:
             )
 
             response["workflow_guidance"] = workflow_guidance.model_dump(
-                mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                mode="json",
+                exclude_unset=True,
+                exclude_none=True,
+                exclude_defaults=True,
             )
         else:
             response["note"] = (
@@ -330,7 +343,7 @@ async def get_current_coding_task(ctx: Context) -> dict:
                 "reasoning": "Task metadata not found in history, may need to recreate task",
                 "preparation_needed": [
                     "Verify task_id is correct",
-                    "If validation fails, recreate with set_coding_task"
+                    "If validation fails, recreate with set_coding_task",
                 ],
                 "guidance": "Try using this task_id with other tools. If validation fails, call set_coding_task to recreate the task with proper metadata.",
             }
@@ -434,10 +447,10 @@ Research Done: {research}
 Available Options:
 {formatted_options}
 
-Decision Area: {decision_area or 'Not specified'}
+Decision Area: {decision_area or "Not specified"}
 
 Constraints:
-{chr(10).join(f"- {c}" for c in (constraints or [])) or 'None provided'}
+{chr(10).join(f"- {c}" for c in (constraints or [])) or "None provided"}
 
 Please choose an option (by number or description) and provide any additional context or modifications you'd like.""",
             schema=dynamic_model,
@@ -601,14 +614,10 @@ async def raise_missing_requirements(
             f"{i + 1}. {question}" for i, question in enumerate(specific_questions)
         )
 
-        context_info = (
-            "Agent needs clarification on user requirements and confirmation of key decisions to proceed"
-        )
+        context_info = "Agent needs clarification on user requirements and confirmation of key decisions to proceed"
         info_extra = []
         if decision_areas:
-            info_extra.append(
-                "Decisions to confirm: " + ", ".join(decision_areas)
-            )
+            info_extra.append("Decisions to confirm: " + ", ".join(decision_areas))
         if constraints:
             info_extra.append("Constraints: " + ", ".join(constraints))
         information_needed = (
@@ -637,13 +646,13 @@ Specific Questions:
 {formatted_questions}
 
 Decisions To Confirm:
-{chr(10).join(f"- {a}" for a in (decision_areas or [])) or 'None provided'}
+{chr(10).join(f"- {a}" for a in (decision_areas or [])) or "None provided"}
 
 Candidate Options:
-{chr(10).join(f"- {o}" for o in (options or [])) or 'None provided'}
+{chr(10).join(f"- {o}" for o in (options or [])) or "None provided"}
 
 Constraints:
-{chr(10).join(f"- {c}" for c in (constraints or [])) or 'None provided'}
+{chr(10).join(f"- {c}" for c in (constraints or [])) or "None provided"}
 
 Please provide clarified requirements and indicate their priority level (high/medium/low).""",
             schema=dynamic_model,
@@ -970,27 +979,21 @@ async def judge_coding_task_completion(
                     "Address required improvements in the plan",
                     "Ensure design, file list, and research coverage are complete",
                 ]
-                guidance = (
-                    "Update the plan addressing all feedback and call judge_coding_plan. After approval, proceed to implementation and code review."
-                )
+                guidance = "Update the plan addressing all feedback and call judge_coding_plan. After approval, proceed to implementation and code review."
             elif next_tool == "judge_code_change":
                 reasoning = "Code has not been reviewed/approved; submit implementation for review."
                 prep = [
                     "Implement or finalize code changes per requirements",
                     "Prepare file paths and a concise change summary",
                 ]
-                guidance = (
-                    "Call judge_code_change with the modified files and a concise summary or diff. After approval, implement/verify tests and validate via judge_testing_implementation."
-                )
+                guidance = "Call judge_code_change with the modified files and a concise summary or diff. After approval, implement/verify tests and validate via judge_testing_implementation."
             else:  # judge_testing_implementation
                 reasoning = "Testing approval missing; run and validate tests."
                 prep = [
                     "Run the test suite and capture results",
                     "Provide coverage details if available",
                 ]
-                guidance = (
-                    "Call judge_testing_implementation with test files, execution results, and coverage details. After approval, resubmit completion."
-                )
+                guidance = "Call judge_testing_implementation with test files, execution results, and coverage details. After approval, resubmit completion."
 
             workflow_guidance = WorkflowGuidance(
                 next_tool=next_tool,
@@ -1014,7 +1017,10 @@ async def judge_coding_task_completion(
             tool_input=json.dumps(original_input),
             tool_output=json.dumps(
                 result.model_dump(
-                    mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    mode="json",
+                    exclude_unset=True,
+                    exclude_none=True,
+                    exclude_defaults=True,
                 )
             ),
         )
@@ -1062,7 +1068,10 @@ async def judge_coding_task_completion(
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
                     error_result.model_dump(
-                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                        mode="json",
+                        exclude_unset=True,
+                        exclude_none=True,
+                        exclude_defaults=True,
                     )
                 ),
             )
@@ -1373,7 +1382,6 @@ async def judge_coding_plan(
             else task_metadata.user_requirements
         )
 
-
         # NOTE: Conditional research, internal analysis, and risk assessment requirements
         # are now determined dynamically by the LLM through the workflow guidance system
         # rather than using hardcoded rule-based analysis
@@ -1585,24 +1593,48 @@ async def judge_coding_plan(
         missing_deliverables: list[str] = []
         try:
             # Fill from explicit inputs if LLM omitted them in metadata
-            if problem_domain and not getattr(updated_task_metadata, "problem_domain", "").strip():
+            if (
+                problem_domain
+                and not getattr(updated_task_metadata, "problem_domain", "").strip()
+            ):
                 updated_task_metadata.problem_domain = problem_domain
-            if problem_non_goals and not getattr(updated_task_metadata, "problem_non_goals", None):
+            if problem_non_goals and not getattr(
+                updated_task_metadata, "problem_non_goals", None
+            ):
                 updated_task_metadata.problem_non_goals = problem_non_goals
-            if library_plan and (not getattr(updated_task_metadata, "library_plan", None) or len(getattr(updated_task_metadata, "library_plan", [])) == 0):
+            if library_plan and (
+                not getattr(updated_task_metadata, "library_plan", None)
+                or len(getattr(updated_task_metadata, "library_plan", [])) == 0
+            ):
                 # Convert dict list to LibraryPlanItem list
-                library_plan_items = [TaskMetadata.LibraryPlanItem(**item) for item in library_plan]
+                library_plan_items = [
+                    TaskMetadata.LibraryPlanItem(**item) for item in library_plan
+                ]
                 updated_task_metadata.library_plan = library_plan_items
-            if internal_reuse_components and (not getattr(updated_task_metadata, "internal_reuse_components", None) or len(getattr(updated_task_metadata, "internal_reuse_components", [])) == 0):
+            if internal_reuse_components and (
+                not getattr(updated_task_metadata, "internal_reuse_components", None)
+                or len(getattr(updated_task_metadata, "internal_reuse_components", []))
+                == 0
+            ):
                 # Convert dict list to ReuseComponent list
-                reuse_components = [TaskMetadata.ReuseComponent(**item) for item in internal_reuse_components]
+                reuse_components = [
+                    TaskMetadata.ReuseComponent(**item)
+                    for item in internal_reuse_components
+                ]
                 updated_task_metadata.internal_reuse_components = reuse_components
 
             # Now check for missing deliverables
             if not getattr(updated_task_metadata, "problem_domain", "").strip():
-                missing_deliverables.append("Add a clear Problem Domain Statement with explicit non-goals")
-            if not getattr(updated_task_metadata, "library_plan", []) or len(getattr(updated_task_metadata, "library_plan", [])) == 0:
-                missing_deliverables.append("Provide a Library Selection Map (purpose → internal/external library with justification)")
+                missing_deliverables.append(
+                    "Add a clear Problem Domain Statement with explicit non-goals"
+                )
+            if (
+                not getattr(updated_task_metadata, "library_plan", [])
+                or len(getattr(updated_task_metadata, "library_plan", [])) == 0
+            ):
+                missing_deliverables.append(
+                    "Provide a Library Selection Map (purpose → internal/external library with justification)"
+                )
         except Exception:  # nosec B110
             pass
 
@@ -1619,7 +1651,10 @@ async def judge_coding_plan(
         elif task_id:
             canonical_task_id = task_id
 
-        if canonical_task_id and getattr(updated_task_metadata, "task_id", None) != canonical_task_id:
+        if (
+            canonical_task_id
+            and getattr(updated_task_metadata, "task_id", None) != canonical_task_id
+        ):
             with contextlib.suppress(Exception):
                 # Overwrite to ensure consistency across conversation history and routing
                 updated_task_metadata.task_id = canonical_task_id
@@ -1654,31 +1689,31 @@ async def judge_coding_plan(
             # Force next step to code review implementation gate
             workflow_guidance.next_tool = "judge_code_change"
             if not workflow_guidance.reasoning:
-                workflow_guidance.reasoning = "Plan approved; proceed with implementation and code review."
+                workflow_guidance.reasoning = (
+                    "Plan approved; proceed with implementation and code review."
+                )
             if not workflow_guidance.preparation_needed:
                 workflow_guidance.preparation_needed = [
                     "Implement according to the approved plan",
                     "Prepare file paths and change summary for review",
                 ]
             if not workflow_guidance.guidance:
-                workflow_guidance.guidance = (
-                    "Start implementation. When a cohesive set of changes is ready, call judge_code_change with file paths and a concise summary or diff."
-                )
+                workflow_guidance.guidance = "Start implementation. When a cohesive set of changes is ready, call judge_code_change with file paths and a concise summary or diff."
         else:
             # Keep/return to planning state and request plan improvements
             updated_task_metadata.update_state(TaskState.PLANNING)
             workflow_guidance.next_tool = "judge_coding_plan"
             if not workflow_guidance.reasoning:
-                workflow_guidance.reasoning = "Plan not approved; address feedback and resubmit."
+                workflow_guidance.reasoning = (
+                    "Plan not approved; address feedback and resubmit."
+                )
             if not workflow_guidance.preparation_needed:
                 workflow_guidance.preparation_needed = [
                     "Revise plan per required improvements",
                     "Ensure design, file list, and research coverage meet requirements",
                 ]
             if not workflow_guidance.guidance:
-                workflow_guidance.guidance = (
-                    "Update the plan addressing all required improvements and resubmit to judge_coding_plan."
-                )
+                workflow_guidance.guidance = "Update the plan addressing all required improvements and resubmit to judge_coding_plan."
 
         result = JudgeResponse(
             approved=effective_approved,
@@ -1701,7 +1736,10 @@ async def judge_coding_plan(
             tool_input=json.dumps(original_input),
             tool_output=json.dumps(
                 result.model_dump(
-                    mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    mode="json",
+                    exclude_unset=True,
+                    exclude_none=True,
+                    exclude_defaults=True,
                 )
             ),
         )
@@ -1759,7 +1797,10 @@ async def judge_coding_plan(
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
                     error_result.model_dump(
-                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                        mode="json",
+                        exclude_unset=True,
+                        exclude_none=True,
+                        exclude_defaults=True,
                     )
                 ),
             )
@@ -1869,9 +1910,7 @@ async def judge_code_change(
             has_git_headers = bool(
                 re.search(r"^diff --git a/.+ b/.+", text, flags=re.MULTILINE)
             )
-            has_unified_hunks = all(
-                token in text for token in ("--- ", "+++ ", "@@")
-            )
+            has_unified_hunks = all(token in text for token in ("--- ", "+++ ", "@@"))
             has_apply_patch_wrapper = "*** Begin Patch" in text
             return has_git_headers or has_unified_hunks or has_apply_patch_wrapper
 
@@ -1938,7 +1977,9 @@ async def judge_code_change(
                             p = p[2:]
                         changed.add(p)
             if not changed:
-                for m in _re.finditer(r"^diff --git a/(.+?) b/(.+)$", diff_text, flags=_re.MULTILINE):
+                for m in _re.finditer(
+                    r"^diff --git a/(.+?) b/(.+)$", diff_text, flags=_re.MULTILINE
+                ):
                     changed.add(m.group(2))
             return sorted(changed)
 
@@ -1982,7 +2023,9 @@ async def judge_code_change(
 
             # Enforce per-file coverage: every changed file must have a reviewed_files entry
             try:
-                reviewed_paths = {rf.path for rf in getattr(judge_result, "reviewed_files", [])}
+                reviewed_paths = {
+                    rf.path for rf in getattr(judge_result, "reviewed_files", [])
+                }
             except Exception:
                 reviewed_paths = set()
             missing_reviews = [p for p in changed_files if p not in reviewed_paths]
@@ -2022,9 +2065,7 @@ async def judge_code_change(
                 for p in changed_files:
                     task_metadata.add_modified_file(p)
                     task_metadata.mark_code_approved(p)
-                logger.info(
-                    f"Marked files as approved: {', '.join(changed_files)}"
-                )
+                logger.info(f"Marked files as approved: {', '.join(changed_files)}")
 
                 # Update state to TESTING when code is approved
                 if task_metadata.state in [
@@ -2053,7 +2094,9 @@ async def judge_code_change(
 
             # STEP 4: Save tool interaction to conversation history using the REAL task_id
             save_session_id = (
-                task_metadata.task_id if getattr(task_metadata, "task_id", None) else (task_id or "test_task")
+                task_metadata.task_id
+                if getattr(task_metadata, "task_id", None)
+                else (task_id or "test_task")
             )
             await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=save_session_id,  # Always prefer real task_id
@@ -2061,7 +2104,10 @@ async def judge_code_change(
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
                     result.model_dump(
-                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                        mode="json",
+                        exclude_unset=True,
+                        exclude_none=True,
+                        exclude_defaults=True,
                     )
                 ),
             )
@@ -2119,7 +2165,10 @@ async def judge_code_change(
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
                     error_result.model_dump(
-                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                        mode="json",
+                        exclude_unset=True,
+                        exclude_none=True,
+                        exclude_defaults=True,
                     )
                 ),
             )
@@ -2215,25 +2264,29 @@ async def judge_testing_implementation(
                 return False
             patterns = [
                 r"collected \d+ items",  # pytest
-                r"=+\s*\d+ passed",      # pytest summary
+                r"=+\s*\d+ passed",  # pytest summary
                 r"\d+ passed, \d+ failed",  # common summary
-                r"Ran \d+ tests in",     # unittest/pytest
-                r"OK\b",                  # unittest
-                r"FAILURES?\b",          # unittest/pytest
+                r"Ran \d+ tests in",  # unittest/pytest
+                r"OK\b",  # unittest
+                r"FAILURES?\b",  # unittest/pytest
                 r"Test Suites?:\s*\d+\s*passed",  # jest
-                r"\d+ tests? passed",    # jest/mocha
-                r"go test",               # go test
-                r"BUILD SUCCESS",         # maven/gradle
-                r"\[INFO\].*?Surefire", # maven surefire
-                r"JUnit",                  # junit marker
+                r"\d+ tests? passed",  # jest/mocha
+                r"go test",  # go test
+                r"BUILD SUCCESS",  # maven/gradle
+                r"\[INFO\].*?Surefire",  # maven surefire
+                r"JUnit",  # junit marker
             ]
-            return any(re.search(p, text, flags=re.IGNORECASE | re.MULTILINE) for p in patterns)
+            return any(
+                re.search(p, text, flags=re.IGNORECASE | re.MULTILINE) for p in patterns
+            )
 
         missing_evidence: list[str] = []
         if not test_files:
             missing_evidence.append("List the test files created/modified")
         if not _looks_like_test_output(test_execution_results or ""):
-            missing_evidence.append("Provide raw test runner output including pass/fail summary")
+            missing_evidence.append(
+                "Provide raw test runner output including pass/fail summary"
+            )
 
         if missing_evidence:
             # Minimal metadata if not loaded yet
@@ -2504,7 +2557,10 @@ async def judge_testing_implementation(
             tool_input=json.dumps(original_input),
             tool_output=json.dumps(
                 result.model_dump(
-                    mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                    mode="json",
+                    exclude_unset=True,
+                    exclude_none=True,
+                    exclude_defaults=True,
                 )
             ),
         )
@@ -2554,7 +2610,10 @@ async def judge_testing_implementation(
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
                     error_result.model_dump(
-                        mode="json", exclude_unset=True, exclude_none=True, exclude_defaults=True
+                        mode="json",
+                        exclude_unset=True,
+                        exclude_none=True,
+                        exclude_defaults=True,
                     )
                 ),
             )

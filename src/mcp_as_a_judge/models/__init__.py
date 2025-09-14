@@ -107,6 +107,7 @@ if TYPE_CHECKING:
         expected_url_count: int = 0
         minimum_url_count: int = 0
         url_requirement_reasoning: str = ""
+
     conversation_history: list[_Any] = Field(default_factory=list)
     # Conditional research fields
     research_required: bool = False

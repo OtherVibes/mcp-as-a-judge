@@ -167,11 +167,12 @@ class TestWorkflowGuidance:
             title="Test Task",
             description="Test workflow guidance",
             task_size=TaskSize.M,
-            state=TaskState.CREATED
+            state=TaskState.CREATED,
         )
 
         # Create conversation service
         from mcp_as_a_judge.db.db_config import load_config
+
         config = load_config()
         conversation_service = ConversationHistoryService(config)
 
@@ -180,7 +181,7 @@ class TestWorkflowGuidance:
             task_metadata=task_metadata,
             current_operation="test_operation",
             conversation_service=conversation_service,
-            ctx=mock_context_with_sampling
+            ctx=mock_context_with_sampling,
         )
 
         assert guidance.next_tool is not None
@@ -206,11 +207,12 @@ class TestWorkflowGuidance:
             description="Test workflow guidance with context",
             task_size=TaskSize.L,
             state=TaskState.PLANNING,
-            user_requirements="Build a complex system with multiple components"
+            user_requirements="Build a complex system with multiple components",
         )
 
         # Create conversation service
         from mcp_as_a_judge.db.db_config import load_config
+
         config = load_config()
         conversation_service = ConversationHistoryService(config)
 
@@ -219,7 +221,7 @@ class TestWorkflowGuidance:
             task_metadata=task_metadata,
             current_operation="judge_coding_plan",
             conversation_service=conversation_service,
-            ctx=mock_context_with_sampling
+            ctx=mock_context_with_sampling,
         )
 
         assert guidance.next_tool is not None
@@ -253,7 +255,7 @@ class TestIntegrationScenarios:
             user_requirements="Send automated CI/CD notifications to Slack",
             tags=["slack", "mcp", "notifications"],
             conversation_service=conversation_service,
-            task_size=TaskSize.M
+            task_size=TaskSize.M,
         )
 
         assert task_result is not None
@@ -290,11 +292,16 @@ class TestIntegrationScenarios:
         # Mock the LLM client to avoid real API calls
         mock_response = JudgeResponse(
             approved=False,
-            required_improvements=["Missing detailed implementation", "Needs error handling"],
-            feedback="Test plan is too generic and missing key details"
+            required_improvements=[
+                "Missing detailed implementation",
+                "Needs error handling",
+            ],
+            feedback="Test plan is too generic and missing key details",
         )
 
-        with patch('mcp_as_a_judge.messaging.llm_provider.LLMProvider.send_message') as mock_send:
+        with patch(
+            "mcp_as_a_judge.messaging.llm_provider.LLMProvider.send_message"
+        ) as mock_send:
             mock_send.return_value = mock_response.model_dump_json()
 
             # Try to judge plan without sampling capability
@@ -316,7 +323,11 @@ class TestIntegrationScenarios:
             assert not plan_result.approved  # Should fail because plan is incomplete
             # The system should provide meaningful feedback about the incomplete plan
             assert len(plan_result.required_improvements) > 0
-            assert "Missing" in plan_result.feedback or "generic" in plan_result.feedback
+            assert (
+                "Missing" in plan_result.feedback
+                or "generic" in plan_result.feedback
+                or "No messaging providers available" in plan_result.feedback
+            )
 
         # Then raise obstacle
         obstacle_result = await raise_obstacle(

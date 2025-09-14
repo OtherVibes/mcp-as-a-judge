@@ -100,8 +100,6 @@ class RequirementsVersion(BaseModel):
     timestamp: int = Field(default_factory=lambda: int(time.time()))
 
 
-
-
 class TaskMetadata(BaseModel):
     """
     Lightweight metadata for coding tasks that flows with memory layer.

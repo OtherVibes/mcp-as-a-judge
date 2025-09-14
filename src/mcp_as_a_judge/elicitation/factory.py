@@ -76,7 +76,7 @@ class ElicitationProviderFactory:
             "fallback_elicitation": {
                 "available": True,  # Always available
                 "provider_type": self._fallback_provider.provider_type,
-            }
+            },
         }
 
 

@@ -36,6 +36,7 @@ async def demo_rate_limit_handling():
 
     # Mock response for successful case
     from unittest.mock import MagicMock
+
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = "Success after retries!"

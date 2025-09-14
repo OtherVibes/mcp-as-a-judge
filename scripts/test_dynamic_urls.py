@@ -24,7 +24,7 @@ def test_models():
         domain_specificity="specialized",
         implementation_scope="full_system",
         existing_knowledge="limited",
-        innovation_level="cutting_edge"
+        innovation_level="cutting_edge",
     )
     print(f"✅ ResearchComplexityFactors created: {factors.technical_complexity}")
 
@@ -34,9 +34,11 @@ def test_models():
         expected_url_count=5,
         minimum_url_count=3,
         reasoning="Complex authentication system requires multiple sources",
-        quality_criteria=["security best practices", "proven implementation patterns"]
+        quality_criteria=["security best practices", "proven implementation patterns"],
     )
-    print(f"✅ ResearchRequirementsAnalysis created: {analysis.expected_url_count} URLs expected")
+    print(
+        f"✅ ResearchRequirementsAnalysis created: {analysis.expected_url_count} URLs expected"
+    )
 
     # Test URLValidationResult
     validation = URLValidationResult(
@@ -45,7 +47,7 @@ def test_models():
         expected_count=5,
         minimum_count=3,
         adequacy_reasoning="Good coverage of security patterns, missing performance considerations",
-        quality_assessment="High quality sources from established authorities"
+        quality_assessment="High quality sources from established authorities",
     )
     print(f"✅ URLValidationResult created: adequate={validation.is_adequate}")
 
@@ -59,11 +61,14 @@ def test_models():
         expected_url_count=5,
         minimum_url_count=3,
         url_requirement_reasoning="Testing dynamic URLs",
-        research_complexity_analysis=analysis
+        research_complexity_analysis=analysis,
     )
-    print(f"✅ TaskMetadata with dynamic URLs: {metadata.expected_url_count}/{metadata.minimum_url_count}")
+    print(
+        f"✅ TaskMetadata with dynamic URLs: {metadata.expected_url_count}/{metadata.minimum_url_count}"
+    )
 
     print("🎉 All model tests passed!")
+
 
 async def test_analyzer_mock():
     """Test the ResearchRequirementsAnalyzer with a mock scenario."""
@@ -89,19 +94,26 @@ async def test_analyzer_mock():
                 domain_specificity="security",
                 implementation_scope="authentication_system",
                 existing_knowledge="moderate",
-                innovation_level="standard"
+                innovation_level="standard",
             ),
             expected_url_count=4,
             minimum_url_count=2,
             reasoning="Security-focused authentication requires multiple authoritative sources",
-            quality_criteria=["security best practices", "JWT standards", "authentication patterns"]
+            quality_criteria=[
+                "security best practices",
+                "JWT standards",
+                "authentication patterns",
+            ],
         )
-        print(f"✅ Fallback analysis: {fallback_analysis.expected_url_count} URLs expected")
+        print(
+            f"✅ Fallback analysis: {fallback_analysis.expected_url_count} URLs expected"
+        )
 
     except Exception as e:
         print(f"❌ Error in analyzer test: {e}")
 
     print("🎉 Analyzer structure test passed!")
+
 
 def test_url_validation():
     """Test URL validation logic."""
@@ -111,22 +123,32 @@ def test_url_validation():
     test_cases = [
         {
             "name": "Adequate URLs",
-            "provided": ["https://auth0.com/blog", "https://jwt.io/introduction", "https://owasp.org/auth"],
+            "provided": [
+                "https://auth0.com/blog",
+                "https://jwt.io/introduction",
+                "https://owasp.org/auth",
+            ],
             "expected": 3,
-            "minimum": 2
+            "minimum": 2,
         },
         {
             "name": "Below minimum",
             "provided": ["https://auth0.com/blog"],
             "expected": 4,
-            "minimum": 2
+            "minimum": 2,
         },
         {
             "name": "Above expected",
-            "provided": ["https://auth0.com/blog", "https://jwt.io", "https://owasp.org", "https://security.com", "https://rfc7519.com"],
+            "provided": [
+                "https://auth0.com/blog",
+                "https://jwt.io",
+                "https://owasp.org",
+                "https://security.com",
+                "https://rfc7519.com",
+            ],
             "expected": 3,
-            "minimum": 2
-        }
+            "minimum": 2,
+        },
     ]
 
     for case in test_cases:
@@ -134,10 +156,13 @@ def test_url_validation():
         is_adequate = provided_count >= case["minimum"]
         meets_expected = provided_count >= case["expected"]
 
-        print(f"📊 {case['name']}: {provided_count} URLs (min: {case['minimum']}, expected: {case['expected']})")
+        print(
+            f"📊 {case['name']}: {provided_count} URLs (min: {case['minimum']}, expected: {case['expected']})"
+        )
         print(f"   Adequate: {is_adequate}, Meets Expected: {meets_expected}")
 
     print("✅ URL validation logic tests passed!")
+
 
 def main():
     """Run all tests."""
@@ -156,7 +181,9 @@ def main():
     except Exception as e:
         print(f"\n❌ TEST FAILED: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     main()

@@ -35,6 +35,7 @@ class ResearchAspectsExtraction(BaseModel):
     aspects: list = []
     notes: str = ""
 
+
 class ResearchAspectsUserVars(BaseModel):
     task_title: str = ""
     task_description: str = ""
@@ -42,9 +43,12 @@ class ResearchAspectsUserVars(BaseModel):
     plan: str = ""
     design: str = ""
 
+
 # Try to override with the real classes from models.py
 try:
-    _models_py_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models.py")
+    _models_py_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "models.py"
+    )
     _spec = importlib.util.spec_from_file_location("models_py", _models_py_path)
     if _spec and _spec.loader:
         _models_py = importlib.util.module_from_spec(_spec)
@@ -316,6 +320,7 @@ def validate_aspect_coverage(
         needles = [aspect.name.lower()] + [s.lower() for s in (aspect.synonyms or [])]
         # Check research text
         found_text = any(n in rt for n in needles)
+
         # Check URLs (normalize by removing spaces for match resilience)
         def in_url(n: str) -> bool:
             n2 = n.replace(" ", "").strip()

@@ -200,7 +200,11 @@ async def load_task_metadata_from_history(
                     continue
 
                 older_md = output_data["current_task_metadata"]
-                if isinstance(older_md, dict) and "state" in older_md and older_md["state"]:
+                if (
+                    isinstance(older_md, dict)
+                    and "state" in older_md
+                    and older_md["state"]
+                ):
                     # Backfill only the missing state to avoid unintended resets
                     latest_snapshot["state"] = older_md["state"]
                     break
@@ -215,7 +219,10 @@ async def load_task_metadata_from_history(
                     # If any code files were approved, the task transitioned to TESTING after review
                     elif latest_snapshot.get("code_approved_files"):
                         code_approved_files = latest_snapshot.get("code_approved_files")
-                        if isinstance(code_approved_files, dict) and len(code_approved_files) > 0:
+                        if (
+                            isinstance(code_approved_files, dict)
+                            and len(code_approved_files) > 0
+                        ):
                             latest_snapshot["state"] = TaskState.TESTING.value
                     # If plan was approved, set PLAN_APPROVED
                     elif latest_snapshot.get("plan_approved_at"):

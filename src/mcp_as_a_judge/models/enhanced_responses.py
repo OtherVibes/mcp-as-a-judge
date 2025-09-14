@@ -1,5 +1,3 @@
-
-
 from typing import Any
 
 from pydantic import BaseModel, Field, model_serializer
@@ -9,7 +7,6 @@ from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
 
 
 class TrimmedBaseModel(BaseModel):
-
     @model_serializer(mode="wrap")
     def _serialize_trimmed(self, serializer: Any) -> dict:
         # Common Pydantic v2 approach: exclude unset, None, and defaults
@@ -28,7 +25,6 @@ class TrimmedBaseModel(BaseModel):
 
 
 class JudgeResponse(TrimmedBaseModel):
-
     approved: bool = Field(description="Whether the validation passed")
     required_improvements: list[str] = Field(
         default_factory=list,
@@ -80,7 +76,6 @@ class JudgeResponse(TrimmedBaseModel):
 
 
 class TaskAnalysisResult(TrimmedBaseModel):
-
     action: str = Field(description="Action taken: 'created' or 'updated'")
     context_summary: str = Field(
         description="Summary of the task context and current state"
@@ -95,7 +90,6 @@ class TaskAnalysisResult(TrimmedBaseModel):
 
 
 class TaskCompletionResult(TrimmedBaseModel):
-
     approved: bool = Field(description="Whether the task completion is approved")
     feedback: str = Field(
         description="Detailed feedback about the completion validation"
@@ -113,7 +107,6 @@ class TaskCompletionResult(TrimmedBaseModel):
 
 
 class ObstacleResult(TrimmedBaseModel):
-
     obstacle_acknowledged: bool = Field(
         description="Whether the obstacle has been acknowledged"
     )
@@ -130,7 +123,6 @@ class ObstacleResult(TrimmedBaseModel):
 
 
 class MissingRequirementsResult(TrimmedBaseModel):
-
     clarification_needed: bool = Field(description="Whether clarification is needed")
     missing_information: list[str] = Field(
         default_factory=list,
@@ -152,7 +144,6 @@ JudgeResponseWithTask = JudgeResponse
 
 
 class EnhancedResponseFactory:
-
     @staticmethod
     def create_judge_response(
         approved: bool,
