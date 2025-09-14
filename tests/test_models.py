@@ -42,7 +42,7 @@ def test_judge_response_model() -> None:
     print("✓ Needs revision response model works")
 
     # Test JSON serialization
-    json_data = approved_response.model_dump()
+    json_data = approved_response.model_dump(exclude_none=True)
     assert json_data["approved"]
     assert json_data["required_improvements"] == []
     print("✓ JSON serialization works")

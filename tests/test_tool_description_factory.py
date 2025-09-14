@@ -63,7 +63,7 @@ class TestGlobalFactoryInstances:
         """Test that global provider can load descriptions."""
         # This test verifies that the global provider works
         try:
-            description = tool_description_provider.get_description("build_workflow")
+            description = tool_description_provider.get_description("set_coding_task")
             assert isinstance(description, str)
             assert len(description) > 0
         except FileNotFoundError:

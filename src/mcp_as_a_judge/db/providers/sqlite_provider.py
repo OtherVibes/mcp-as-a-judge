@@ -5,17 +5,17 @@ This provider uses SQLModel with SQLAlchemy for type-safe database operations.
 It supports both in-memory (:memory:) and file-based SQLite storage.
 """
 
+import time
 import uuid
-from datetime import UTC, datetime
 
-from sqlalchemy import create_engine
-from sqlmodel import Session, SQLModel, desc, select
+from sqlalchemy import create_engine, func
+from sqlmodel import Session, SQLModel, asc, desc, select
 
+from mcp_as_a_judge.core.constants import MAX_CONTEXT_TOKENS
+from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.db.cleanup_service import ConversationCleanupService
-from mcp_as_a_judge.db.dynamic_token_limits import get_llm_input_limit
 from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
 from mcp_as_a_judge.db.token_utils import calculate_tokens_in_record, detect_model_name
-from mcp_as_a_judge.logging_config import get_logger
 
 # Set up logger
 logger = get_logger(__name__)
@@ -62,7 +62,7 @@ class SQLiteProvider(ConversationHistoryDB):
         self._create_tables()
 
         logger.info(
-            f"🗄️ SQLModel SQLite provider initialized: {connection_string}, "
+            f"SQLModel SQLite provider initialized: {connection_string}, "
             f"max_records_per_session={max_session_records}, "
             f"max_total_sessions={self._cleanup_service.max_total_sessions}"
         )
@@ -83,7 +83,7 @@ class SQLiteProvider(ConversationHistoryDB):
     def _create_tables(self) -> None:
         """Create database tables using SQLModel."""
         SQLModel.metadata.create_all(self.engine)
-        logger.info("📋 Created conversation_history table with SQLModel")
+        logger.info("Created conversation_history table with SQLModel")
 
     def _cleanup_excess_sessions(self) -> int:
         """
@@ -108,45 +108,56 @@ class SQLiteProvider(ConversationHistoryDB):
             count_stmt = (
                 select(ConversationRecord)
                 .where(ConversationRecord.session_id == session_id)
-                .order_by(desc(ConversationRecord.timestamp))
+                .order_by(
+                    desc(ConversationRecord.timestamp),
+                    desc(ConversationRecord.id),
+                )
             )
             current_records = list(session.exec(count_stmt).all())
             current_count = len(current_records)
 
             logger.info(
-                f"🧹 Cleanup check for session {session_id}: {current_count} records "
+                f"Cleanup check for session {session_id}: {current_count} records "
                 f"(max: {self._max_session_records})"
             )
 
             removed_count = 0
 
             # STEP 1: Handle record count limit
-            if current_count > self._max_session_records:
-                logger.info("   📊 Record limit exceeded, removing 1 oldest record")
-
-                # Take the last record (oldest) since list is sorted by timestamp DESC (newest first)
-                oldest_record = current_records[-1]
-
+            while len(current_records) > self._max_session_records:
+                logger.info("   📊 Record limit exceeded, removing oldest record")
+                # Deterministically fetch oldest by ascending timestamp then id
+                oldest_stmt = (
+                    select(ConversationRecord)
+                    .where(ConversationRecord.session_id == session_id)
+                    .order_by(
+                        asc(ConversationRecord.timestamp), asc(ConversationRecord.id)
+                    )
+                    .limit(1)
+                )
+                oldest_record = session.exec(oldest_stmt).first()
+                if not oldest_record:
+                    break
                 logger.info(
-                    f"   🗑️ Removing oldest record: {oldest_record.source} | {oldest_record.tokens} tokens | {oldest_record.timestamp}"
+                    f"   🗑️ Removing oldest record: {oldest_record.source} | {getattr(oldest_record, 'tokens', 0)} tokens | {oldest_record.timestamp}"
                 )
                 session.delete(oldest_record)
                 removed_count += 1
                 session.commit()
-                logger.info("   ✅ Removed 1 record due to record limit")
-
-                # Update our in-memory list to reflect the deletion
-                current_records.remove(oldest_record)
+                # Update in-memory list
+                current_records = [
+                    r for r in current_records if r.id != oldest_record.id
+                ]
 
             # STEP 2: Handle token limit using dynamic model-specific limits
             current_tokens = sum(record.tokens for record in current_records)
 
-            # Get dynamic token limit based on current model
+            # Use configured MAX_CONTEXT_TOKENS for persistent storage limits
             model_name = await detect_model_name()
-            max_input_tokens = get_llm_input_limit(model_name)
+            max_input_tokens = MAX_CONTEXT_TOKENS
 
             logger.info(
-                f"   🔢 {len(current_records)} records, {current_tokens} tokens "
+                f"   {len(current_records)} records, {current_tokens} tokens "
                 f"(max: {max_input_tokens} for model: {model_name or 'default'})"
             )
 
@@ -211,10 +222,15 @@ class SQLiteProvider(ConversationHistoryDB):
     ) -> str:
         """Save a conversation record to SQLite database with LRU cleanup."""
         record_id = str(uuid.uuid4())
-        timestamp = datetime.now(UTC)
+        # Nanosecond precision to avoid ties under rapid inserts
+        try:
+            timestamp = int(time.time_ns())
+        except AttributeError:
+            # Fallback for very old Python versions
+            timestamp = int(time.time() * 1_000_000_000)
 
         logger.info(
-            f"💾 Saving conversation to SQLModel SQLite DB: record {record_id} "
+            f"Saving conversation to SQLModel SQLite DB: record {record_id} "
             f"for session {session_id}, source {source} at {timestamp}"
         )
 
@@ -239,7 +255,7 @@ class SQLiteProvider(ConversationHistoryDB):
             session.add(record)
             session.commit()
 
-        logger.info("✅ Successfully inserted record into conversation_history table")
+        logger.info("Successfully inserted record into conversation_history table")
 
         # Session LRU cleanup: only run when a new session is created
         if is_new_session:
@@ -260,7 +276,10 @@ class SQLiteProvider(ConversationHistoryDB):
             stmt = (
                 select(ConversationRecord)
                 .where(ConversationRecord.session_id == session_id)
-                .order_by(desc(ConversationRecord.timestamp))
+                .order_by(
+                    desc(ConversationRecord.timestamp),
+                    desc(ConversationRecord.id),
+                )
             )
 
             if limit is not None:
@@ -268,3 +287,19 @@ class SQLiteProvider(ConversationHistoryDB):
 
             records = session.exec(stmt).all()
             return list(records)
+
+    async def get_recent_sessions(self, limit: int = 10) -> list[tuple[str, int]]:
+        """Retrieve most recently active sessions with last activity timestamp."""
+        with Session(self.engine) as session:
+            stmt = (
+                select(
+                    ConversationRecord.session_id,
+                    func.max(ConversationRecord.timestamp).label("last_activity"),
+                )
+                .group_by(ConversationRecord.session_id)
+                .order_by(func.max(ConversationRecord.timestamp).desc())
+                .limit(limit)
+            )
+            results = session.exec(stmt).all()
+            # results are tuples (session_id, last_activity)
+            return [(row[0], int(row[1])) for row in results]

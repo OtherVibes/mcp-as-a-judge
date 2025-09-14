@@ -5,12 +5,12 @@ import json
 
 import pytest
 
+from mcp_as_a_judge.core.server_helpers import extract_json_from_response
 from mcp_as_a_judge.models import (
     JudgeResponse,
     ResearchValidationResponse,
     WorkflowGuidance,
 )
-from mcp_as_a_judge.server_helpers import extract_json_from_response
 
 
 class TestJsonExtraction:

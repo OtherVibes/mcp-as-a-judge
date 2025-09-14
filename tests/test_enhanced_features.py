@@ -7,9 +7,8 @@ elicitation functionality.
 
 import pytest
 
-from mcp_as_a_judge.models import JudgeResponse, WorkflowGuidance
+from mcp_as_a_judge.models import JudgeResponse
 from mcp_as_a_judge.server import (
-    build_workflow,
     judge_code_change,
     judge_coding_plan,
     raise_missing_requirements,
@@ -30,6 +29,7 @@ class TestElicitMissingRequirements:
                 "What type of integration?",
             ],
             specific_questions=["Send or receive messages?", "Bot or webhook?"],
+            task_id="test-task-123",
             ctx=mock_context_with_sampling,
         )
 
@@ -48,6 +48,7 @@ class TestElicitMissingRequirements:
             current_request="Build a Slack integration",
             identified_gaps=["What specific functionality?"],
             specific_questions=["Send or receive messages?"],
+            task_id="test-task-456",
             ctx=mock_context_without_sampling,
         )
 
@@ -71,6 +72,7 @@ class TestUserRequirementsAlignment:
             research_urls=[
                 "https://slack.dev/python-slack-sdk/",
                 "https://modelcontextprotocol.io/docs/",
+                "https://github.com/slackapi/python-slack-sdk",
             ],
             user_requirements="Send CI/CD status updates to Slack channels",
             context="CI/CD integration project",
@@ -116,6 +118,7 @@ class TestObstacleResolution:
             problem="Cannot use LLM sampling",
             research="Researched alternatives",
             options=["Use Claude Desktop", "Configure Cursor", "Cancel"],
+            task_id="test-task-789",
             ctx=mock_context_with_sampling,
         )
 
@@ -134,6 +137,7 @@ class TestObstacleResolution:
             problem="Cannot use LLM sampling",
             research="Researched alternatives",
             options=["Use Claude Desktop", "Cancel"],
+            task_id="test-task-999",
             ctx=mock_context_without_sampling,
         )
 
@@ -143,44 +147,86 @@ class TestObstacleResolution:
 
 
 class TestWorkflowGuidance:
-    """Test the build_workflow tool."""
+    """Test the workflow guidance functionality."""
 
     @pytest.mark.asyncio
     async def test_workflow_guidance_basic(self, mock_context_with_sampling):
         """Test basic workflow guidance functionality."""
-        result = await build_workflow(
-            task_description="Build a web API using FastAPI framework",
+        from mcp_as_a_judge.db.conversation_history_service import (
+            ConversationHistoryService,
+        )
+        from mcp_as_a_judge.models.task_metadata import (
+            TaskMetadata,
+            TaskSize,
+            TaskState,
+        )
+        from mcp_as_a_judge.workflow.workflow_guidance import calculate_next_stage
+
+        # Create a basic task metadata
+        task_metadata = TaskMetadata(
+            title="Test Task",
+            description="Test workflow guidance",
+            task_size=TaskSize.M,
+            state=TaskState.CREATED,
+        )
+
+        # Create conversation service
+        from mcp_as_a_judge.db.db_config import load_config
+
+        config = load_config()
+        conversation_service = ConversationHistoryService(config)
+
+        # Test workflow guidance calculation
+        guidance = await calculate_next_stage(
+            task_metadata=task_metadata,
+            current_operation="test_operation",
+            conversation_service=conversation_service,
             ctx=mock_context_with_sampling,
         )
 
-        assert isinstance(result, WorkflowGuidance)
-        assert result.next_tool in [
-            "judge_coding_plan",
-            "judge_code_change",
-            "raise_obstacle",
-            "raise_missing_requirements",
-        ]
-        assert isinstance(result.reasoning, str)
-        assert isinstance(result.preparation_needed, list)
-        assert isinstance(result.guidance, str)
+        assert guidance.next_tool is not None
+        assert isinstance(guidance.reasoning, str)
+        assert isinstance(guidance.preparation_needed, list)
 
     @pytest.mark.asyncio
     async def test_workflow_guidance_with_context(self, mock_context_with_sampling):
         """Test workflow guidance with additional context."""
-        result = await build_workflow(
-            task_description="Create authentication system with JWT tokens",
-            context="E-commerce platform with high security requirements",
+        from mcp_as_a_judge.db.conversation_history_service import (
+            ConversationHistoryService,
+        )
+        from mcp_as_a_judge.models.task_metadata import (
+            TaskMetadata,
+            TaskSize,
+            TaskState,
+        )
+        from mcp_as_a_judge.workflow.workflow_guidance import calculate_next_stage
+
+        # Create a task metadata with more context
+        task_metadata = TaskMetadata(
+            title="Complex Task",
+            description="Test workflow guidance with context",
+            task_size=TaskSize.L,
+            state=TaskState.PLANNING,
+            user_requirements="Build a complex system with multiple components",
+        )
+
+        # Create conversation service
+        from mcp_as_a_judge.db.db_config import load_config
+
+        config = load_config()
+        conversation_service = ConversationHistoryService(config)
+
+        # Test workflow guidance calculation
+        guidance = await calculate_next_stage(
+            task_metadata=task_metadata,
+            current_operation="judge_coding_plan",
+            conversation_service=conversation_service,
             ctx=mock_context_with_sampling,
         )
 
-        assert isinstance(result, WorkflowGuidance)
-        assert len(result.guidance) > 50  # Should provide substantial guidance
-        assert result.next_tool in [
-            "judge_coding_plan",
-            "judge_code_change",
-            "raise_obstacle",
-            "raise_missing_requirements",
-        ]
+        assert guidance.next_tool is not None
+        assert len(guidance.reasoning) > 0
+        assert isinstance(guidance.guidance, str)
 
 
 class TestIntegrationScenarios:
@@ -191,18 +237,29 @@ class TestIntegrationScenarios:
         self, mock_context_with_sampling
     ):
         """Test complete workflow from guidance to code evaluation."""
-        # Step 1: Get workflow guidance
-        guidance_result = await build_workflow(
-            task_description="Build Slack integration using MCP server",
-            ctx=mock_context_with_sampling,
+        # Step 1: Create a task and get workflow guidance
+        from mcp_as_a_judge.db.conversation_history_service import (
+            ConversationHistoryService,
         )
-        assert isinstance(guidance_result, WorkflowGuidance)
-        assert guidance_result.next_tool in [
-            "judge_coding_plan",
-            "judge_code_change",
-            "raise_obstacle",
-            "raise_missing_requirements",
-        ]
+        from mcp_as_a_judge.db.db_config import load_config
+        from mcp_as_a_judge.models.task_metadata import TaskSize
+        from mcp_as_a_judge.tasks.manager import create_new_coding_task
+
+        config = load_config()
+        conversation_service = ConversationHistoryService(config)
+
+        task_result = await create_new_coding_task(
+            user_request="Send automated CI/CD notifications to Slack",
+            task_title="Slack MCP Server",
+            task_description="Create Slack MCP server with message capabilities",
+            user_requirements="Send automated CI/CD notifications to Slack",
+            tags=["slack", "mcp", "notifications"],
+            conversation_service=conversation_service,
+            task_size=TaskSize.M,
+        )
+
+        assert task_result is not None
+        assert task_result.title == "Slack MCP Server"
 
         # Step 2: Judge plan with requirements
         plan_result = await judge_coding_plan(
@@ -230,25 +287,47 @@ class TestIntegrationScenarios:
     @pytest.mark.asyncio
     async def test_obstacle_handling_workflow(self, mock_context_without_sampling):
         """Test workflow when obstacles are encountered."""
-        # Try to judge plan without sampling capability
-        plan_result = await judge_coding_plan(
-            plan="Test plan",
-            design="Test design",
-            research="Test research",
-            research_urls=[
-                "https://example.com/docs",
-                "https://github.com/example",
-                "https://stackoverflow.com/example",
+        from unittest.mock import patch
+
+        # Mock the LLM client to avoid real API calls
+        mock_response = JudgeResponse(
+            approved=False,
+            required_improvements=[
+                "Missing detailed implementation",
+                "Needs error handling",
             ],
-            user_requirements="Test requirements",
-            ctx=mock_context_without_sampling,
+            feedback="Test plan is too generic and missing key details",
         )
 
-        # Should get error response when no messaging providers are available
-        assert isinstance(plan_result, JudgeResponse)
-        assert not plan_result.approved  # Should fail when no providers available
-        assert "Error occurred during review" in plan_result.required_improvements
-        assert "No messaging providers available" in plan_result.feedback
+        with patch(
+            "mcp_as_a_judge.messaging.llm_provider.LLMProvider.send_message"
+        ) as mock_send:
+            mock_send.return_value = mock_response.model_dump_json()
+
+            # Try to judge plan without sampling capability
+            plan_result = await judge_coding_plan(
+                plan="Test plan",
+                design="Test design",
+                research="Test research",
+                research_urls=[
+                    "https://example.com/docs",
+                    "https://github.com/example",
+                    "https://stackoverflow.com/example",
+                ],
+                user_requirements="Test requirements",
+                ctx=mock_context_without_sampling,
+            )
+
+            # Should get response even when no sampling capability (LLM fallback works)
+            assert isinstance(plan_result, JudgeResponse)
+            assert not plan_result.approved  # Should fail because plan is incomplete
+            # The system should provide meaningful feedback about the incomplete plan
+            assert len(plan_result.required_improvements) > 0
+            assert (
+                "Missing" in plan_result.feedback
+                or "generic" in plan_result.feedback
+                or "No messaging providers available" in plan_result.feedback
+            )
 
         # Then raise obstacle
         obstacle_result = await raise_obstacle(

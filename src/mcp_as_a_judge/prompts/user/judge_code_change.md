@@ -1,4 +1,4 @@
-Please review the following code:
+Please review the following changes based on the unified Git diff below:
 
 ## User Requirements
 
@@ -12,11 +12,11 @@ Please review the following code:
 
 {{ change_description }}
 
-## Code Content
-
-## Previous Conversation History as JSON array 
-{{ conversation_history }}
+## Proposed Changes (Unified Git Diff)
 
 ```
 {{ code_change }}
 ```
+
+## Previous Conversation History as JSON array
+{{ conversation_history }}

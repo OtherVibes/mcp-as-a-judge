@@ -5,7 +5,7 @@ This module handles database configuration logic, including provider detection
 and configuration classes.
 """
 
-from mcp_as_a_judge.constants import (
+from mcp_as_a_judge.core.constants import (
     DATABASE_URL,
     MAX_SESSION_RECORDS,
     MAX_TOTAL_SESSIONS,

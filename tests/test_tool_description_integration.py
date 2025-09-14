@@ -2,12 +2,12 @@
 
 import pytest
 
-from mcp_as_a_judge.tool_description.interface import ToolDescriptionProvider
-from mcp_as_a_judge.tool_description.local_storage_provider import LocalStorageProvider
-from mcp_as_a_judge.tool_description_provider import (
+from mcp_as_a_judge.tool_description.factory import (
     tool_description_provider,
     tool_description_provider_factory,
 )
+from mcp_as_a_judge.tool_description.interface import ToolDescriptionProvider
+from mcp_as_a_judge.tool_description.local_storage_provider import LocalStorageProvider
 
 
 class TestToolDescriptionIntegration:
@@ -52,7 +52,7 @@ class TestToolDescriptionIntegration:
         """Test that tool descriptions are accessible through the provider."""
         try:
             # Test that we can get descriptions for known tools
-            description = tool_description_provider.get_description("build_workflow")
+            description = tool_description_provider.get_description("set_coding_task")
             assert isinstance(description, str)
             assert len(description) > 0
         except FileNotFoundError:

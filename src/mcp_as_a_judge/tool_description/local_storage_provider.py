@@ -1,5 +1,10 @@
-"""Tool description provider for loading descriptions from local markdown files."""
+"""Tool description provider for loading descriptions from local markdown files.
 
+Adds limited Jinja context variables with JSON schemas from core response models
+so descriptions can embed authoritative schemas without duplication.
+"""
+
+import json
 from pathlib import Path
 from typing import cast
 
@@ -37,8 +42,12 @@ class LocalStorageProvider(ToolDescriptionProvider):
             descriptions_dir = Path(str(descriptions_resource))
 
         self.descriptions_dir = descriptions_dir
+
+        # Configure Jinja loader to support shared includes referenced like 'shared/foo.md'
+        # Search both the tool_descriptions directory and the parent 'prompts' directory
+        prompts_root = descriptions_dir.parent
         self.env = Environment(
-            loader=FileSystemLoader(str(descriptions_dir)),
+            loader=FileSystemLoader([str(descriptions_dir), str(prompts_root)]),
             trim_blocks=True,
             lstrip_blocks=True,
             autoescape=False,  # nosec B701 - Safe for description files (not HTML)  # noqa: S701
@@ -46,6 +55,31 @@ class LocalStorageProvider(ToolDescriptionProvider):
 
         # Cache for loaded descriptions to avoid repeated file I/O
         self._description_cache: dict[str, str] = {}
+
+        # Provide limited, stable context variables for template rendering
+        # Import here to avoid module-level import cycles
+        try:
+            from mcp_as_a_judge.models.enhanced_responses import (
+                JudgeResponse,
+                TaskAnalysisResult,
+                TaskCompletionResult,
+            )
+
+            self._context_vars = {
+                # Pretty-printed JSON strings for embedding in docs
+                "JUDGE_RESPONSE_SCHEMA": json.dumps(
+                    JudgeResponse.model_json_schema(), indent=2
+                ),
+                "TASK_ANALYSIS_RESULT_SCHEMA": json.dumps(
+                    TaskAnalysisResult.model_json_schema(), indent=2
+                ),
+                "TASK_COMPLETION_RESULT_SCHEMA": json.dumps(
+                    TaskCompletionResult.model_json_schema(), indent=2
+                ),
+            }
+        except Exception:
+            # Fallback to empty context if models are unavailable at import time
+            self._context_vars = {}
 
     def get_description(self, tool_name: str) -> str:
         """Get tool description for the specified tool.
@@ -71,6 +105,35 @@ class LocalStorageProvider(ToolDescriptionProvider):
 
         return description
 
+    def clear_cache(self) -> None:
+        """Clear the description cache.
+
+        Useful for testing or when description files are updated at runtime.
+        """
+        self._description_cache.clear()
+
+    def get_available_tools(self) -> list[str]:
+        """Get list of available tool names.
+
+        Returns:
+            List of tool names that have descriptions available
+        """
+        try:
+            # List all .md files in the descriptions directory
+            tool_files = []
+            for file_path in self.descriptions_dir.glob("*.md"):
+                tool_name = file_path.stem  # Remove .md extension
+                tool_files.append(tool_name)
+            return sorted(tool_files)
+        except Exception:
+            # Return empty list if directory doesn't exist or can't be read
+            return []
+
+    @property
+    def provider_type(self) -> str:
+        """Get the provider type identifier."""
+        return "local_storage"
+
     def _load_description_file(self, tool_name: str) -> str:
         """Load description from markdown file.
 
@@ -87,41 +150,16 @@ class LocalStorageProvider(ToolDescriptionProvider):
 
         try:
             template = self.env.get_template(description_file)
-            # Render without any variables (descriptions are static)
-            return cast(str, template.render())  # type: ignore[redundant-cast,unused-ignore]
+            # Render with limited context vars for optional schema embedding
+            return cast(str, template.render(**self._context_vars))  # type: ignore[redundant-cast,unused-ignore]
         except Exception as e:
+            # Surface a clearer message that includes Jinja include/search paths
+            search_paths = "unknown"
+            if self.env.loader and hasattr(self.env.loader, "searchpath"):
+                search_paths = ", ".join(self.env.loader.searchpath)
             raise FileNotFoundError(
-                f"Tool description file '{description_file}' not found in {self.descriptions_dir}"
+                f"Failed to load tool description '{description_file}'. Searched in: {search_paths}. "
+                f"Original error: {e!s}"
             ) from e
 
-    def clear_cache(self) -> None:
-        """Clear the description cache.
-
-        Useful for testing or when description files are updated at runtime.
-        """
-        self._description_cache.clear()
-
-    def get_available_tools(self) -> list[str]:
-        """Get list of available tool names based on description files.
-
-        Returns:
-            List of tool names that have description files
-        """
-        if not self.descriptions_dir.exists():
-            return []
-
-        tool_names = []
-        for file_path in self.descriptions_dir.glob("*.md"):
-            tool_name = file_path.stem  # Remove .md extension
-            tool_names.append(tool_name)
-
-        return sorted(tool_names)
-
-    @property
-    def provider_type(self) -> str:
-        """Return provider type identifier.
-
-        Returns:
-            String identifier for this provider type
-        """
-        return "local_storage"
+    # duplicate clear_cache removed

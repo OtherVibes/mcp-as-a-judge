@@ -10,10 +10,10 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 
-from mcp_as_a_judge.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
+from mcp_as_a_judge.core.constants import DEFAULT_TEMPERATURE, MAX_TOKENS
 from mcp_as_a_judge.messaging.converters import (
-    mcp_messages_to_universal,
-    validate_message_conversion,
+    mcp_messages_to_universal,  # re-exported for tests
+    validate_message_conversion,  # re-exported for tests
 )
 from mcp_as_a_judge.messaging.factory import MessagingProviderFactory
 from mcp_as_a_judge.messaging.interface import MessagingConfig
@@ -59,27 +59,30 @@ class LLMProvider:
             prefer_sampling=prefer_sampling,
         )
 
-        # Get provider from factory
+        # Select provider using factory
         provider = MessagingProviderFactory.create_provider(ctx, config)
 
-        # Send message with appropriate format for each provider
+        # Convert messages to the correct format for the selected provider
+        if provider.provider_type == "mcp_sampling":
+            formatted_messages = messages
+        else:
+            # Convert MCP messages to universal format for LLM API providers
+            formatted_messages = mcp_messages_to_universal(messages)
+            if not validate_message_conversion(messages, formatted_messages):
+                raise ValueError("Failed to convert messages to universal format")
+
+        # Send message using the provider with correctly formatted messages
         try:
             if provider.provider_type == "mcp_sampling":
-                # For MCP sampling, pass original messages directly
-                # Type ignore because MCPSamplingProvider has send_message_direct method
-                response = await provider.send_message_direct(messages, config)  # type: ignore[attr-defined]
+                # MCP sampling provider with SamplingMessage objects
+                response = await provider.send_message_direct(  # type: ignore[attr-defined]
+                    formatted_messages, config
+                )
             else:
-                # For LLM API, convert to universal format first
-                universal_messages = mcp_messages_to_universal(messages)
-
-                # Validate conversion
-                if not validate_message_conversion(messages, universal_messages):
-                    raise ValueError("Failed to convert messages to universal format")
-
-                response = await provider.send_message(universal_messages, config)
+                # LLM API provider with universal Message objects
+                response = await provider.send_message(formatted_messages, config)
 
             # Provider successfully used
-
             return str(response)
 
         except Exception as e:
@@ -99,29 +102,35 @@ class LLMProvider:
                 )
 
                 if is_mcp_failure:
-                    # Try LLM API fallback
+                    # Try LLM API fallback using factory
                     try:
-                        # Create LLM provider and try again
-                        from mcp_as_a_judge.messaging.llm_api_provider import (
-                            LLMAPIProvider,
+                        # Force LLM API configuration for fallback
+                        fallback_config = MessagingConfig(
+                            max_tokens=config.max_tokens,
+                            temperature=config.temperature,
+                            prefer_sampling=False,  # Force LLM API
                         )
 
-                        llm_provider_instance = LLMAPIProvider()
-
-                        # Convert to universal format for LLM API
-                        universal_messages = mcp_messages_to_universal(messages)
-
-                        if not validate_message_conversion(
-                            messages, universal_messages
-                        ):
-                            raise ValueError(
-                                "Failed to convert messages to universal format"
-                            )
-
-                        response = await llm_provider_instance.send_message(
-                            universal_messages, config
+                        # Create LLM API provider and convert messages
+                        fallback_provider = MessagingProviderFactory.create_provider(
+                            ctx, fallback_config
                         )
-                        return response
+                        if fallback_provider.provider_type == "mcp_sampling":
+                            # Should not happen due to prefer_sampling=False, but guard anyway
+                            fallback_messages = messages
+                        else:
+                            fallback_messages = mcp_messages_to_universal(messages)
+                            if not validate_message_conversion(
+                                messages, fallback_messages
+                            ):
+                                raise ValueError(
+                                    "Failed to convert messages to universal format"
+                                )
+
+                        response = await fallback_provider.send_message(
+                            fallback_messages, fallback_config
+                        )
+                        return str(response)
 
                     except Exception:  # nosec B110 - Intentional fallback when LLM API unavailable
                         # LLM API fallback failed, fall through to original error handling
@@ -132,7 +141,7 @@ class LLMProvider:
             provider_info = MessagingProviderFactory.get_available_providers(ctx)
             raise Exception(
                 f"Failed to send message using {provider.provider_type}: {e}. "
-                f"Provider info: {provider_info}"
+                f"Provider info: {provider_info}. No messaging providers available"
             ) from e
 
     def check_capabilities(self, ctx: Context) -> dict:
@@ -209,7 +218,6 @@ class LLMProvider:
         max_tokens: int = MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         prefer_sampling: bool = True,
-        allow_any_provider: bool = True,
     ) -> str | None:
         """Send message with graceful fallback handling.
 
@@ -222,7 +230,6 @@ class LLMProvider:
             max_tokens: Maximum tokens to generate
             temperature: Temperature for generation
             prefer_sampling: Whether to prefer MCP sampling over LLM API
-            allow_any_provider: If True, use any available provider as fallback
 
         Returns:
             Generated text response or None if no providers available

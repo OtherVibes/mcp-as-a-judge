@@ -1,12 +1,14 @@
-OBSTACLE ENCOUNTERED: Call this tool when you cannot satisfy the user's requirements.
+# Raise Obstacle
 
-This tool helps involve the user in decision-making when the agent encounters blockers,
-missing information, or conflicting requirements that prevent satisfying the original request.
+## Description
+Involve the user to resolve blockers or conflicts by presenting options and context.
 
-Args:
-    problem: Clear description of the obstacle/problem preventing progress
-    research: Research done on this problem (existing solutions, alternatives analyzed)
-    options: List of possible next steps or approaches to resolve the obstacle
+## Args
+- `problem`: string — Clear description of the obstacle
+- `research`: string — What has been investigated (alternatives, prior art)
+- `options`: list[string] — Possible approaches or next steps
+ - `decision_area` (optional): string — Name of the decision area involved (e.g., database, framework)
+ - `constraints` (optional): list[string] — Known constraints or non-negotiables
 
-Returns:
-    User's decision and any additional context for proceeding
+## Returns
+- `string`: user's decision and any additional context for proceeding
