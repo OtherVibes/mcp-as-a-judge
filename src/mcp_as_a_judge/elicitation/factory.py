@@ -61,10 +61,10 @@ class ElicitationProviderFactory:
 
     def get_available_providers(self, ctx: Context) -> dict[str, dict[str, object]]:
         """Get information about all available providers.
-        
+
         Args:
             ctx: MCP context for capability checking
-            
+
         Returns:
             Dictionary with provider availability information
         """

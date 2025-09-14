@@ -75,33 +75,41 @@ class TestImprovedTokenCounting:
         reset_model_cache()
         # Just verify it doesn't crash - no model info to check anymore
 
-    @pytest.mark.skipif(
-        True, reason="Requires actual LLM configuration - integration test only"
-    )
-    def test_accurate_token_counting_with_real_model(self):
+    @pytest.mark.asyncio
+    async def test_token_counting_with_different_models(self):
         """
-        Integration test for accurate token counting with real model.
+        Test token counting with different model configurations.
 
-        This test is skipped by default as it requires actual LLM configuration.
-        To run this test:
-        1. Set up an LLM API key (e.g., OPENAI_API_KEY)
-        2. Remove the @pytest.mark.skipif decorator
-        3. Run the test
+        This test validates that token counting works correctly with various
+        model names and falls back to approximation when needed.
         """
-        # This would test with a real model if LLM is configured
         text = "Hello, how are you today?"
 
-        # Try with a known model (this will fall back to approximation if not configured)
-        tokens_gpt4 = calculate_tokens(text, model_name="gpt-4")
-        tokens_claude = calculate_tokens(text, model_name="claude-3-sonnet-20240229")
+        # Test with known models (should use approximation fallback)
+        tokens_gpt4 = await calculate_tokens(text, model_name="gpt-4")
+        tokens_claude = await calculate_tokens(text, model_name="claude-3-sonnet-20240229")
 
         # Both should return reasonable token counts
         assert tokens_gpt4 > 0
         assert tokens_claude > 0
 
-        # They might be different due to different tokenizers
-        print(f"GPT-4 tokens: {tokens_gpt4}")
-        print(f"Claude tokens: {tokens_claude}")
+        # Test that different models can return different counts
+        # (though they might be the same with approximation)
+        assert isinstance(tokens_gpt4, int)
+        assert isinstance(tokens_claude, int)
+
+        # Test that the function handles edge cases properly
+        assert await calculate_tokens("") == 0
+        assert await calculate_tokens("A") == 1  # 1 char -> 1 token (rounded up)
+
+        # Test with longer text to verify approximation logic
+        long_text = "This is a much longer text that should result in more tokens"
+        tokens_long = await calculate_tokens(long_text)
+        assert tokens_long > tokens_gpt4  # Should be more tokens for longer text
+
+        # Verify the approximation formula: (len(text) + 3) // 4
+        expected_tokens = (len(text) + 3) // 4
+        assert tokens_gpt4 == expected_tokens
 
     @pytest.mark.asyncio
     async def test_token_counting_edge_cases(self):

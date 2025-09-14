@@ -25,12 +25,12 @@ class FallbackElicitationProvider(ElicitationProvider):
         self, message: str, schema: type[BaseModel], ctx: Context
     ) -> ElicitationResult:
         """Generate a fallback message for the AI assistant to prompt the user.
-        
+
         Args:
             message: Original message to display to the user
             schema: Pydantic model schema defining expected fields
             ctx: MCP context
-            
+
         Returns:
             ElicitationResult with success=False and a formatted message
         """

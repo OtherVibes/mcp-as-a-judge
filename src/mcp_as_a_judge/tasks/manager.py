@@ -178,7 +178,7 @@ async def load_task_metadata_from_history(
                 latest_snapshot = dict(metadata_dict)
 
             # Prefer snapshots that explicitly carry state
-            if "state" in metadata_dict and metadata_dict["state"]:
+            if metadata_dict.get("state"):
                 try:
                     return TaskMetadata.model_validate(metadata_dict)
                 except ValidationError:
@@ -214,9 +214,8 @@ async def load_task_metadata_from_history(
                         latest_snapshot["state"] = TaskState.TESTING.value
                     # If any code files were approved, the task transitioned to TESTING after review
                     elif latest_snapshot.get("code_approved_files"):
-                        if isinstance(latest_snapshot.get("code_approved_files"), dict) and len(
-                            latest_snapshot.get("code_approved_files")
-                        ) > 0:
+                        code_approved_files = latest_snapshot.get("code_approved_files")
+                        if isinstance(code_approved_files, dict) and len(code_approved_files) > 0:
                             latest_snapshot["state"] = TaskState.TESTING.value
                     # If plan was approved, set PLAN_APPROVED
                     elif latest_snapshot.get("plan_approved_at"):

@@ -1,4 +1,6 @@
- 
+
+
+from typing import Any
 
 from pydantic import BaseModel, Field, model_serializer
 
@@ -9,7 +11,7 @@ from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
 class TrimmedBaseModel(BaseModel):
 
     @model_serializer(mode="wrap")
-    def _serialize_trimmed(self, serializer):  # type: ignore[override]
+    def _serialize_trimmed(self, serializer: Any) -> dict:
         # Common Pydantic v2 approach: exclude unset, None, and defaults
         # This drops nulls and empty containers that are at their defaults.
         try:
@@ -40,6 +42,20 @@ class JudgeResponse(TrimmedBaseModel):
         description=(
             "Unified Git diff patch with suggested changes (optional). "
             "Provide when rejecting with concrete fixes or when proposing minor refinements."
+        ),
+    )
+
+    class FileReview(TrimmedBaseModel):
+        path: str = Field(description="File path reviewed")
+        feedback: str = Field(description="Per-file feedback summary")
+        approved: bool | None = Field(
+            default=None, description="Optional per-file approval or risk flag"
+        )
+
+    reviewed_files: list[FileReview] = Field(
+        default_factory=list,
+        description=(
+            "Per-file reviews. Must include an entry for every file changed in the diff."
         ),
     )
 

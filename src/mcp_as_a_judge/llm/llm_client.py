@@ -20,9 +20,9 @@ from mcp_as_a_judge.core.constants import DEFAULT_REASONING_EFFORT
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.llm.llm_integration import LLMConfig, LLMVendor
 
-# Set global drop_params to handle model-specific parameter restrictions
-# This is especially important for GPT-5 models which don't support temperature at all
+
 litellm.drop_params = True
+litellm.suppress_debug_info = True
 
 # Set up logger
 logger = get_logger(__name__)

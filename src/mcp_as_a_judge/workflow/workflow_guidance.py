@@ -7,10 +7,10 @@ and current state.
 """
 
 import json
+from copy import deepcopy
 from typing import Any
 
 from pydantic import BaseModel, Field
-from copy import deepcopy
 
 from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
@@ -185,10 +185,10 @@ async def calculate_next_stage(
                     reasoning="Plan approved; proceed with implementation and submit changes for review.",
                     preparation_needed=[
                         "Implement according to the approved plan",
-                        "Prepare a unified Git diff patch for review",
+                        "Prepare a unified Git diff patch including ALL modified files",
                     ],
                     guidance=(
-                        "Continue implementation. When ready, prepare a unified Git diff patch of the changes and call judge_code_change (include file_path only if a single file is modified)."
+                        "Continue implementation. When ready, generate a unified Git diff that includes ALL modified files and call judge_code_change (include file_path only if a single file is modified)."
                     ),
                 )
             if task_metadata.state == TaskState.REVIEW_READY:
@@ -245,7 +245,7 @@ async def calculate_next_stage(
         # Get tool descriptions and state info for the prompt
         tool_descriptions = await _get_tool_descriptions()
         available_name_set = await _get_available_tool_names()
-        available_tool_names = sorted(list(available_name_set))
+        available_tool_names = sorted(available_name_set)
         state_info = task_metadata.get_current_state_info()
 
         # Prepare operation context

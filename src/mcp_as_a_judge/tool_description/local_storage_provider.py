@@ -4,9 +4,9 @@ Adds limited Jinja context variables with JSON schemas from core response models
 so descriptions can embed authoritative schemas without duplication.
 """
 
+import json
 from pathlib import Path
 from typing import cast
-import json
 
 try:
     from importlib.resources import files
@@ -154,12 +154,12 @@ class LocalStorageProvider(ToolDescriptionProvider):
             return cast(str, template.render(**self._context_vars))  # type: ignore[redundant-cast,unused-ignore]
         except Exception as e:
             # Surface a clearer message that includes Jinja include/search paths
-            search_paths = ", ".join(self.env.loader.searchpath)  # type: ignore[attr-defined]
+            search_paths = "unknown"
+            if self.env.loader and hasattr(self.env.loader, "searchpath"):
+                search_paths = ", ".join(self.env.loader.searchpath)
             raise FileNotFoundError(
-                (
-                    f"Failed to load tool description '{description_file}'. Searched in: {search_paths}. "
-                    f"Original error: {e!s}"
-                )
+                f"Failed to load tool description '{description_file}'. Searched in: {search_paths}. "
+                f"Original error: {e!s}"
             ) from e
 
     # duplicate clear_cache removed

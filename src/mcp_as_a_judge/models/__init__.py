@@ -8,6 +8,7 @@ is imported here for a single source of truth.
 
 import importlib.util
 import os
+from typing import TYPE_CHECKING
 from typing import Any as _Any
 
 from pydantic import BaseModel, Field
@@ -40,14 +41,14 @@ __all__ = [
     "MissingRequirementsResult",
     "ObstacleResult",
     "RequirementsVersion",
+    "ResearchAspect",
+    "ResearchAspectsExtraction",
+    "ResearchAspectsUserVars",
     "ResearchComplexityFactors",
     "ResearchRequirementsAnalysis",
     "ResearchRequirementsAnalysisUserVars",
     "ResearchValidationResponse",
     "ResearchValidationUserVars",
-    "ResearchAspect",
-    "ResearchAspectsExtraction",
-    "ResearchAspectsUserVars",
     "SystemVars",
     "TaskAnalysisResult",
     "TaskCompletionResult",
@@ -79,13 +80,33 @@ class ValidationErrorUserVars(BaseModel):
     context: str
 
 
-class JudgeCodingPlanUserVars(BaseModel):
-    user_requirements: str
-    context: str
-    plan: str
-    design: str
-    research: str
-    research_urls: list[str] = Field(default_factory=list)
+# JudgeCodingPlanUserVars is imported from models.py (see _NAMES list below)
+# Type stub for mypy - the actual class is imported dynamically below
+if TYPE_CHECKING:
+    # Forward declaration for mypy with all fields from models.py
+    class JudgeCodingPlanUserVars(BaseModel):
+        user_requirements: str
+        context: str
+        plan: str
+        design: str
+        research: str
+        research_urls: list[str] = Field(default_factory=list)
+        conversation_history: list[_Any] = Field(default_factory=list)
+        problem_domain: str = ""
+        problem_non_goals: list[str] = Field(default_factory=list)
+        library_plan: list[dict[str, _Any]] = Field(default_factory=list)
+        internal_reuse_components: list[dict[str, _Any]] = Field(default_factory=list)
+        research_required: bool = False
+        research_scope: str = "none"
+        research_rationale: str = ""
+        internal_research_required: bool = False
+        related_code_snippets: list[str] = Field(default_factory=list)
+        risk_assessment_required: bool = False
+        identified_risks: list[str] = Field(default_factory=list)
+        risk_mitigation_strategies: list[str] = Field(default_factory=list)
+        expected_url_count: int = 0
+        minimum_url_count: int = 0
+        url_requirement_reasoning: str = ""
     conversation_history: list[_Any] = Field(default_factory=list)
     # Conditional research fields
     research_required: bool = False

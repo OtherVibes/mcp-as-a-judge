@@ -8,8 +8,8 @@ coding plans and code changes against software engineering best practices.
 import builtins
 import contextlib
 import json
-import time
 import re
+import time
 
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import ValidationError
@@ -33,6 +33,8 @@ from mcp_as_a_judge.db.conversation_history_service import ConversationHistorySe
 from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.elicitation import elicitation_provider
 from mcp_as_a_judge.messaging.llm_provider import llm_provider
+
+# Import the complete JudgeCodingPlanUserVars from models.py
 from mcp_as_a_judge.models import (
     JudgeCodeChangeUserVars,
     JudgeCodingPlanUserVars,
@@ -86,10 +88,14 @@ async def set_coding_task(
     user_requirements: str | None = None,  # Updates current requirements
     state: TaskState | None = None,  # Optional: update task state with validation when updating existing task
     # OPTIONAL
-    tags: list[str] = [],
+    tags: list[str] | None = None,
 ) -> TaskAnalysisResult:
     """Create or update coding task metadata with enhanced workflow management."""
     task_id_for_logging = task_id or "new_task"
+
+    # Initialize mutable default
+    if tags is None:
+        tags = []
 
     # Set global context reference for system-wide logging
     set_context_reference(ctx)
@@ -1366,7 +1372,7 @@ async def judge_coding_plan(
             if user_requirements is not None
             else task_metadata.user_requirements
         )
-        
+
 
         # NOTE: Conditional research, internal analysis, and risk assessment requirements
         # are now determined dynamically by the LLM through the workflow guidance system
@@ -1580,13 +1586,17 @@ async def judge_coding_plan(
         try:
             # Fill from explicit inputs if LLM omitted them in metadata
             if problem_domain and not getattr(updated_task_metadata, "problem_domain", "").strip():
-                updated_task_metadata.problem_domain = problem_domain  # type: ignore[attr-defined]
+                updated_task_metadata.problem_domain = problem_domain
             if problem_non_goals and not getattr(updated_task_metadata, "problem_non_goals", None):
-                updated_task_metadata.problem_non_goals = problem_non_goals  # type: ignore[attr-defined]
+                updated_task_metadata.problem_non_goals = problem_non_goals
             if library_plan and (not getattr(updated_task_metadata, "library_plan", None) or len(getattr(updated_task_metadata, "library_plan", [])) == 0):
-                updated_task_metadata.library_plan = library_plan  # type: ignore[attr-defined]
+                # Convert dict list to LibraryPlanItem list
+                library_plan_items = [TaskMetadata.LibraryPlanItem(**item) for item in library_plan]
+                updated_task_metadata.library_plan = library_plan_items
             if internal_reuse_components and (not getattr(updated_task_metadata, "internal_reuse_components", None) or len(getattr(updated_task_metadata, "internal_reuse_components", [])) == 0):
-                updated_task_metadata.internal_reuse_components = internal_reuse_components  # type: ignore[attr-defined]
+                # Convert dict list to ReuseComponent list
+                reuse_components = [TaskMetadata.ReuseComponent(**item) for item in internal_reuse_components]
+                updated_task_metadata.internal_reuse_components = reuse_components
 
             # Now check for missing deliverables
             if not getattr(updated_task_metadata, "problem_domain", "").strip():
@@ -1610,11 +1620,9 @@ async def judge_coding_plan(
             canonical_task_id = task_id
 
         if canonical_task_id and getattr(updated_task_metadata, "task_id", None) != canonical_task_id:
-            try:
+            with contextlib.suppress(Exception):
                 # Overwrite to ensure consistency across conversation history and routing
-                updated_task_metadata.task_id = canonical_task_id  # type: ignore[attr-defined]
-            except Exception:
-                pass
+                updated_task_metadata.task_id = canonical_task_id
 
         # Calculate workflow guidance for the effective outcome
         # Build a synthetic validation_result with the effective approval and improvements
@@ -1909,6 +1917,36 @@ async def judge_code_change(
             )
         )
 
+        # Extract changed files from unified diff for logging/validation
+        def _extract_changed_files(diff_text: str) -> list[str]:
+            import re as _re
+
+            changed: set[str] = set()
+            for line in diff_text.splitlines():
+                if line.startswith("+++"):
+                    parts = line.split(" ", 1)
+                    if len(parts) == 2 and parts[1].strip() != "/dev/null":
+                        p = parts[1].strip()
+                        if p.startswith("b/"):
+                            p = p[2:]
+                        changed.add(p)
+                elif line.startswith("---"):
+                    parts = line.split(" ", 1)
+                    if len(parts) == 2 and parts[1].strip() != "/dev/null":
+                        p = parts[1].strip()
+                        if p.startswith("a/"):
+                            p = p[2:]
+                        changed.add(p)
+            if not changed:
+                for m in _re.finditer(r"^diff --git a/(.+?) b/(.+)$", diff_text, flags=_re.MULTILINE):
+                    changed.add(m.group(2))
+            return sorted(changed)
+
+        changed_files = _extract_changed_files(code_change)
+        logger.info(
+            f"judge_code_change: Files detected in diff ({len(changed_files)}): {', '.join(changed_files)}"
+        )
+
         # STEP 2: Create system and user messages with separate context and conversation history
         system_vars = SystemVars(
             response_schema=json.dumps(JudgeResponse.model_json_schema()),
@@ -1942,14 +1980,50 @@ async def judge_code_change(
             json_content = extract_json_from_response(response_text)
             judge_result = JudgeResponse.model_validate_json(json_content)
 
+            # Enforce per-file coverage: every changed file must have a reviewed_files entry
+            try:
+                reviewed_paths = {rf.path for rf in getattr(judge_result, "reviewed_files", [])}
+            except Exception:
+                reviewed_paths = set()
+            missing_reviews = [p for p in changed_files if p not in reviewed_paths]
+            if missing_reviews:
+                logger.warning(
+                    f"judge_code_change: Missing per-file reviews for: {', '.join(missing_reviews)}"
+                )
+                guidance = WorkflowGuidance(
+                    next_tool="judge_code_change",
+                    reasoning=(
+                        "Per-file coverage incomplete: every changed file must be reviewed"
+                    ),
+                    preparation_needed=[
+                        "Enumerate all changed files from the diff",
+                        "Add a reviewed_files entry for each with per-file feedback",
+                    ],
+                    guidance=(
+                        "Update the response to include reviewed_files entries for all missing files: "
+                        + ", ".join(missing_reviews)
+                    ),
+                )
+                return JudgeResponse(
+                    approved=False,
+                    required_improvements=[
+                        f"Add reviewed_files entries for: {', '.join(missing_reviews)}"
+                    ],
+                    feedback=(
+                        "Incomplete per-file coverage. Provide a reviewed_files entry for each changed file."
+                    ),
+                    current_task_metadata=task_metadata,
+                    workflow_guidance=guidance,
+                )
+
             # Track the file that was reviewed (if approved)
-            if judge_result.approved and file_path != "File path not specified":
-                task_metadata.add_modified_file(file_path)
-                task_metadata.mark_code_approved(
-                    file_path
-                )  # Mark code as approved for completion validation
+            if judge_result.approved:
+                # Add all changed files to modified files and mark as approved
+                for p in changed_files:
+                    task_metadata.add_modified_file(p)
+                    task_metadata.mark_code_approved(p)
                 logger.info(
-                    f"Added file to task tracking and marked as approved: {file_path}"
+                    f"Marked files as approved: {', '.join(changed_files)}"
                 )
 
                 # Update state to TESTING when code is approved

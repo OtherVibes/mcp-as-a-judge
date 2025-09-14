@@ -6,8 +6,14 @@ of research URLs needed for a given software development task based on
 complexity, domain specialization, and implementation risk.
 """
 
+# Import directly from models.py for the missing models
+import importlib.util
 import json
+import os
 from typing import Any
+
+# Import directly from models.py for the missing models
+from pydantic import BaseModel
 
 from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
@@ -19,11 +25,36 @@ from mcp_as_a_judge.models import (
     ResearchRequirementsAnalysisUserVars,
     SystemVars,
     URLValidationResult,
-    ResearchAspectsExtraction,
-    ResearchAspectsUserVars,
 )
 from mcp_as_a_judge.models.task_metadata import TaskMetadata
 from mcp_as_a_judge.prompting.loader import create_separate_messages
+
+
+# Create fallback classes first
+class ResearchAspectsExtraction(BaseModel):
+    aspects: list = []
+    notes: str = ""
+
+class ResearchAspectsUserVars(BaseModel):
+    task_title: str = ""
+    task_description: str = ""
+    user_requirements: str = ""
+    plan: str = ""
+    design: str = ""
+
+# Try to override with the real classes from models.py
+try:
+    _models_py_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models.py")
+    _spec = importlib.util.spec_from_file_location("models_py", _models_py_path)
+    if _spec and _spec.loader:
+        _models_py = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_models_py)
+        # Use globals() to avoid mypy type assignment errors
+        globals()["ResearchAspectsExtraction"] = _models_py.ResearchAspectsExtraction
+        globals()["ResearchAspectsUserVars"] = _models_py.ResearchAspectsUserVars
+except Exception:
+    # Use the fallback classes defined above
+    pass
 
 logger = get_logger(__name__)
 

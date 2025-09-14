@@ -91,7 +91,7 @@ class TestPromptLoader:
         assert "def add(a, b): return a + b" in prompt
         assert "calculator.py" in prompt
         assert "Added addition function" in prompt
-        assert "Please review the following code" in prompt
+        assert "Please review the following changes" in prompt
 
     def test_render_research_validation_user(self) -> None:
         """Test rendering the research validation user prompt."""

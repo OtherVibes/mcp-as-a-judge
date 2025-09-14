@@ -12,9 +12,6 @@ from src.mcp_as_a_judge.models import (
     URLValidationResult,
 )
 from src.mcp_as_a_judge.models.task_metadata import TaskMetadata
-from src.mcp_as_a_judge.research_requirements_analyzer import (
-    ResearchRequirementsAnalyzer,
-)
 
 
 def test_models():
@@ -72,12 +69,9 @@ async def test_analyzer_mock():
     """Test the ResearchRequirementsAnalyzer with a mock scenario."""
     print("\n🧪 Testing ResearchRequirementsAnalyzer...")
 
-    analyzer = ResearchRequirementsAnalyzer()
-
     # Test scenario
     task_title = "Implement JWT Authentication System"
     task_description = "Build secure user authentication with JWT tokens, password hashing, and session management"
-    user_requirements = "Users should be able to register, login, logout securely with proper token validation"
 
     print(f"📋 Task: {task_title}")
     print(f"📋 Description: {task_description}")

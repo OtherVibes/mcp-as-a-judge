@@ -266,8 +266,11 @@ class TestWorkflowGuidanceWithSizing:
         )
 
         # Mock conversation service
+        from unittest.mock import Mock
         mock_conversation_service = AsyncMock()
-        mock_conversation_service.get_conversation_history.return_value = []
+        mock_conversation_service.load_filtered_context_for_enrichment.return_value = []
+        # This method is not async, so use regular Mock
+        mock_conversation_service.format_conversation_history_as_json_array = Mock(return_value=[])
 
         # Calculate next stage - this will use LLM for large tasks
         # We can't easily test the LLM response, but we can verify the function doesn't crash

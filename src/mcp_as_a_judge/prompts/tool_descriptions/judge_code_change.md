@@ -30,3 +30,4 @@ Review implementation code changes (not tests) strictly based on a unified Git d
 - Always use the exact `task_id`; recover it via `get_current_coding_task` if missing.
 - If HITL was performed, update the task description/requirements via `set_coding_task` if text needs to be clarified for future steps
 - Implementations that re-solve commodity concerns will be rejected unless a strong justification is provided. Prefer existing repo utilities or well-known libraries over custom code.
+ - Provide per-file coverage: include a `reviewed_files` array with one entry per changed file path in the diff, each with a brief per-file summary and any specific issues.

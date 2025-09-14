@@ -22,7 +22,7 @@ class ElicitationResult:
         message: str | None = None,
     ):
         """Initialize elicitation result.
-        
+
         Args:
             success: Whether the elicitation was successful
             data: Data returned from successful elicitation
@@ -44,12 +44,12 @@ class ElicitationProvider(ABC):
         This is the public interface method that can contain common logic
         for all providers (logging, validation, etc.) and calls the internal
         implementation method.
-        
+
         Args:
             message: Message to display to the user
             schema: Pydantic model schema defining expected fields
             ctx: MCP context
-            
+
         Returns:
             ElicitationResult with success status and data/message
         """
@@ -69,12 +69,12 @@ class ElicitationProvider(ABC):
         self, message: str, schema: type[BaseModel], ctx: Context
     ) -> ElicitationResult:
         """Internal elicitation implementation - override this in subclasses.
-        
+
         Args:
             message: Message to display to the user
             schema: Pydantic model schema defining expected fields
             ctx: MCP context
-            
+
         Returns:
             ElicitationResult with success status and data/message
         """

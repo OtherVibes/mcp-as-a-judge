@@ -153,3 +153,8 @@ You must respond with a JSON object that matches this schema:
 
 - When you reject (`approved: false`), include a concise explanation in `feedback` and, if feasible, provide a corrected minimal patch in a unified Git diff format in the `suggested_diff` field.
 - When you approve (`approved: true`) and have minor optional improvements, you may include a non-blocking `suggested_diff` with minor refinements.
+
+### Per-File Coverage
+
+- Enumerate every file changed in the diff in `reviewed_files` with a brief per-file summary and any specific issues.
+- Do not omit files: the server validates that `reviewed_files[*].path` covers all files present in the diff.

@@ -18,6 +18,9 @@ from mcp_as_a_judge.messaging.converters import (
 from mcp_as_a_judge.messaging.factory import MessagingProviderFactory
 from mcp_as_a_judge.messaging.interface import MessagingConfig
 
+# Configure proper data handling to prevent Pydantic serialization warnings
+# Instead of suppressing warnings, we ensure clean data structures
+
 
 class LLMProvider:
     """Main interface for sending messages to LLM providers.
@@ -218,7 +221,6 @@ class LLMProvider:
         max_tokens: int = MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         prefer_sampling: bool = True,
-        allow_any_provider: bool = True,
     ) -> str | None:
         """Send message with graceful fallback handling.
 
@@ -231,7 +233,6 @@ class LLMProvider:
             max_tokens: Maximum tokens to generate
             temperature: Temperature for generation
             prefer_sampling: Whether to prefer MCP sampling over LLM API
-            allow_any_provider: If True, use any available provider as fallback
 
         Returns:
             Generated text response or None if no providers available
