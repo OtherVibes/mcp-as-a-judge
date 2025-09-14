@@ -52,7 +52,7 @@ try:
         # Use globals() to avoid mypy type assignment errors
         globals()["ResearchAspectsExtraction"] = _models_py.ResearchAspectsExtraction
         globals()["ResearchAspectsUserVars"] = _models_py.ResearchAspectsUserVars
-except Exception:
+except Exception:  # nosec B110
     # Use the fallback classes defined above
     pass
 

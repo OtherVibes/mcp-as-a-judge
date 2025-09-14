@@ -220,7 +220,7 @@ async def load_task_metadata_from_history(
                     # If plan was approved, set PLAN_APPROVED
                     elif latest_snapshot.get("plan_approved_at"):
                         latest_snapshot["state"] = TaskState.PLAN_APPROVED.value
-                except Exception:
+                except Exception:  # nosec B110
                     # Best-effort inference only
                     pass
 

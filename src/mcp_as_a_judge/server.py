@@ -1167,7 +1167,7 @@ async def _validate_research_quality(
                 ],
                 "feedback": descriptive_feedback,
             }
-    except Exception:
+    except Exception:  # nosec B110
         # Be resilient; failing aspects extraction should not crash validation
         pass
 
@@ -1603,7 +1603,7 @@ async def judge_coding_plan(
                 missing_deliverables.append("Add a clear Problem Domain Statement with explicit non-goals")
             if not getattr(updated_task_metadata, "library_plan", []) or len(getattr(updated_task_metadata, "library_plan", [])) == 0:
                 missing_deliverables.append("Provide a Library Selection Map (purpose → internal/external library with justification)")
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
         effective_approved = evaluation_result.approved and not missing_deliverables
