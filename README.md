@@ -1,4 +1,4 @@
-# ⚖️ MCP as a Judge
+# MCP as a Judge ⚖️
 
 <div align="left">
   <img src="assets/mcp-as-a-judge.png" alt="MCP as a Judge Logo" width="200">
@@ -7,7 +7,8 @@
 > **MCP as a Judge acts as a validation layer between AI coding assistants and LLMs, helping ensure safer and higher-quality code.
 *
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: PolyForm Internal Use 1.0.0](https://img.shields.io/badge/License-PolyForm%20Internal%20Use%201.0.0-blue.svg)](https://polyformproject.org/licenses/internal-use/1.0.0/)
+[![Concepts: CC BY-NC 4.0](https://img.shields.io/badge/Concepts-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
 
@@ -17,62 +18,50 @@
 
 
 
-**MCP as a Judge** is a revolutionary Model Context Protocol (MCP) server that **transforms the developer-AI collaboration experience**. It acts as an intelligent gatekeeper for software development, preventing bad coding practices by using AI-powered evaluation and involving users in critical decisions when requirements are unclear or obstacles arise.
+**MCP as a Judge** is a **behavioral MCP** that strengthens AI coding assistants by requiring explicit LLM evaluations for:
+- Research, system design, and planning
+- Code changes, testing, and task-completion verification
 
-> **⚖️ Concept**: This project extends the **LLM-as-a-Judge** paradigm to software engineering workflows, where AI models evaluate and guide development decisions rather than just generating code.
+It enforces evidence-based research, reuse over reinvention, and human-in-the-loop decisions.
 
-## ⚖️ **Main Purpose: Improve Developer-AI Interface**
+> If your IDE has rules/agents (Copilot, Cursor, Claude Code), keep using them—this Judge adds enforceable approval gates on plan, code diffs, and tests.
 
-**The core mission is to enhance the interface between developers and AI coding assistants** by:
 
-- 🛡️ **Preventing AI from making poor decisions** through intelligent evaluation
-- 🤝 **Involving humans in critical choices** instead of AI making assumptions
-- 🔍 **Enforcing research and best practices** before implementation
-- ⚖️ **Creating a collaborative AI-human workflow** for better software quality
+## Key problems with AI coding assistants and LLMs
+- Treat LLM output as ground truth; skip research and use outdated information
+- Reinvent the wheel instead of reusing libraries and existing code
+- Cut corners: code below engineering standards and weak tests
+- Make unilateral decisions when requirements are ambiguous or plans change
+- Security blind spots: missing input validation, injection risks/attack vectors, least‑privilege violations, and weak defensive programming
 
-## **Vibe Coding doesn't have to be frustrating**
 
-### **What It Enforces:**
+## **Vibe coding doesn’t have to be frustrating**
 
-- ✅ **Deep research** of existing solutions and best practices
-- ✅ **Generic, reusable solutions** instead of quick fixes
-- ✅ **User requirements alignment** in all implementations
-- ✅ **Comprehensive planning** before coding begins
-- ✅ **User involvement** in all critical decisions
-- ✅ **Intelligent AI-human collaboration** with clear boundaries and responsibilities
+### What it enforces
+- Evidence‑based research and reuse (best practices, libraries, existing code)
+- Plan‑first delivery aligned to user requirements
+- Human‑in‑the‑loop decisions for ambiguity and blockers
+- Quality gates on code and tests (security, performance, maintainability)
 
-## 🛠️ **Features**
+### Key capabilities
+- Intelligent code evaluation via MCP [sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling); enforces software‑engineering standards and flags security/performance/maintainability risks
+- Comprehensive plan/design review: validates architecture, research depth, requirements fit, and implementation approach
+- User‑driven decisions via MCP [elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation): clarifies requirements, resolves obstacles, and keeps choices transparent
+- Security validation in system design and code changes
 
-### **🔍 Intelligent Code Evaluation**
 
-- **LLM-powered analysis** using MCP [sampling](https://modelcontextprotocol.io/docs/learn/client-concepts#sampling) capability
-- **Software engineering best practices** enforcement
-- **Security vulnerability detection**
-- **Performance and maintainability assessment**
 
-### **📋 Comprehensive Planning Review**
-
-- **Architecture validation** against industry standards
-- **Research depth analysis** to prevent reinventing solutions
-- **Requirements alignment** verification
-- **Implementation approach evaluation**
-
-### **🤝 User-Driven Decision Making**
-
-- **Obstacle resolution** through user involvement via MCP [elicitation](https://modelcontextprotocol.io/docs/learn/client-concepts#elicitation)
-- **Requirements clarification** when requests are unclear
-- **No hidden fallbacks** - transparent decision making
-- **Interactive problem solving** with real-time user input
-
-### **🛠️ List of Tools**
-
-| Tool Name | Description |
-|-----------|-------------|
-| **`build_workflow`** | Smart workflow analysis and tool recommendation |
-| **`judge_coding_plan`** | Comprehensive plan evaluation with requirements alignment |
-| **`judge_code_change`** | Code review with security and quality checks |
-| **`raise_obstacle`** | User involvement when blockers arise |
-| **`raise_missing_requirements`** | Clarification of unclear requests |
+### Tools and how they help
+| Tool | What it solves |
+|------|-----------------|
+| `set_coding_task` | Creates/updates task metadata; classifies task_size; returns next-step workflow guidance |
+| `get_current_coding_task` | Recovers the latest task_id and metadata to resume work safely |
+| `judge_coding_plan` | Validates plan/design; requires library selection and internal reuse maps; flags risks |
+| `judge_code_change` | Reviews unified Git diffs for correctness, reuse, security, and code quality |
+| `judge_testing_implementation` | Validates tests using real runner output and optional coverage |
+| `judge_coding_task_completion` | Final gate ensuring plan, code, and tests approvals before completion |
+| `raise_missing_requirements` | Elicits missing details and decisions to unblock progress |
+| `raise_obstacle` | Engages the user on trade‑offs, constraints, and enforced changes |
 
 ## 🚀 **Quick Start**
 
@@ -99,43 +88,32 @@ MCP as a Judge is heavily dependent on **MCP Sampling** and **MCP Elicitation** 
 | **Augment** | - | ⚠️ Partial | Requires LLM API key | MCP support available, but sampling/elicitation limited |
 | **Qodo** | - | ⚠️ Partial | Requires LLM API key | MCP support available, but sampling/elicitation limited |
 
-**✅ Recommended Setup:** GitHub Copilot in Visual Studio Code for the best MCP as a Judge experience.
+**✅ Recommended setup:** GitHub Copilot + VS Code — full MCP sampling; no API key needed.
 
-**⚠️ LLM API Key Requirement:**
-- **GitHub Copilot + VS Code**: ✅ **No API key needed** - Uses built-in MCP sampling
-- **All Other Assistants**: ⚠️ **Requires LLM API key** - Limited MCP sampling support
+**⚠️ Critical:** For assistants without full MCP sampling (Cursor, Claude Code, Augment, Qodo), you MUST set `LLM_API_KEY`. Without it, the server cannot evaluate plans or code. See [LLM API Configuration](#-llm-api-configuration-optional).
 
-Configure an LLM API key (OpenAI, Anthropic, Google, etc.) as described in the [LLM API Configuration](#-llm-api-configuration-optional) section.
+**💡 Tip:** Prefer large context models (≥ 1M tokens) for better analysis and judgments.
 
+### If the MCP server isn’t auto‑used
+For troubleshooting, visit the [FAQs section](#faq).
 
-#### **💡 Recommendations**
+## 🔧 **MCP Configuration**
 
-- **Large Context Window Models**: 1M+ token size models are strongly preferred for optimal performance
-- Models with larger context windows provide better code analysis and more comprehensive judgments
-
-
-
-## 🔧 **Visual Studio Code Configuration**
-
-Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
+Configure **MCP as a Judge** in your MCP-enabled client:
 
 ### **Method 1: Using Docker (Recommended)**
 
 1. **Configure MCP Settings:**
 
-   Add this to your Visual Studio Code MCP configuration file:
+   Add this to your MCP client configuration file:
 
    ```json
    {
-     "mcpServers": {
-       "mcp-as-a-judge": {
-         "command": "docker",
-         "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/othervibes/mcp-as-a-judge:latest"],
-         "env": {
-           "LLM_API_KEY": "your-openai-api-key-here",
-           "LLM_MODEL_NAME": "gpt-4o-mini"
-         }
-       }
+     "command": "docker",
+     "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/othervibes/mcp-as-a-judge:latest"],
+     "env": {
+       "LLM_API_KEY": "your-openai-api-key-here",
+       "LLM_MODEL_NAME": "gpt-4o-mini"
      }
    }
    ```
@@ -162,7 +140,7 @@ Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
 
 2. **Configure MCP Settings:**
 
-   The MCP server will be automatically detected by Visual Studio Code.
+   The MCP server may be automatically detected by your MCP‑enabled client.
 
    **📝 Notes:**
    - **No additional configuration needed for GitHub Copilot + VS Code** (has built-in MCP sampling)
@@ -174,10 +152,19 @@ Configure **MCP as a Judge** in Visual Studio Code with GitHub Copilot:
    # Update MCP as a Judge to the latest version
    uv tool upgrade mcp-as-a-judge
    ```
+### Select a sampling model in VS Code
+- Open Command Palette (Cmd/Ctrl+Shift+P) → “MCP: List Servers”
+- Select the configured server “mcp-as-a-judge”
+- Choose “Configure Model Access”
+- Check your preferred model(s) to enable sampling
+
+
 
 ## 🔑 **LLM API Configuration (Optional)**
 
-For AI assistants without full MCP sampling support (Cursor, Claude Code, Augment, Qodo), you can configure an LLM API key as a fallback. This ensures MCP as a Judge works even when the client doesn't support MCP sampling.
+For [AI assistants without full MCP sampling support](#supported-ai-assistants) you can configure an LLM API key as a fallback. This ensures MCP as a Judge works even when the client doesn't support MCP sampling.
+
+- Set `LLM_API_KEY` (unified key). Vendor is auto-detected; optionally set `LLM_MODEL_NAME` to override the default.
 
 ### **Supported LLM Providers**
 
@@ -194,53 +181,7 @@ For AI assistants without full MCP sampling support (Cursor, Claude Code, Augmen
 | **9** | **xAI** | `xai-...` | `grok-code-fast-1` | Latest coding-focused model (Aug 2025) |
 | **10** | **Mistral** | `[a-f0-9]{64}` | `pixtral-large` | Most advanced model (124B params) |
 
-### **🎯 Model Selection Rationale**
 
-All default models are optimized for **coding and reasoning tasks** with emphasis on speed:
-
-- **⚡ Speed Optimized**: GPT-4.1 for fast elicitation and real-time interactions
-- **🧠 Reasoning-Focused**: Claude Sonnet 4, Gemini 2.5 Pro with built-in thinking
-- **⚡ Speed + Quality**: DeepSeek R1 on Groq/OpenRouter for fast reasoning
-- **🎨 Multimodal**: Pixtral Large combines Mistral Large 2 with vision capabilities
-- **🚀 Coding-Specialized**: Grok Code Fast 1 designed specifically for agentic coding
-- **🏢 Enterprise**: AWS Bedrock and Vertex AI provide enterprise-grade access
-
-### **⚙️ Coding-Optimized Configuration**
-
-**Temperature: 0.1** (Low for deterministic, precise code generation)
-- Ensures consistent, reliable code suggestions
-- Reduces randomness for better debugging and maintenance
-- Optimized for technical accuracy over creativity
-
-
-
-### **🔑 When Do You Need an LLM API Key?**
-
-| Coding Assistant | API Key Required? | Reason |
-|------------------|-------------------|---------|
-| **GitHub Copilot + VS Code** | ❌ **No** | Full MCP sampling support built-in |
-| **Claude Code** | ✅ **Yes** | Limited MCP sampling support |
-| **Cursor** | ✅ **Yes** | Limited MCP sampling support |
-| **Augment** | ✅ **Yes** | Limited MCP sampling support |
-| **Qodo** | ✅ **Yes** | Limited MCP sampling support |
-
-**💡 Recommendation**: Use GitHub Copilot + VS Code for the best experience without needing API keys.
-
-**🔍 Why Some Assistants Need API Keys:**
-- **MCP Sampling**: GitHub Copilot supports advanced MCP sampling for dynamic prompts
-- **Fallback Required**: Other assistants use LLM APIs when MCP sampling is unavailable
-- **Future-Proof**: As more assistants add MCP sampling support, API keys become optional
-
-### **Configuration Steps**
-
-1. **Restart your MCP client** to pick up the environment variables.
-
-### **How It Works**
-
-- **Primary**: MCP as a Judge always tries MCP sampling first (when available)
-- **Fallback**: If MCP sampling fails or isn't available, it uses your configured LLM API
-- **Automatic**: No configuration needed - the system detects your API key and selects the appropriate provider
-- **Privacy**: Your API key is only used when MCP sampling is not available
 
 ### **Client-Specific Setup**
 
@@ -254,15 +195,11 @@ All default models are optimized for **coding and reasoning tasks** with emphasi
 2. **Add MCP Server Configuration:**
    ```json
    {
-     "mcpServers": {
-       "mcp-as-a-judge": {
-         "command": "uv",
-         "args": ["tool", "run", "mcp-as-a-judge"],
-         "env": {
-           "LLM_API_KEY": "your-openai-api-key-here",
-           "LLM_MODEL_NAME": "gpt-4.1"
-         }
-       }
+     "command": "uv",
+     "args": ["tool", "run", "mcp-as-a-judge"],
+     "env": {
+       "LLM_API_KEY": "your-openai-api-key-here",
+       "LLM_MODEL_NAME": "gpt-4.1"
      }
    }
    ```
@@ -287,15 +224,11 @@ All default models are optimized for **coding and reasoning tasks** with emphasi
    - Create or edit `~/.config/claude-code/mcp_servers.json`
    ```json
    {
-     "mcpServers": {
-       "mcp-as-a-judge": {
-         "command": "uv",
-         "args": ["tool", "run", "mcp-as-a-judge"],
-         "env": {
-           "LLM_API_KEY": "your-anthropic-api-key-here",
-           "LLM_MODEL_NAME": "claude-3-5-haiku"
-         }
-       }
+     "command": "uv",
+     "args": ["tool", "run", "mcp-as-a-judge"],
+     "env": {
+       "LLM_API_KEY": "your-anthropic-api-key-here",
+       "LLM_MODEL_NAME": "claude-3-5-haiku"
      }
    }
    ```
@@ -310,17 +243,14 @@ For other MCP-compatible clients, use the standard MCP server configuration:
 
 ```json
 {
-  "mcpServers": {
-    "mcp-as-a-judge": {
-      "command": "uv",
-      "args": ["tool", "run", "mcp-as-a-judge"],
-      "env": {
-        "LLM_API_KEY": "your-openai-api-key-here",
-        "LLM_MODEL_NAME": "gpt-4o-mini"
-      }
-     }
-   }
-   ```
+  "command": "uv",
+  "args": ["tool", "run", "mcp-as-a-judge"],
+  "env": {
+    "LLM_API_KEY": "your-openai-api-key-here",
+    "LLM_MODEL_NAME": "gpt-5"
+  }
+}
+```
 
 **📝 Configuration Options:**
 - **LLM_API_KEY**: Required for most MCP clients (except GitHub Copilot + VS Code)
@@ -329,56 +259,6 @@ For other MCP-compatible clients, use the standard MCP server configuration:
 
 
 
-## 📖 **How It Works**
-
-Once MCP as a Judge is configured with your AI coding assistant, it automatically guides the AI through a structured software engineering workflow. The system operates transparently in the background, ensuring every development task follows best practices.
-
-### **🔄 Automatic Workflow Enforcement**
-
-**1. Intelligent Workflow Guidance**
-
-- When you make any development request, the AI assistant automatically calls `build_workflow`
-- This tool uses AI analysis to determine which validation steps are required for your specific task
-- Provides smart recommendations on which tools to use next and in what order
-- No manual intervention needed - the workflow starts automatically with intelligent guidance
-
-**2. Planning & Design Phase**
-
-- For any implementation task, the AI assistant must first help you create:
-  - **Detailed coding plan** - Step-by-step implementation approach
-  - **System design** - Architecture, components, and technical decisions
-  - **Research findings** - Analysis of existing solutions and best practices
-- Once complete, `judge_coding_plan` automatically evaluates the plan using MCP Sampling
-- **AI-powered evaluation** checks for design quality, security, research thoroughness, and requirements alignment
-
-**3. Code Implementation Review**
-
-- After any code is written or modified, `judge_code_change` is automatically triggered
-- **Mandatory code review** happens immediately after file creation/modification
-- Uses MCP Sampling to evaluate code quality, security vulnerabilities, and best practices
-- Ensures every code change meets professional standards
-
-### **🤝 User Involvement When Needed**
-
-**Obstacle Resolution**
-
-- When the AI assistant encounters blockers or conflicting requirements, `raise_obstacle` automatically engages you
-- Uses MCP Elicitation to present options and get your decision
-- No hidden fallbacks - you're always involved in critical decisions
-
-**Requirements Clarification**
-
-- If your request lacks sufficient detail, `raise_missing_requirements` automatically asks for clarification
-- Uses MCP Elicitation to gather specific missing information
-- Ensures implementation matches your actual needs
-
-### **🎯 What to Expect**
-
-- **Automatic guidance** - No need to explicitly ask the AI coding assistant to call tools
-- **Comprehensive planning** - Every implementation starts with proper design and research
-- **Quality enforcement** - All code changes are automatically reviewed against industry standards
-- **User-driven decisions** - You're involved whenever your original request cannot be satisfied
-- **Professional standards** - Consistent application of software engineering best practices
 
 ## 🔒 **Privacy & Flexible AI Integration**
 
@@ -395,13 +275,13 @@ Once MCP as a Judge is configured with your AI coding assistant, it automaticall
 - Supports multiple providers via LiteLLM: OpenAI, Anthropic, Google, Azure, Groq, Mistral, xAI
 - Automatic vendor detection from API key patterns
 - Default model selection per vendor when no model is specified
-- Set environment variables like `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.
+
 
 ### **🛡️ Your Privacy Matters**
 
 - The server runs **locally** on your machine
 - **No data collection** - your code and conversations stay private
-- **No external API calls** - everything happens within your local environment
+- **No external API calls when using MCP Sampling**. If you set `LLM_API_KEY` for fallback, the server will call your chosen LLM provider only to perform judgments (plan/code/test) with the evaluation content you provide.
 - Complete control over your development workflow and sensitive information
 
 ## 🤝 **Contributing**
@@ -428,24 +308,49 @@ uv run pytest
 uv run pytest && uv run ruff check && uv run ruff format --check && uv run mypy src
 ```
 
-### **Release Process**
 
-This project uses automated semantic versioning:
+## © Concepts and Methodology
+© 2025 OtherVibes and Zvi Fried. The "MCP as a Judge" concept, the "behavioral MCP" approach, the staged workflow (plan → code → test → completion), tool taxonomy/descriptions, and prompt templates are original work developed in this repository.
 
-1. **Commit with conventional commits**: `feat:`, `fix:`, `docs:`, etc.
-2. **Push to main**: Semantic release will automatically create tags and releases
-3. **Manual releases**: Create a tag `v1.2.3` and push to trigger release workflow
+- License (non‑code materials): Creative Commons Attribution‑NonCommercial 4.0 International (CC BY‑NC 4.0)
+  - Summary: https://creativecommons.org/licenses/by-nc/4.0/
+  - Legal code: https://creativecommons.org/licenses/by-nc/4.0/legalcode
+- Software source code: PolyForm Internal Use License 1.0.0 (see License)
+- Attribution required: “OtherVibes – MCP as a Judge (Zvi Fried)” with a link to this repository
+- Commercial use is not permitted for the conceptual materials
 
-```bash
-# Example conventional commits
-git commit -m "feat: add new validation rule for async functions"
-git commit -m "fix: resolve memory leak in server startup"
-git commit -m "docs: update installation instructions"
-```
+## Prior Art and Attribution
+While “LLM‑as‑a‑judge” is a broadly known idea, this repository defines the original “MCP as a Judge” behavioral MCP pattern by OtherVibes and Zvi Fried. It combines task‑centric workflow enforcement (plan → code → test → completion), explicit LLM‑based validations, and human‑in‑the‑loop elicitation, along with the prompt templates and tool taxonomy provided here. Please attribute as: “OtherVibes – MCP as a Judge (Zvi Fried)”.
+
+## ❓ FAQ
+
+### How is “MCP as a Judge” different from rules/subagents in IDE assistants (GitHub Copilot, Cursor, Claude Code)?
+- GitHub Copilot (VS Code): Copilot Chat participants (like @workspace/@github) and Copilot Extensions can integrate tools, and VS Code supports MCP servers. However, these do not, by themselves, enforce hard quality gates. MCP as a Judge adds explicit approvals at engineering checkpoints (plan → unified Git diff → raw test output → completion) using MCP Sampling/Elicitation.
+  - References: [Copilot Chat Extensions](https://docs.github.com/copilot/using-github-copilot/asking-github-copilot-questions-in-your-ide), [MCP Sampling](https://modelcontextprotocol.io/docs/concepts/sampling), [MCP Elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation)
+- Cursor: Project rules (e.g., [.cursorrules](https://docs.cursor.com/context/rules-for-ai)) shape the assistant’s behavior, but they don’t validate a specific diff or test run as an approval gate. The Judge performs evidence-based validation (diffs/tests) and returns formal approvals with next steps.
+- Claude Code: Supports connecting MCP servers and managing them via CLI/settings. It can use this Judge server, but Claude Code’s own rules/settings don’t introduce plan/code/test approval gates by default.
+  - References: [Claude Code + MCP](https://docs.anthropic.com/en/docs/claude-code/mcp)
+
+### How does the Judge workflow relate to the tasklist? Why do we need both?
+- Tasklist = planning/organization: tracks tasks, priorities, and status. It doesn’t guarantee engineering quality or readiness.
+- Judge workflow = quality gates: enforces approvals for plan/design, code diffs, tests, and final completion. It demands real evidence (e.g., unified Git diffs and raw test output) and returns structured approvals and required improvements.
+- Together: Use the tasklist to organize work; use the Judge to decide when each stage is actually ready to proceed. The server also emits next_tool guidance to keep progress moving through the gates.
+
+### If the Judge isn’t used automatically, how do I force it?
+- In your prompt: "use mcp-as-a-judge" or "Evaluate plan/code/test using the MCP server mcp-as-a-judge".
+- VS Code: Command Palette → "MCP: List Servers" → ensure "mcp-as-a-judge" is listed and enabled.
+- Ensure the MCP server is running and, in your client, the judge tools are enabled/approved.
+
+### How do I select models for sampling in VS Code?
+- Open Command Palette (Cmd/Ctrl+Shift+P) → "MCP: List Servers"
+- Select "mcp-as-a-judge" → "Configure Model Access"
+- Check your preferred model(s) to enable sampling
+
+
 
 ## 📄 **License**
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Code is licensed under the PolyForm Internal Use License 1.0.0 (see [LICENSE](LICENSE)). Non‑code materials (documentation, diagrams, workflow schemas, and prompt templates) are licensed under Creative Commons Attribution‑NonCommercial 4.0 International (CC BY‑NC 4.0).
 
 ## 🙏 **Acknowledgments**
 
@@ -454,4 +359,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**🚨 Ready to revolutionize your development workflow? Install MCP as a Judge today!**
