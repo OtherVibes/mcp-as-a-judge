@@ -61,6 +61,10 @@ jobs:
         echo "" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
 
+    - name: Clean dist directory
+      run: |
+        rm -rf dist/
+
     - name: Build package
       run: |
         uv build --no-sources
