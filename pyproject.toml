@@ -1,6 +1,6 @@
 [project]
 name = "mcp-as-a-judge"
-version = "1.0.0"
+version = "0.2.0"
 description = "MCP as a Judge: An AI-powered Model Context Protocol server that provides code review, validation, and quality assessment tools for development workflows"
 readme = "README.md"
 license = { text = "MIT" }
