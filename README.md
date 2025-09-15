@@ -325,11 +325,18 @@ While “LLM‑as‑a‑judge” is a broadly known idea, this repository define
 ## ❓ FAQ
 
 ### How is “MCP as a Judge” different from rules/subagents in IDE assistants (GitHub Copilot, Cursor, Claude Code)?
-- GitHub Copilot (VS Code): Copilot Chat participants (like @workspace/@github) and Copilot Extensions can integrate tools, and VS Code supports MCP servers. However, these do not, by themselves, enforce hard quality gates. MCP as a Judge adds explicit approvals at engineering checkpoints (plan → unified Git diff → raw test output → completion) using MCP Sampling/Elicitation.
-  - References: [Copilot Chat Extensions](https://docs.github.com/copilot/using-github-copilot/asking-github-copilot-questions-in-your-ide), [MCP Sampling](https://modelcontextprotocol.io/docs/concepts/sampling), [MCP Elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation)
-- Cursor: Project rules (e.g., [.cursorrules](https://docs.cursor.com/context/rules-for-ai)) shape the assistant’s behavior, but they don’t validate a specific diff or test run as an approval gate. The Judge performs evidence-based validation (diffs/tests) and returns formal approvals with next steps.
-- Claude Code: Supports connecting MCP servers and managing them via CLI/settings. It can use this Judge server, but Claude Code’s own rules/settings don’t introduce plan/code/test approval gates by default.
-  - References: [Claude Code + MCP](https://docs.anthropic.com/en/docs/claude-code/mcp)
+| Feature | IDE Rules | Subagents | MCP as a Judge |
+|---------|-----------|-----------|----------------|
+| Static behavior guidance | ✓ | ✓ | ✗ |
+| Custom system prompts | ✓ | ✓ | ✓ |
+| Project context integration | ✓ | ✓ | ✓ |
+| Specialized task handling | ✗ | ✓ | ✓ |
+| Active quality gates | ✗ | ✗ | ✓ |
+| Evidence-based validation | ✗ | ✗ | ✓ |
+| Approve/reject with feedback | ✗ | ✗ | ✓ |
+| Workflow enforcement | ✗ | ✗ | ✓ |
+| Cross-assistant compatibility | ✗ | ✗ | ✓ |
+  - References: [GitHub Copilot Custom Instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions), [Cursor Rules](https://docs.cursor.com/en/context/@-symbols/@-cursor-rules), [Claude Code Subagents](https://docs.anthropic.com/en/docs/claude-code/sub-agents)
 
 ### How does the Judge workflow relate to the tasklist? Why do we need both?
 - Tasklist = planning/organization: tracks tasks, priorities, and status. It doesn’t guarantee engineering quality or readiness.
