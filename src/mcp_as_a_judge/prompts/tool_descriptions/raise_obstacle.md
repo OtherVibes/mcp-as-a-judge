@@ -3,6 +3,8 @@
 ## Description
 Involve the user to resolve blockers or conflicts by presenting options and context.
 
+{% include 'shared/critical_tool_warnings.md' %}
+
 ## Args
 - `problem`: string — Clear description of the obstacle
 - `research`: string — What has been investigated (alternatives, prior art)

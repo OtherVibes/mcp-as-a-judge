@@ -3,6 +3,8 @@
 ## Description
 Elicit missing requirements and clarifications from the user when details are insufficient for implementation.
 
+{% include 'shared/critical_tool_warnings.md' %}
+
 ## Args
 - `current_request`: string — Current understanding of the user’s request
 - `identified_gaps`: list[string] — Missing requirement gaps
