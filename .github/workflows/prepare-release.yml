@@ -1,0 +1,105 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semantic version (e.g., 0.3.0)"
+        required: true
+        type: string
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  bump_and_tag:
+    name: Bump version, commit via GitHub App, and tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install uv (standard)
+        if: env.ACT != 'true'
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: latest
+
+      - name: Install uv (act fallback)
+        if: env.ACT == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install uv
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Bump version in files
+        id: bump
+        run: |
+          uv run python scripts/bump_version.py --version "${{ inputs.version }}" | tee bump.log
+          echo "summary=$(grep '^SUMMARY: ' bump.log | sed 's/^SUMMARY: //')" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub App token
+        if: env.ACT != 'true'
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Configure git user
+        run: |
+          git config user.name "mcp-release-bot"
+          git config user.email "mcp-release-bot@users.noreply.github.com"
+
+      - name: Commit changes (if any)
+        run: |
+          set -e
+          if git diff --quiet; then
+            echo "No working tree changes to commit."
+          else
+            git add -A
+            git commit -m "chore(release): bump version to ${{ inputs.version }}"
+          fi
+
+      - name: Push commit (skip under act)
+        if: env.ACT != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -e
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          git push origin "HEAD:${CURRENT_BRANCH}"
+
+      - name: Create tag
+        run: |
+          set -e
+          TAG="v${{ inputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists locally; skipping tag creation."
+          else
+            git tag "$TAG"
+          fi
+
+      - name: Push tag (skip under act)
+        if: env.ACT != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -e
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin "v${{ inputs.version }}"
+
+      - name: Summary
+        run: echo "Prepared release v${{ inputs.version }}."
