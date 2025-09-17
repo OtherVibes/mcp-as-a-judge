@@ -9,8 +9,7 @@
 > **MCP as a Judge acts as a validation layer between AI coding assistants and LLMs, helping ensure safer and higher-quality code.
 *
 
-[![License: PolyForm Internal Use 1.0.0](https://img.shields.io/badge/License-PolyForm%20Internal%20Use%201.0.0-blue.svg)](https://polyformproject.org/licenses/internal-use/1.0.0/)
-[![Concepts: CC BY-NC 4.0](https://img.shields.io/badge/Concepts-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/license/mit/)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
 
@@ -324,12 +323,6 @@ uv run pytest && uv run ruff check && uv run ruff format --check && uv run mypy 
 ## © Concepts and Methodology
 © 2025 OtherVibes and Zvi Fried. The "MCP as a Judge" concept, the "behavioral MCP" approach, the staged workflow (plan → code → test → completion), tool taxonomy/descriptions, and prompt templates are original work developed in this repository.
 
-- License (non‑code materials): Creative Commons Attribution‑NonCommercial 4.0 International (CC BY‑NC 4.0)
-  - Summary: https://creativecommons.org/licenses/by-nc/4.0/
-  - Legal code: https://creativecommons.org/licenses/by-nc/4.0/legalcode
-- Software source code: PolyForm Internal Use License 1.0.0 (see License)
-- Attribution required: “OtherVibes – MCP as a Judge (Zvi Fried)” with a link to this repository
-- Commercial use is not permitted for the conceptual materials
 
 ## Prior Art and Attribution
 While “LLM‑as‑a‑judge” is a broadly known idea, this repository defines the original “MCP as a Judge” behavioral MCP pattern by OtherVibes and Zvi Fried. It combines task‑centric workflow enforcement (plan → code → test → completion), explicit LLM‑based validations, and human‑in‑the‑loop elicitation, along with the prompt templates and tool taxonomy provided here. Please attribute as: “OtherVibes – MCP as a Judge (Zvi Fried)”.
@@ -369,7 +362,7 @@ While “LLM‑as‑a‑judge” is a broadly known idea, this repository define
 
 ## 📄 **License**
 
-Code is licensed under the PolyForm Internal Use License 1.0.0 (see [LICENSE](LICENSE)). Non‑code materials (documentation, diagrams, workflow schemas, and prompt templates) are licensed under Creative Commons Attribution‑NonCommercial 4.0 International (CC BY‑NC 4.0).
+This project is licensed under the MIT License (see [LICENSE](LICENSE)).
 
 ## 🙏 **Acknowledgments**
 
