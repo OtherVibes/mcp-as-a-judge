@@ -8,6 +8,7 @@ and current state.
 
 import json
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -20,6 +21,28 @@ from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskStat
 
 # Set up logger using custom get_logger function
 logger = get_logger(__name__)
+
+
+def _load_todo_guidance() -> str:
+    """Load the todo.md content to prepend to guidance messages.
+
+    Returns:
+        The content of todo.md as a string, or empty string if file not found.
+    """
+    try:
+        # Get the path to todo.md relative to this file
+        current_dir = Path(__file__).parent
+        todo_path = current_dir.parent / "prompts" / "shared" / "todo.md"
+
+        if todo_path.exists():
+            content = todo_path.read_text(encoding="utf-8").strip()
+            return f"{content}\n\n"
+        else:
+            logger.warning(f"Todo guidance file not found at {todo_path}")
+            return ""
+    except Exception as e:
+        logger.warning(f"Failed to load todo guidance: {e}")
+        return ""
 
 
 def should_skip_planning(task_metadata: TaskMetadata) -> bool:
@@ -171,6 +194,7 @@ async def calculate_next_stage(
                     "Write and run tests",
                 ],
                 guidance=(
+                    f"{_load_todo_guidance()}"
                     "Proceed directly to implementation. Once changes are complete and tests pass, continue with the workflow: "
                     "call judge_code_change for code review, then judge_testing_implementation for testing validation, and finally judge_coding_task_completion for final validation."
                 ),
@@ -188,6 +212,7 @@ async def calculate_next_stage(
                         "Prepare a unified Git diff patch including ALL modified files",
                     ],
                     guidance=(
+                        f"{_load_todo_guidance()}"
                         "Continue implementation. When ready, generate a unified Git diff that includes ALL modified files and call judge_code_change (include file_path only if a single file is modified)."
                     ),
                 )
@@ -200,6 +225,7 @@ async def calculate_next_stage(
                         "Collect raw test output and coverage info",
                     ],
                     guidance=(
+                        f"{_load_todo_guidance()}"
                         "Run tests and ensure they pass, then call judge_testing_implementation with a summary of tests and results."
                     ),
                 )
@@ -209,6 +235,7 @@ async def calculate_next_stage(
                     reasoning="Task is in testing; validate tests to move forward.",
                     preparation_needed=["Run tests and capture results"],
                     guidance=(
+                        f"{_load_todo_guidance()}"
                         "Call judge_testing_implementation with details on implemented tests and their results."
                     ),
                 )
@@ -217,7 +244,7 @@ async def calculate_next_stage(
                     next_tool=None,
                     reasoning="Task already completed.",
                     preparation_needed=[],
-                    guidance="No further action required.",
+                    guidance="No further action required. Remove task from todo list.",
                 )
 
         # From here on, defer navigation to LLM prompt logic (dynamic, state-aware)
