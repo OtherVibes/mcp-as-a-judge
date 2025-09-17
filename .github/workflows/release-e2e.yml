@@ -1,0 +1,97 @@
+name: Release E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semantic version (e.g., 0.3.0)"
+        required: true
+        type: string
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  prepare_and_push:
+    name: Bump, commit, tag, and push (main)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: latest
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Validate input version and tag uniqueness
+        id: validate
+        run: |
+          set -euo pipefail
+          VERSION="${{ inputs.version }}"
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Invalid version format: $VERSION (expected MAJOR.MINOR.PATCH)" >&2
+            exit 1
+          fi
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists locally" >&2
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Bump version in files
+        run: |
+          uv run python scripts/bump_version.py --version "${{ steps.validate.outputs.VERSION }}" | tee bump.log
+
+      - name: Create GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Configure git user
+        run: |
+          git config user.name "mcp-release-bot"
+          git config user.email "mcp-release-bot@users.noreply.github.com"
+
+      - name: Ensure on main branch
+        run: |
+          git fetch origin main --tags
+          git checkout main
+
+      - name: Commit changes (if any)
+        run: |
+          set -e
+          if git diff --quiet; then
+            echo "No working tree changes to commit."
+          else
+            git add -A
+            git commit -m "chore(release): bump version to ${{ steps.validate.outputs.VERSION }}"
+          fi
+
+      - name: Create tag
+        run: |
+          git tag "v${{ steps.validate.outputs.VERSION }}"
+
+      - name: Push commit and tag to origin/main
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -e
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin HEAD:main
+          git push origin "v${{ steps.validate.outputs.VERSION }}"
+
+      - name: Summary
+        run: echo "Pushed commit and tag v${{ steps.validate.outputs.VERSION }}. The Release workflow will run automatically."
+

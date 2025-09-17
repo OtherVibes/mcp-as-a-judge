@@ -76,7 +76,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["mcp-as-a-judge"]
 
 # Labels for metadata
-LABEL org.opencontainers.image.title="MCP as a Judge" \
+LABEL io.modelcontextprotocol.server.name="io.github.othervibes/mcp-as-a-judge" \
+      org.opencontainers.image.title="MCP as a Judge" \
       org.opencontainers.image.description="AI-powered code evaluation and software engineering best practices enforcement" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.authors="Zvi Fried" \

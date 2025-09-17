@@ -1,5 +1,7 @@
 # MCP as a Judge ⚖️
 
+<!-- mcp-name: io.github.othervibes/mcp-as-a-judge -->
+
 <div align="left">
   <img src="assets/mcp-as-a-judge.png" alt="MCP as a Judge Logo" width="200">
 </div>
@@ -102,6 +104,16 @@ For troubleshooting, visit the [FAQs section](#faq).
 Configure **MCP as a Judge** in your MCP-enabled client:
 
 ### **Method 1: Using Docker (Recommended)**
+
+#### One‑click install for VS Code (MCP)
+
+Add this server to VS Code (GitHub Copilot) using Docker with automatic image pull:
+
+- Install link: https://insiders.vscode.dev/redirect/mcp/install?name=mcp-as-a-judge&inputs=%5B%5D&config=%7B%22command%22%3A%22docker%22%2C%22args%22%3A%5B%22run%22%2C%22-i%22%2C%22--rm%22%2C%22--pull%3Dalways%22%2C%22ghcr.io%2Fothervibes%2Fmcp-as-a-judge%3Alatest%22%5D%7D
+
+Notes:
+- VS Code controls the sampling model; select it via “MCP: List Servers → mcp-as-a-judge → Configure Model Access”.
+
 
 1. **Configure MCP Settings:**
 

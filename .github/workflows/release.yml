@@ -139,17 +139,69 @@ jobs:
 
   publish_mcp_registry:
     name: Publish to MCP Registry (preview)
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     continue-on-error: true
     steps:
       - uses: actions/checkout@v5
       - name: Install MCP Publisher CLI
-        run: brew install mcp-publisher
-      - name: Initialize server metadata (idempotent)
-        run: mcp-publisher init || true
-      - name: Publish to MCP Registry
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/download/v1.0.0/mcp-publisher_1.0.0_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      - name: Extract version from tag
+        id: ver
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - name: Generate server.json
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mcp-publisher publish
+          VERSION: ${{ steps.ver.outputs.VERSION }}
+        run: |
+          python - <<'PY'
+          import json, tomllib, os
+          VERSION = os.environ['VERSION']
+          with open('pyproject.toml','rb') as f:
+              proj = tomllib.load(f)['project']
+          desc = proj.get('description','')
+          data = {
+            "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+            "name": "io.github.othervibes/mcp-as-a-judge",
+            "description": desc,
+            "version": VERSION,
+            "packages": [
+              {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION},
+              {"registry_type": "oci", "registry_base_url": "https://ghcr.io", "identifier": "othervibes/mcp-as-a-judge", "version": VERSION}
+            ]
+          }
+          with open('server.json','w') as f: json.dump(data,f,indent=2)
+          PY
+      - name: Login to MCP Registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
+      - name: Verify publication
+        env:
+          NAME: io.github.othervibes/mcp-as-a-judge
+        run: |
+          for i in {1..10}; do
+            sleep 3
+            curl -sf "https://registry.modelcontextprotocol.io/v0/servers?search=$NAME" -o out.json || true
+            python - <<'PY'
+          import json, sys, os
+          name = os.environ['NAME']
+          try:
+              data=json.load(open('out.json'))
+          except Exception:
+              sys.exit(1)
+          items = []
+          if isinstance(data, dict):
+              items = data.get('results') or data.get('servers') or data.get('data') or []
+          elif isinstance(data, list):
+              items = data
+          ok = any(isinstance(s, dict) and s.get('name') == name for s in items)
+          sys.exit(0 if ok else 1)
+          PY
+            if [ $? -eq 0 ]; then echo "Verified $NAME in registry"; exit 0; fi
+          done
+          echo "Server not visible in registry yet"
+          exit 1
