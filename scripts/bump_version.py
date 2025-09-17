@@ -47,7 +47,7 @@ def _write_text(path: Path, content: str) -> None:
 def extract_current_version() -> str:
     text = _read_text(PYPROJECT_PATH)
     # naive toml line parse to avoid adding deps
-    m = re.search(r"^version\s*=\s*\"([^"]+)\"", text, re.MULTILINE)
+    m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
     if not m:
         print("ERROR: Could not find [project].version in pyproject.toml", file=sys.stderr)
         sys.exit(2)
@@ -57,8 +57,8 @@ def extract_current_version() -> str:
 def bump_pyproject(version: str) -> bool:
     content = _read_text(PYPROJECT_PATH)
     new_content, n = re.subn(
-        r"^(version\s*=\s*)\"[^\"]+\"",
-        rf"\1\"{version}\"",
+        r'^(version\s*=\s*)"[^\"]+"',
+        rf'\1"{version}"',
         content,
         flags=re.MULTILINE,
     )
@@ -74,8 +74,8 @@ def bump_pyproject(version: str) -> bool:
 def bump_init(version: str) -> bool:
     content = _read_text(INIT_PATH)
     new_content, n = re.subn(
-        r"^__version__\s*=\s*\"[^\"]+\"",
-        rf"__version__ = \"{version}\"",
+        r'^__version__\s*=\s*"[^\"]+"',
+        rf'__version__ = "{version}"',
         content,
         flags=re.MULTILINE,
     )
