@@ -43,6 +43,9 @@ jobs:
             "name": "io.github.OtherVibes/mcp-as-a-judge",
             "description": desc,
             "version": VERSION,
+            "transports": [
+              {"type": "stdio"}
+            ],
             "packages": [
               {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION},
               {"registry_type": "oci", "registry_base_url": "https://ghcr.io", "identifier": "othervibes/mcp-as-a-judge", "version": VERSION}
