@@ -186,7 +186,7 @@ jobs:
           NAME: ${{ fromJSON(steps.server.outputs.json).name }}
         run: |
           sleep 10
-          ./mcp-publisher search "$NAME" > out.json
+          curl -s "https://registry.modelcontextprotocol.io/v0/servers" > out.json
           python - <<'PY'
           import json, sys, os
           name = os.environ['NAME']
@@ -194,12 +194,8 @@ jobs:
               data=json.load(open('out.json'))
           except Exception:
               sys.exit(1)
-          items = []
-          if isinstance(data, dict):
-              items = data.get('results') or data.get('servers') or data.get('data') or []
-          elif isinstance(data, list):
-              items = data
-          found = any(item.get('name') == name for item in items)
+          servers = data.get('servers', [])
+          found = any(server.get('name') == name for server in servers)
           if not found:
               print(f"Package {name} not found in registry")
               sys.exit(1)
