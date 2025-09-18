@@ -251,7 +251,7 @@ jobs:
         run: ./mcp-publisher publish
       - name: Verify publication
         env:
-          NAME: io.github.othervibes/mcp-as-a-judge
+          NAME: io.github.OtherVibes/mcp-as-a-judge
         run: |
           for i in {1..10}; do
             sleep 3
