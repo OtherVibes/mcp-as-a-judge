@@ -1,6 +1,6 @@
 # MCP as a Judge ⚖️
 
-<!-- mcp-name: io.github.othervibes/mcp-as-a-judge -->
+mcp-name: io.github.OtherVibes/mcp-as-a-judge
 
 <div align="left">
   <img src="assets/mcp-as-a-judge.png" alt="MCP as a Judge Logo" width="200">

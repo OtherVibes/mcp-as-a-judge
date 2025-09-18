@@ -233,12 +233,14 @@ jobs:
           desc = (proj.get('description','') or '')[:100]  # MCP Registry requires <= 100 chars
           data = {
             "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
-            "name": "io.github.othervibes/mcp-as-a-judge",
+            "name": "io.github.OtherVibes/mcp-as-a-judge",
             "description": desc,
             "version": VERSION,
+            "transports": [
+              "stdio"
+            ],
             "packages": [
-              {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION},
-              {"registry_type": "oci", "registry_base_url": "https://ghcr.io", "identifier": "othervibes/mcp-as-a-judge", "version": VERSION}
+              {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION}
             ]
           }
           with open('server.json','w') as f: json.dump(data,f,indent=2)
