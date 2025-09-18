@@ -80,7 +80,7 @@ class ConversationHistoryDB(ABC):
         pass
 
     @abstractmethod
-    async def delete_previous_plan(self, session_id: str) -> int:
+    async def delete_previous_plan(self, session_id: str):
         """
         Delete all previous judge_coding_plan records except the most recent one.
 
@@ -89,8 +89,5 @@ class ConversationHistoryDB(ABC):
 
         Args:
             session_id: Session identifier
-
-        Returns:
-            Number of records deleted
         """
         pass
