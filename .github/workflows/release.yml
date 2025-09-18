@@ -175,7 +175,7 @@ jobs:
           PY
       - name: Login to MCP Registry (GitHub OIDC)
         run: |
-          ./mcp-publisher auth login --provider github
+          ./mcp-publisher auth login --provider github --url https://registry.modelcontextprotocol.io
       - name: Publish to MCP Registry
         env:
           NAME: ${{ fromJSON(steps.server.outputs.json).name }}
