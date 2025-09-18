@@ -40,7 +40,7 @@ jobs:
           desc = (proj.get('description','') or '')[:100]
           data = {
             "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
-            "name": "io.github.othervibes/mcp-as-a-judge",
+            "name": "io.github.OtherVibes/mcp-as-a-judge",
             "description": desc,
             "version": VERSION,
             "packages": [
