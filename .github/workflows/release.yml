@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g., v0.3.5)'
-        required: true
-        type: string
 
 env:
   PYTHON_VERSION: "3.13"
@@ -45,7 +39,7 @@ jobs:
       - name: Clean dist directory
         run: rm -rf dist/
       - name: Build package
-        run: uv build --no-sources
+        run: uv build
       - name: Upload dist artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -120,26 +114,18 @@ jobs:
         with:
           fetch-depth: 0
       - name: Generate changelog
-        id: changelog
         run: |
-          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "## Changes in ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD >> $GITHUB_OUTPUT || echo "- Initial release" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "## What's Changed" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log --oneline --pretty=format:"* %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD >> CHANGELOG.md || echo "* Initial release" >> CHANGELOG.md
       - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: ${{ steps.changelog.outputs.CHANGELOG }}
-          draft: false
-          prerelease: false
-          files: |
-            dist/*
+          files: dist/*
+          body_path: CHANGELOG.md
           generate_release_notes: true
 
   publish_mcp_registry:
@@ -167,34 +153,38 @@ jobs:
           import json, tomllib, os
           VERSION = os.environ['VERSION']
           with open('pyproject.toml','rb') as f:
-              proj = tomllib.load(f)['project']
-          desc = (proj.get('description','') or '')[:100]  # MCP Registry requires <= 100 chars
-          data = {
-            "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
-            "name": "io.github.OtherVibes/mcp-as-a-judge",
-            "description": desc,
-            "version": VERSION,
-            "transports": [
-              {"type": "stdio"}
-            ],
-            "packages": [
-              {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION, "transport": {"type": "stdio"}}
-            ]
+              data = tomllib.load(f)
+          project = data['project']
+          server = {
+              "name": project['name'],
+              "description": project['description'],
+              "version": VERSION,
+              "homepage": next((url['Homepage'] for url in project.get('urls', {}).items() if url[0] == 'Homepage'), ''),
+              "license": project.get('license', {}).get('text', 'MIT'),
+              "runtime": {
+                  "type": "uv",
+                  "package": f"{project['name']}=={VERSION}",
+                  "transport": {"type": "stdio"}
+              }
           }
-          with open('server.json','w') as f: json.dump(data,f,indent=2)
+          with open('server.json', 'w') as f:
+              json.dump(server, f, indent=2)
           PY
       - name: Login to MCP Registry (GitHub OIDC)
-        run: ./mcp-publisher login github-oidc
+        run: |
+          ./mcp-publisher auth login --provider github
       - name: Publish to MCP Registry
-        run: ./mcp-publisher publish
+        env:
+          NAME: ${{ fromJSON(steps.server.outputs.json).name }}
+        run: |
+          ./mcp-publisher publish server.json
       - name: Verify publication
         env:
-          NAME: io.github.OtherVibes/mcp-as-a-judge
+          NAME: ${{ fromJSON(steps.server.outputs.json).name }}
         run: |
-          for i in {1..10}; do
-            sleep 3
-            curl -sf "https://registry.modelcontextprotocol.io/v0/servers?search=$NAME" -o out.json || true
-            python - <<'PY'
+          sleep 10
+          ./mcp-publisher search "$NAME" > out.json
+          python - <<'PY'
           import json, sys, os
           name = os.environ['NAME']
           try:
@@ -206,10 +196,9 @@ jobs:
               items = data.get('results') or data.get('servers') or data.get('data') or []
           elif isinstance(data, list):
               items = data
-          ok = any(isinstance(s, dict) and s.get('name') == name for s in items)
-          sys.exit(0 if ok else 1)
+          found = any(item.get('name') == name for item in items)
+          if not found:
+              print(f"Package {name} not found in registry")
+              sys.exit(1)
+          print(f"✅ Package {name} successfully published to MCP Registry")
           PY
-            if [ $? -eq 0 ]; then echo "Verified $NAME in registry"; exit 0; fi
-          done
-          echo "Server not visible in registry yet"
-          exit 1
