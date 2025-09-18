@@ -334,7 +334,7 @@ class SQLiteProvider(ConversationHistoryDB):
 
                 # Keep the first record (most recent), delete the rest
                 records_to_delete = plan_records[1:]  # Skip the first (most recent)
-                record_ids_to_delete = [
+                record_ids_to_delete: list[str] = [
                     record.id for record in records_to_delete if record.id is not None
                 ]
 
