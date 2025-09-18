@@ -6,8 +6,8 @@
   <img src="assets/mcp-as-a-judge.png" alt="MCP as a Judge Logo" width="200">
 </div>
 
-> **MCP as a Judge acts as a validation layer between AI coding assistants and LLMs, helping ensure safer and higher-quality code.
-*
+> MCP as a Judge acts as a validation layer between AI coding assistants and LLMs, helping ensure safer and higher-quality code.
+
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/license/mit/)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
