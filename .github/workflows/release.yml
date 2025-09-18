@@ -185,19 +185,29 @@ jobs:
         env:
           NAME: ${{ fromJSON(steps.server.outputs.json).name }}
         run: |
-          sleep 10
-          curl -s "https://registry.modelcontextprotocol.io/v0/servers" > out.json
-          python - <<'PY'
-          import json, sys, os
-          name = os.environ['NAME']
-          try:
-              data=json.load(open('out.json'))
-          except Exception:
-              sys.exit(1)
-          servers = data.get('servers', [])
-          found = any(server.get('name') == name for server in servers)
-          if not found:
-              print(f"Package {name} not found in registry")
-              sys.exit(1)
-          print(f"✅ Package {name} successfully published to MCP Registry")
-          PY
+          echo "⏳ Waiting for registry propagation..."
+          sleep 30
+
+          # Try to fetch the specific server by ID
+          echo "🔍 Verifying server publication: $NAME"
+
+          # Use the specific server endpoint as recommended by MCP Registry docs
+          response=$(curl -s -w "%{http_code}" "https://registry.modelcontextprotocol.io/v0/servers/$NAME" -o server_response.json)
+
+          if [ "$response" = "200" ]; then
+            echo "✅ Server $NAME successfully published to MCP Registry"
+            echo "📋 Server details:"
+            cat server_response.json | jq '.name, .description, .version'
+          elif [ "$response" = "404" ]; then
+            echo "❌ Server $NAME not found in registry"
+            echo "🔍 This could be due to:"
+            echo "  - Registry propagation delay (try again in a few minutes)"
+            echo "  - Publication failed silently"
+            echo "  - Incorrect server name format"
+            exit 1
+          else
+            echo "⚠️  Unexpected response code: $response"
+            echo "📄 Response body:"
+            cat server_response.json
+            exit 1
+          fi
