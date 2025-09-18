@@ -7,6 +7,7 @@ It supports both in-memory (:memory:) and file-based SQLite storage.
 
 import time
 import uuid
+from typing import cast
 
 from sqlalchemy import create_engine, delete, func
 from sqlmodel import Session, SQLModel, asc, desc, select
@@ -349,7 +350,7 @@ class SQLiteProvider(ConversationHistoryDB):
                     ConversationRecord.id.in_(record_ids_to_delete)
                 )
                 # Use the underlying SQLAlchemy session for delete operations
-                session.exec(delete_stmt)
+                session.execute(delete_stmt)
                 session.commit()
 
                 logger.info(
