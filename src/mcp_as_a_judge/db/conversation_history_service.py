@@ -10,12 +10,10 @@ This service handles:
 from typing import Any
 
 from mcp_as_a_judge.core.logging_config import get_logger
-from mcp_as_a_judge.db import (
-    ConversationHistoryDB,
-    ConversationRecord,
-    create_database_provider,
-)
+from mcp_as_a_judge.core.task_state import TaskState
 from mcp_as_a_judge.db.db_config import Config
+from mcp_as_a_judge.db.factory import create_database_provider
+from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
 from mcp_as_a_judge.db.token_utils import (
     filter_records_by_token_limit,
 )
@@ -79,27 +77,31 @@ class ConversationHistoryService:
         return filtered_records
 
     async def save_tool_interaction_and_cleanup(
-        self, session_id: str, tool_name: str, tool_input: str, tool_output: str
+        self, session_id: str, tool_name: str, tool_input: str, tool_output: str, step: TaskState
     ) -> str:
         """
-        Save a tool interaction as a conversation record and perform automatic cleanup.in the provider layer
+        Save a tool interaction as a conversation record and perform automatic cleanup.
 
         After saving, the database provider automatically performs cleanup to enforce limits:
         - Removes old records if session exceeds MAX_SESSION_RECORDS (20)
         - Removes old records if session exceeds MAX_CONTEXT_TOKENS (50,000)
         - Removes least recently used sessions if total sessions exceed MAX_TOTAL_SESSIONS (50)
 
+        Special cleanup for PLAN_APPROVED transition:
+        - When step is PLAN_APPROVED, removes all but the last PLANNING record from the session
+
         Args:
             session_id: Session identifier from AI agent
             tool_name: Name of the judge tool (e.g., 'judge_coding_plan')
             tool_input: Input that was passed to the tool
             tool_output: Output/result from the tool
+            step: Current workflow step that generated this record
 
         Returns:
             ID of the created conversation record
         """
         logger.info(
-            f"Saving tool interaction to SQLite DB for session: {session_id}, tool: {tool_name}"
+            f"Saving tool interaction to SQLite DB for session: {session_id}, tool: {tool_name}, step: {step}"
         )
 
         record_id = await self.db.save_conversation(
@@ -107,10 +109,48 @@ class ConversationHistoryService:
             source=tool_name,
             input_data=tool_input,
             output=tool_output,
+            step=step,
         )
+
+        # Special cleanup: when transitioning to PLAN_APPROVED, remove all but last PLANNING record
+        if step == TaskState.PLAN_APPROVED:
+            await self._cleanup_planning_records(session_id)
 
         logger.info(f"Saved conversation record with ID: {record_id}")
         return record_id
+
+    async def _cleanup_planning_records(self, session_id: str) -> None:
+        """
+        Remove all but the last PLANNING record from a session.
+
+        This is called when transitioning to PLAN_APPROVED to clean up
+        earlier planning attempts that were not approved.
+
+        Args:
+            session_id: Session identifier to clean up
+        """
+        logger.info(f"Cleaning up PLANNING records for session: {session_id}")
+
+        # Get all records for this session
+        all_records = await self.db.get_session_conversations(session_id)
+
+        # Find PLANNING records (most recent first due to ordering)
+        planning_records = [r for r in all_records if r.step == TaskState.PLANNING]
+
+        if len(planning_records) <= 1:
+            logger.info(f"Found {len(planning_records)} PLANNING records, no cleanup needed")
+            return
+
+        # Keep the most recent (first in list), remove the rest
+        records_to_remove = planning_records[1:]  # Skip first (most recent)
+
+        logger.info(f"Removing {len(records_to_remove)} old PLANNING records")
+
+        # Remove old planning records in batch
+        record_ids_to_remove = [record.id for record in records_to_remove]
+        removed_count = await self.db.remove_conversations_batch(record_ids_to_remove)
+
+        logger.info(f"Successfully cleaned up {removed_count} PLANNING records")
 
     async def get_conversation_history(
         self, session_id: str

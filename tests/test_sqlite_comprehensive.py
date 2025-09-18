@@ -7,6 +7,8 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
+from mcp_as_a_judge.core.task_state import TaskState
 from test_utils import DatabaseTestUtils
 
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
@@ -27,6 +29,7 @@ class TestSQLiteComprehensive:
                 source=f"tool_{i}",
                 input_data=f"input_{i}",
                 output=f"output_{i}",
+                step=TaskState.IMPLEMENTING,
             )
 
         # Should only have 2 records (most recent)
@@ -53,6 +56,7 @@ class TestSQLiteComprehensive:
             source="test_tool",
             input_data="test_input",
             output="test_output",
+            step=TaskState.IMPLEMENTING,
         )
 
         # Verify record exists
@@ -87,6 +91,7 @@ class TestSQLiteComprehensive:
             source=malicious_source,
             input_data="safe_input",
             output="safe_output",
+            step=TaskState.IMPLEMENTING,
         )
 
         # Verify data was saved safely
@@ -106,6 +111,7 @@ class TestSQLiteComprehensive:
                 source=f"tool_{i % 10}",  # Vary sources
                 input_data=f"input_{i}",
                 output=f"output_{i}",
+                step=TaskState.IMPLEMENTING,
             )
 
         # Should maintain limit

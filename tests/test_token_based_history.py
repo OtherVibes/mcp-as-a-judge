@@ -7,11 +7,11 @@ Tests the hybrid approach that respects both record count and token limits.
 import asyncio
 
 import pytest
-
 from mcp_as_a_judge.core.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
+from mcp_as_a_judge.core.task_state import TaskState
 from mcp_as_a_judge.db.token_utils import (
     calculate_record_tokens,
     calculate_tokens,
@@ -82,6 +82,7 @@ class TestTokenBasedHistory:
                 source=source,
                 input_data=input_data,
                 output=output,
+                step=TaskState.IMPLEMENTING,
             )
             print(f"   Saved {source}: {expected_tokens} expected tokens")
 
@@ -116,6 +117,7 @@ class TestTokenBasedHistory:
                 tool_name=f"tool_{i}",
                 tool_input=f"Input {i}",  # ~8 chars = 2 tokens
                 tool_output=f"Out {i}",  # ~6 chars = 2 tokens
+                step=TaskState.IMPLEMENTING,
             )
 
         # Load context - should be limited by record count (20), not tokens
@@ -150,6 +152,7 @@ class TestTokenBasedHistory:
                 tool_name=f"large_tool_{i}",
                 tool_input=large_text,  # 2500 tokens
                 tool_output=large_text,  # 2500 tokens
+                step=TaskState.IMPLEMENTING,
             )
 
         # Load context - should be limited by token count (50K), not record count
@@ -256,6 +259,7 @@ class TestTokenBasedHistory:
                 tool_name=source,
                 tool_input=input_data,
                 tool_output=output,
+                step=TaskState.IMPLEMENTING,
             )
 
         # Load context
@@ -330,6 +334,7 @@ class TestTokenBasedHistory:
                 source=f"large_tool_{i}",
                 input_data=large_text,  # 1250 tokens
                 output=large_text,  # 1250 tokens
+                step=TaskState.IMPLEMENTING,
             )
             record_ids.append(record_id)
 
@@ -389,6 +394,7 @@ class TestTokenBasedHistory:
                 source=f"small_tool_{i}",
                 input_data=f"Input {i}",  # ~8 chars = 2 tokens
                 output=f"Output {i}",  # ~9 chars = 3 tokens
+                step=TaskState.IMPLEMENTING,
             )
             small_records.append(record_id)
 
@@ -425,6 +431,7 @@ class TestTokenBasedHistory:
                 source=f"huge_tool_{i}",
                 input_data=huge_text,  # 5000 tokens
                 output=huge_text,  # 5000 tokens
+                step=TaskState.IMPLEMENTING,
             )
 
         # Should be limited by token count (50K), not record count (30)

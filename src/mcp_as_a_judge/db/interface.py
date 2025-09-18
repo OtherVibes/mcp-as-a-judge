@@ -10,6 +10,8 @@ from abc import ABC, abstractmethod
 
 from sqlmodel import Field, SQLModel
 
+from mcp_as_a_judge.core.task_state import TaskState
+
 
 class ConversationRecord(SQLModel, table=True):
     """SQLModel for conversation history records."""
@@ -21,6 +23,7 @@ class ConversationRecord(SQLModel, table=True):
     source: str  # tool name
     input: str  # tool input query
     output: str  # tool output string
+    step: TaskState  # workflow step that generated this record
     tokens: int = Field(
         default=0
     )  # combined token count for input + output (1 token ≈ 4 characters)
@@ -34,7 +37,7 @@ class ConversationHistoryDB(ABC):
 
     @abstractmethod
     async def save_conversation(
-        self, session_id: str, source: str, input_data: str, output: str
+        self, session_id: str, source: str, input_data: str, output: str, step: TaskState
     ) -> str:
         """
         Save a conversation record to the database.
@@ -44,6 +47,7 @@ class ConversationHistoryDB(ABC):
             source: Tool name that generated this record
             input_data: Tool input query
             output: Tool output string
+            step: Current workflow step that generated this record
 
         Returns:
             The ID of the created record
@@ -63,6 +67,19 @@ class ConversationHistoryDB(ABC):
 
         Returns:
             List of ConversationRecord objects
+        """
+        pass
+
+    @abstractmethod
+    async def remove_conversations_batch(self, record_ids: list[str]) -> int:
+        """
+        Remove multiple conversation records by IDs in a single query.
+
+        Args:
+            record_ids: List of record IDs to remove
+
+        Returns:
+            Number of records actually removed
         """
         pass
 

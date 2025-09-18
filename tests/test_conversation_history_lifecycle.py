@@ -9,6 +9,7 @@ import asyncio
 import pytest
 
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
+from mcp_as_a_judge.core.task_state import TaskState
 
 
 class TestConversationHistoryLifecycle:
@@ -33,6 +34,7 @@ class TestConversationHistoryLifecycle:
                 source=f"tool_{i}",
                 input_data=f"Input for tool {i}",
                 output=f"Output from tool {i}",
+                step=TaskState.IMPLEMENTING,
             )
             record_ids.append(record_id)
             print(f"   Saved record {i}: {record_id}")
@@ -73,6 +75,7 @@ class TestConversationHistoryLifecycle:
                 source=f"tool_{i}",
                 input_data=f"Input for tool {i}",
                 output=f"Output from tool {i}",
+                step=TaskState.IMPLEMENTING,
             )
             print(f"   Added record {i}: {record_id}")
 
@@ -130,6 +133,7 @@ class TestConversationHistoryLifecycle:
                 source=f"tool_A_{i}",
                 input_data=f"Input A {i}",
                 output=f"Output A {i}",
+                step=TaskState.IMPLEMENTING,
             )
 
         # Add records to session B
@@ -139,6 +143,7 @@ class TestConversationHistoryLifecycle:
                 source=f"tool_B_{i}",
                 input_data=f"Input B {i}",
                 output=f"Output B {i}",
+                step=TaskState.IMPLEMENTING,
             )
 
         # Verify session A has only 2 records (FIFO cleanup)
@@ -177,6 +182,7 @@ class TestConversationHistoryLifecycle:
                 source=f"tool_{i}",
                 input_data=f"Input {i}",
                 output=f"Output {i}",
+            step=TaskState.IMPLEMENTING,
             )
 
         # Verify records exist
@@ -190,7 +196,8 @@ class TestConversationHistoryLifecycle:
             source="tool_1",
             input_data="Input 1",
             output="Output 1",
-        )
+            step=TaskState.IMPLEMENTING,
+            )
 
         # Both sessions should exist
         assert db._cleanup_service.get_session_count() == 2
@@ -202,7 +209,8 @@ class TestConversationHistoryLifecycle:
             source="tool_1",
             input_data="Input 1",
             output="Output 1",
-        )
+            step=TaskState.IMPLEMENTING,
+            )
 
         # Should still have only 2 sessions (LRU cleanup triggered)
         final_count = db._cleanup_service.get_session_count()
@@ -227,15 +235,21 @@ class TestConversationHistoryLifecycle:
         print("📝 PHASE 1: Creating sessions with different activity patterns...")
 
         # Session A: Created first, but will be most recently used
-        await db.save_conversation("session_A", "tool1", "input1", "output1")
+        await db.save_conversation("session_A", "tool1", "input1", "output1",
+                step=TaskState.IMPLEMENTING,
+            )
         print("   Session A: Created (oldest creation time)")
 
         # Session B: Created second
-        await db.save_conversation("session_B", "tool1", "input1", "output1")
+        await db.save_conversation("session_B", "tool1", "input1", "output1",
+                step=TaskState.IMPLEMENTING,
+            )
         print("   Session B: Created")
 
         # Session C: Created third
-        await db.save_conversation("session_C", "tool1", "input1", "output1")
+        await db.save_conversation("session_C", "tool1", "input1", "output1",
+                step=TaskState.IMPLEMENTING,
+            )
         print("   Session C: Created")
 
         # Add recent activity to Session A BEFORE creating more sessions
@@ -245,16 +259,21 @@ class TestConversationHistoryLifecycle:
             source="tool2",
             input_data="recent_input",
             output="recent_output",
-        )
+            step=TaskState.IMPLEMENTING,
+            )
         print("   Session A: Updated with recent activity (now most recently used)")
 
         # Session D: Created fourth (should trigger cleanup, but Session A
         # should be preserved)
-        await db.save_conversation("session_D", "tool1", "input1", "output1")
+        await db.save_conversation("session_D", "tool1", "input1", "output1",
+                step=TaskState.IMPLEMENTING,
+            )
         print("   Session D: Created (cleanup triggered)")
 
         # Session E: Created fifth (should trigger cleanup again)
-        await db.save_conversation("session_E", "tool1", "input1", "output1")
+        await db.save_conversation("session_E", "tool1", "input1", "output1",
+                step=TaskState.IMPLEMENTING,
+            )
         print("   Session E: Created (cleanup triggered again)")
 
         # Verify automatic LRU cleanup happened (should be at limit of 3)
@@ -298,7 +317,9 @@ class TestConversationHistoryLifecycle:
         print("\n🧹 PHASE 3: Testing that limit is maintained...")
 
         # Try to create another session - should trigger cleanup again
-        await db.save_conversation("session_F", "tool1", "input1", "output1")
+        await db.save_conversation("session_F", "tool1", "input1", "output1",
+                step=TaskState.IMPLEMENTING,
+            )
 
         # Should still be at limit
         final_count = db._cleanup_service.get_session_count()
@@ -398,7 +419,8 @@ class TestConversationHistoryLifecycle:
             source="single_tool",
             input_data="Single input",
             output="Single output",
-        )
+            step=TaskState.IMPLEMENTING,
+            )
 
         single_records = await db.get_session_conversations("single_record_session")
         assert len(single_records) == 1
@@ -412,6 +434,7 @@ class TestConversationHistoryLifecycle:
                 source=f"exact_tool_{i}",
                 input_data=f"Exact input {i}",
                 output=f"Exact output {i}",
+            step=TaskState.IMPLEMENTING,
             )
 
         exact_records = await db.get_session_conversations("exact_limit_session")
@@ -427,7 +450,8 @@ class TestConversationHistoryLifecycle:
             source="large_tool",
             input_data=large_input,
             output=large_output,
-        )
+            step=TaskState.IMPLEMENTING,
+            )
 
         large_records = await db.get_session_conversations("large_data_session")
         assert len(large_records) == 1
@@ -473,6 +497,7 @@ class TestConversationHistoryLifecycle:
                 source=source,
                 input_data=input_data,
                 output=output,
+            step=TaskState.IMPLEMENTING,
             )
             record_ids.append(record_id)
             print(f"   Saved {source}: expected {expected_tokens} tokens")

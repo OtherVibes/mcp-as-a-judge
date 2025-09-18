@@ -8,6 +8,7 @@ import asyncio
 from test_utils import DatabaseTestUtils
 
 from mcp_as_a_judge.db.providers.sqlite_provider import SQLiteProvider
+from mcp_as_a_judge.core.task_state import TaskState
 
 
 async def test_database_operations():
@@ -24,6 +25,7 @@ async def test_database_operations():
         source="judge_coding_plan",
         input_data="Please review this coding plan",
         output="The plan looks good with minor improvements needed",
+        step=TaskState.IMPLEMENTING,
     )
     print(f"Saved record: {record_id1}")
 
@@ -32,6 +34,7 @@ async def test_database_operations():
         source="judge_code_change",
         input_data="Review this code change",
         output="Code change approved",
+        step=TaskState.IMPLEMENTING,
     )
     print(f"Saved record: {record_id2}")
 

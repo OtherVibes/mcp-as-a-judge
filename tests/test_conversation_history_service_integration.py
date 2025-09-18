@@ -6,13 +6,10 @@ Tests the service layer that sits between the server and database.
 
 import asyncio
 from datetime import datetime
-
 import pytest
-
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
-
-
+from mcp_as_a_judge.core.task_state import TaskState
 class TestConversationHistoryServiceIntegration:
     """Test ConversationHistoryService integration with database providers."""
 
@@ -38,6 +35,7 @@ class TestConversationHistoryServiceIntegration:
             tool_name="judge_coding_plan",
             tool_input="Please review this coding plan for authentication",
             tool_output="The plan looks good. Consider adding 2FA support.",
+            step=TaskState.IMPLEMENTING,
         )
 
         record_id2 = await service.save_tool_interaction_and_cleanup(
@@ -100,6 +98,7 @@ class TestConversationHistoryServiceIntegration:
                 tool_name=f"test_tool_{i}",
                 tool_input=f"Test input {i}",
                 tool_output=f"Test result {i}",
+                step=TaskState.IMPLEMENTING,
             )
 
         # Should only get max_session_records (20) records
@@ -134,6 +133,7 @@ class TestConversationHistoryServiceIntegration:
             tool_name="workflow_guidance",
             tool_input="Help me plan a web application",
             tool_output="I recommend starting with user authentication and database design.",
+            step=TaskState.IMPLEMENTING,
         )
 
         # Save second record with context reference
@@ -142,6 +142,7 @@ class TestConversationHistoryServiceIntegration:
             tool_name="judge_coding_plan",
             tool_input="Review this authentication plan",
             tool_output="The plan aligns well with the previous guidance.",
+             step=TaskState.IMPLEMENTING,
         )
 
         # Save third record with multiple context references
@@ -150,6 +151,7 @@ class TestConversationHistoryServiceIntegration:
             tool_name="judge_code_change",
             tool_input="Review authentication implementation",
             tool_output="Implementation follows the approved plan correctly.",
+            step=TaskState.IMPLEMENTING,
         )
 
         # Retrieve and verify
@@ -189,6 +191,7 @@ class TestConversationHistoryServiceIntegration:
             tool_name="test_tool",
             tool_input="Input with 'quotes' and \"double quotes\" and \n newlines",
             tool_output="Result with émojis 🎉 and unicode ñ characters",
+             step=TaskState.IMPLEMENTING,
         )
 
         special_history = await service.load_filtered_context_for_enrichment(
@@ -222,6 +225,7 @@ class TestConversationHistoryServiceIntegration:
                 tool_name=f"perf_tool_{i % 5}",  # Vary tool names
                 tool_input=f"Performance test input {i}",
                 tool_output=f"Performance test result {i}",
+                step=TaskState.IMPLEMENTING,
             )
 
         save_time = datetime.now() - start_time

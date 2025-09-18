@@ -82,6 +82,9 @@ class WorkflowGuidance(BaseModel):
         default="",
         description="Detailed step-by-step guidance for the AI assistant",
     )
+    current_step: "TaskState" = Field(
+        description="Current workflow step that generated this guidance",
+    )
 
     # Research requirement determination for new tasks (only populated when task is CREATED)
     research_required: bool | None = Field(
@@ -238,6 +241,7 @@ async def calculate_next_stage(
                         f"{_load_todo_guidance()}"
                         "Call judge_testing_implementation with details on implemented tests and their results."
                     ),
+                    current_step=task_metadata.state,
                 )
             if task_metadata.state == TaskState.COMPLETED:
                 return WorkflowGuidance(
@@ -245,6 +249,7 @@ async def calculate_next_stage(
                     reasoning="Task already completed.",
                     preparation_needed=[],
                     guidance="No further action required. Remove task from todo list.",
+                    current_step=task_metadata.state,
                 )
 
         # From here on, defer navigation to LLM prompt logic (dynamic, state-aware)
@@ -467,6 +472,7 @@ async def calculate_next_stage(
             reasoning=navigation_data.get("reasoning", ""),
             preparation_needed=navigation_data.get("preparation_needed", []),
             guidance=navigation_data.get("guidance", ""),
+            current_step=task_metadata.state,  # Add current step from task metadata
             # Research determination fields (only populated for new CREATED tasks)
             research_required=navigation_data.get("research_required"),
             research_scope=navigation_data.get("research_scope"),
@@ -550,6 +556,7 @@ async def calculate_next_stage(
                 "Ensure all prerequisites are met",
             ],
             guidance=f"Error calculating next stage: {e!s}. Fallback recommendation based on current state ({task_metadata.state}). Please review task manually and proceed with the suggested next tool if appropriate.",
+            current_step=task_metadata.state,  # Add current step from task metadata
         )
 
 

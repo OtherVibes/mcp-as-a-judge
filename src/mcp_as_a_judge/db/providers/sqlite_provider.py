@@ -9,10 +9,11 @@ import time
 import uuid
 
 from sqlalchemy import create_engine, func
-from sqlmodel import Session, SQLModel, asc, desc, select
+from sqlmodel import Session, SQLModel, asc, delete, desc, select
 
 from mcp_as_a_judge.core.constants import MAX_CONTEXT_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
+from mcp_as_a_judge.core.task_state import TaskState
 from mcp_as_a_judge.db.cleanup_service import ConversationCleanupService
 from mcp_as_a_judge.db.interface import ConversationHistoryDB, ConversationRecord
 from mcp_as_a_judge.db.token_utils import calculate_tokens_in_record, detect_model_name
@@ -218,7 +219,7 @@ class SQLiteProvider(ConversationHistoryDB):
             return existing_record is None
 
     async def save_conversation(
-        self, session_id: str, source: str, input_data: str, output: str
+        self, session_id: str, source: str, input_data: str, output: str, step: TaskState
     ) -> str:
         """Save a conversation record to SQLite database with LRU cleanup."""
         record_id = str(uuid.uuid4())
@@ -231,7 +232,7 @@ class SQLiteProvider(ConversationHistoryDB):
 
         logger.info(
             f"Saving conversation to SQLModel SQLite DB: record {record_id} "
-            f"for session {session_id}, source {source} at {timestamp}"
+            f"for session {session_id}, source {source}, step {step} at {timestamp}"
         )
 
         # Check if this is a new session before saving
@@ -247,6 +248,7 @@ class SQLiteProvider(ConversationHistoryDB):
             source=source,
             input=input_data,
             output=output,
+            step=step,
             tokens=token_count,
             timestamp=timestamp,
         )
@@ -267,6 +269,23 @@ class SQLiteProvider(ConversationHistoryDB):
         await self._cleanup_old_messages(session_id)
 
         return record_id
+
+    async def remove_conversations_batch(self, record_ids: list[str]) -> int:
+        """Remove multiple conversation records by IDs using ORM."""
+        if not record_ids:
+            return 0
+
+        logger.info(f"Batch removing {len(record_ids)} conversation records")
+
+        with Session(self.engine) as session:
+            # Use ORM to delete records where ID is in the list
+            stmt = delete(ConversationRecord).where(ConversationRecord.id.in_(record_ids))
+            result = session.exec(stmt)
+            session.commit()
+
+            removed_count = result.rowcount
+            logger.info(f"Successfully batch removed {removed_count} conversation records")
+            return removed_count
 
     async def get_session_conversations(
         self, session_id: str, limit: int | None = None

@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_serializer
 
-from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize
+from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
 from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
 
 
@@ -70,6 +70,7 @@ class JudgeResponse(TrimmedBaseModel):
             reasoning="Default guidance: insufficient context",
             preparation_needed=[],
             guidance="Provide required parameters and context",
+            current_step=TaskState.CREATED,
         ),
         description="LLM-generated next steps and instructions from shared method",
     )

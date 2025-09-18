@@ -48,6 +48,7 @@ class JudgeResponse(BaseModel):
 
     # Use a lazy default factory to avoid importing workflow at module import time
     def _default_workflow_guidance():  # type: ignore[no-redef]
+        from mcp_as_a_judge.models.task_metadata import TaskState
         from mcp_as_a_judge.workflow import WorkflowGuidance
 
         return WorkflowGuidance(
@@ -55,6 +56,7 @@ class JudgeResponse(BaseModel):
             reasoning="Default guidance: insufficient context",
             preparation_needed=[],
             guidance="Provide required parameters and context",
+            current_step=TaskState.CREATED,
         )
 
     workflow_guidance: "WorkflowGuidance" = Field(

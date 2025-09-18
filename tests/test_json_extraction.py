@@ -180,7 +180,8 @@ That concludes the analysis. Please proceed with implementation."""
     "next_tool": "judge_code_change",
     "reasoning": "Code has been written and needs review",
     "preparation_needed": ["Gather code changes", "Document requirements"],
-    "guidance": "Call judge_code_change with the written code"
+    "guidance": "Call judge_code_change with the written code",
+    "current_step": "implementing"
 }
 ```"""
 

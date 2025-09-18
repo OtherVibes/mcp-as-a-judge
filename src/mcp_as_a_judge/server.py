@@ -212,6 +212,7 @@ async def set_coding_task(
                     exclude_defaults=True,
                 )
             ),
+            step=workflow_guidance.current_step,
         )
 
         return result
@@ -237,6 +238,7 @@ async def set_coding_task(
             guidance=(
                 f"Error occurred: {e!s}. Use get_current_coding_task to retrieve the most recent task_id, then retry the operation with that ID."
             ),
+            current_step=TaskState.CREATED,
         )
 
         error_result = EnhancedResponseFactory.create_task_analysis_result(
@@ -261,6 +263,7 @@ async def set_coding_task(
                         exclude_defaults=True,
                     )
                 ),
+                step=error_guidance.current_step,
             )
 
         return error_result
@@ -487,6 +490,7 @@ Please choose an option (by number or description) and provide any additional co
                     "Update task requirements if needed",
                 ],
                 guidance="Call set_coding_task to update the task with any new requirements or clarifications from the obstacle resolution. Then continue with the workflow.",
+                current_step=task_metadata.state,
             )
 
             # Create resolution text
@@ -500,6 +504,7 @@ Please choose an option (by number or description) and provide any additional co
                 tool_output=json.dumps(
                     {"obstacle_acknowledged": True, "message": result_text}
                 ),
+                step=workflow_guidance.current_step,
             )
 
             return result_text
@@ -511,6 +516,7 @@ Please choose an option (by number or description) and provide any additional co
                 reasoning="Obstacle elicitation failed or unavailable",
                 preparation_needed=["Manual intervention required"],
                 guidance=f"Obstacle not resolved: {elicit_result.message}. Manual intervention required.",
+                current_step=task_metadata.state,
             )
 
             # Save failed interaction
@@ -521,6 +527,7 @@ Please choose an option (by number or description) and provide any additional co
                 tool_output=json.dumps(
                     {"obstacle_acknowledged": False, "message": elicit_result.message}
                 ),
+                step=workflow_guidance.current_step,
             )
 
             return (
@@ -535,6 +542,7 @@ Please choose an option (by number or description) and provide any additional co
             reasoning="Error occurred while handling obstacle",
             preparation_needed=["Review error details", "Manual intervention required"],
             guidance=f"Error handling obstacle: {e!s}. Manual intervention required.",
+            current_step=TaskState.CREATED,
         )
 
         # Save error interaction
@@ -551,6 +559,7 @@ Please choose an option (by number or description) and provide any additional co
                         "message": f"❌ ERROR: Failed to elicit user decision. Error: {e!s}. Cannot resolve obstacle without user input.",
                     }
                 ),
+                step=TaskState.CREATED,
             )
 
         return (
@@ -701,6 +710,7 @@ Please provide clarified requirements and indicate their priority level (high/me
                         "message": f"✅ REQUIREMENTS CLARIFIED: {response_text}",
                     }
                 ),
+                step=task_metadata.state,
             )
             return f"✅ REQUIREMENTS CLARIFIED: {response_text}"
 
@@ -718,6 +728,7 @@ Please provide clarified requirements and indicate their priority level (high/me
                         "message": elicit_result.message,
                     }
                 ),
+                step=task_metadata.state,
             )
             return (
                 f"❌ ERROR: Failed to elicit requirement clarifications. Error: {elicit_result.message}. "
@@ -739,6 +750,7 @@ Please provide clarified requirements and indicate their priority level (high/me
                         "message": f"❌ ERROR: Failed to elicit requirement clarifications. Error: {e!s}. Cannot proceed without clear requirements.",
                     }
                 ),
+                step=TaskState.CREATED,
             )
         # Ensure we have non-None metadata for typing
         if "task_metadata" not in locals() or task_metadata is None:
@@ -1023,6 +1035,7 @@ async def judge_coding_task_completion(
                     exclude_defaults=True,
                 )
             ),
+            step=workflow_guidance.current_step,
         )
 
         return result
@@ -1074,6 +1087,7 @@ async def judge_coding_task_completion(
                         exclude_defaults=True,
                     )
                 ),
+                step=error_guidance.current_step,
             )
 
         return error_result
@@ -1671,6 +1685,7 @@ async def judge_coding_plan(
                 reasoning="",
                 preparation_needed=[],
                 guidance="",
+                current_step=updated_task_metadata.state,
             ),
         )
         workflow_guidance = await calculate_next_stage(
@@ -1742,6 +1757,7 @@ async def judge_coding_plan(
                     exclude_defaults=True,
                 )
             ),
+            step=workflow_guidance.current_step,
         )
 
         return result
@@ -1803,6 +1819,7 @@ async def judge_coding_plan(
                         exclude_defaults=True,
                     )
                 ),
+                step=error_metadata.state,
             )
 
         return error_result
@@ -2046,6 +2063,7 @@ async def judge_code_change(
                         "Update the response to include reviewed_files entries for all missing files: "
                         + ", ".join(missing_reviews)
                     ),
+                    current_step=task_metadata.state,
                 )
                 return JudgeResponse(
                     approved=False,
@@ -2616,6 +2634,7 @@ async def judge_testing_implementation(
                         exclude_defaults=True,
                     )
                 ),
+                step=error_metadata.state,
             )
 
         return error_result
