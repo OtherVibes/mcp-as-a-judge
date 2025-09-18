@@ -7,7 +7,6 @@ It supports both in-memory (:memory:) and file-based SQLite storage.
 
 import time
 import uuid
-from typing import cast
 
 from sqlalchemy import create_engine, delete, func
 from sqlmodel import Session, SQLModel, asc, desc, select
