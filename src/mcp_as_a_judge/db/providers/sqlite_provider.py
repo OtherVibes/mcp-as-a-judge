@@ -327,7 +327,9 @@ class SQLiteProvider(ConversationHistoryDB):
 
                 if len(plan_records) <= 1:
                     # No previous plans to delete
-                    logger.info(f"No previous judge_coding_plan records to delete for session {session_id}")
+                    logger.info(
+                        f"No previous judge_coding_plan records to delete for session {session_id}"
+                    )
                     return
 
                 # Keep the first record (most recent), delete the rest
@@ -342,7 +344,11 @@ class SQLiteProvider(ConversationHistoryDB):
                 session.exec(delete_stmt)
                 session.commit()
 
-                logger.info(f"Successfully deleted {len(records_to_delete)} previous judge_coding_plan records for session {session_id}")
+                logger.info(
+                    f"Successfully deleted {len(records_to_delete)} previous judge_coding_plan records for session {session_id}"
+                )
 
         except Exception as e:
-            logger.error(f"Error deleting previous judge_coding_plan records for session {session_id}: {e}")
+            logger.error(
+                f"Error deleting previous judge_coding_plan records for session {session_id}: {e}"
+            )
