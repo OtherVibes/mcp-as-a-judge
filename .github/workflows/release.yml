@@ -8,7 +8,7 @@ on:
 env:
   PYTHON_VERSION: "3.13"
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ toLower(github.repository) }}
+  IMAGE_NAME: othervibes/mcp-as-a-judge
 
 jobs:
   build_dist:
@@ -146,6 +146,7 @@ jobs:
         run: |
           echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       - name: Generate server.json
+        id: server
         env:
           VERSION: ${{ steps.ver.outputs.VERSION }}
         run: |
@@ -169,6 +170,8 @@ jobs:
           }
           with open('server.json', 'w') as f:
               json.dump(server, f, indent=2)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"json={json.dumps(server)}\n")
           PY
       - name: Login to MCP Registry (GitHub OIDC)
         run: |
