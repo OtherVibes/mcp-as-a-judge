@@ -157,7 +157,7 @@ jobs:
               data = tomllib.load(f)
           project = data['project']
           server = {
-              "name": project['name'],
+              "name": f"io.github.OtherVibes/{project['name']}",
               "description": project['description'],
               "version": VERSION,
               "homepage": next((url[1] for url in project.get('urls', {}).items() if url[0] == 'Homepage'), ''),
