@@ -339,7 +339,7 @@ class SQLiteProvider(ConversationHistoryDB):
                     ConversationRecord.id.in_(record_ids_to_delete)
                 )
                 # Use the underlying SQLAlchemy session for delete operations
-                session.connection().execute(delete_stmt)
+                session.exec(delete_stmt)
                 session.commit()
 
                 logger.info(f"Successfully deleted {len(records_to_delete)} previous judge_coding_plan records for session {session_id}")
