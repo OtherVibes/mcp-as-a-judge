@@ -304,7 +304,7 @@ class SQLiteProvider(ConversationHistoryDB):
             # results are tuples (session_id, last_activity)
             return [(row[0], int(row[1])) for row in results]
 
-    async def delete_previous_plan(self, session_id: str):
+    async def delete_previous_plan(self, session_id: str) -> None:
         """
         Delete all previous judge_coding_plan records except the most recent one.
 
@@ -334,7 +334,15 @@ class SQLiteProvider(ConversationHistoryDB):
 
                 # Keep the first record (most recent), delete the rest
                 records_to_delete = plan_records[1:]  # Skip the first (most recent)
-                record_ids_to_delete = [record.id for record in records_to_delete]
+                record_ids_to_delete = [
+                    record.id for record in records_to_delete if record.id is not None
+                ]
+
+                if not record_ids_to_delete:
+                    logger.info(
+                        f"No valid record IDs to delete for session {session_id}"
+                    )
+                    return
 
                 # Delete records using SQL IN clause with underlying SQLAlchemy session
                 delete_stmt = delete(ConversationRecord).where(
