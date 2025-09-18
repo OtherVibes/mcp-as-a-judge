@@ -8,7 +8,7 @@ It supports both in-memory (:memory:) and file-based SQLite storage.
 import time
 import uuid
 
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, delete, func
 from sqlmodel import Session, SQLModel, asc, desc, select
 
 from mcp_as_a_judge.core.constants import MAX_CONTEXT_TOKENS
@@ -303,3 +303,61 @@ class SQLiteProvider(ConversationHistoryDB):
             results = session.exec(stmt).all()
             # results are tuples (session_id, last_activity)
             return [(row[0], int(row[1])) for row in results]
+
+    async def delete_previous_plan(self, session_id: str) -> None:
+        """
+        Delete all previous judge_coding_plan records except the most recent one.
+
+        Uses SQL ORM to find all judge_coding_plan records for the session,
+        keeps only the most recent one, and deletes the rest.
+        """
+        try:
+            with Session(self.engine) as session:
+                # Find all judge_coding_plan records for this session, ordered by timestamp DESC
+                stmt = (
+                    select(ConversationRecord)
+                    .where(ConversationRecord.session_id == session_id)
+                    .where(ConversationRecord.source == "judge_coding_plan")
+                    .order_by(
+                        desc(ConversationRecord.timestamp),
+                        desc(ConversationRecord.id),
+                    )
+                )
+                plan_records = list(session.exec(stmt).all())
+
+                if len(plan_records) <= 1:
+                    # No previous plans to delete
+                    logger.info(
+                        f"No previous judge_coding_plan records to delete for session {session_id}"
+                    )
+                    return
+
+                # Keep the first record (most recent), delete the rest
+                records_to_delete = plan_records[1:]  # Skip the first (most recent)
+                record_ids_to_delete: list[str] = [
+                    record.id for record in records_to_delete if record.id is not None
+                ]
+
+                if not record_ids_to_delete:
+                    logger.info(
+                        f"No valid record IDs to delete for session {session_id}"
+                    )
+                    return
+
+                # Delete records using SQL IN clause with underlying SQLAlchemy session
+                # Use the table name from ConversationRecord to avoid type issues
+                table_name = ConversationRecord.__tablename__
+                table = SQLModel.metadata.tables[table_name]
+                delete_stmt = delete(table).where(table.c.id.in_(record_ids_to_delete))
+                # Use the underlying SQLAlchemy session for delete operations
+                session.execute(delete_stmt)
+                session.commit()
+
+                logger.info(
+                    f"Successfully deleted {len(records_to_delete)} previous judge_coding_plan records for session {session_id}"
+                )
+
+        except Exception as e:
+            logger.error(
+                f"Error deleting previous judge_coding_plan records for session {session_id}: {e}"
+            )

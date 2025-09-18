@@ -78,3 +78,16 @@ class ConversationHistoryDB(ABC):
             List of tuples: (session_id, last_activity_timestamp), ordered by most recent first
         """
         pass
+
+    @abstractmethod
+    async def delete_previous_plan(self, session_id: str) -> None:
+        """
+        Delete all previous judge_coding_plan records except the most recent one.
+
+        This method removes all but the last conversation record with source='judge_coding_plan'
+        for the given session to avoid keeping multiple failed plan attempts.
+
+        Args:
+            session_id: Session identifier
+        """
+        pass
