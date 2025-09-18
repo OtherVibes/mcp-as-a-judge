@@ -206,7 +206,7 @@ jobs:
 
   publish_mcp_registry:
     name: Publish to MCP Registry (preview)
-    needs: [publish_pypi, docker_merge_manifest]
+    needs: [publish_pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: read
