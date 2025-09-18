@@ -237,7 +237,7 @@ jobs:
             "description": desc,
             "version": VERSION,
             "transports": [
-              "stdio"
+              {"type": "stdio"}
             ],
             "packages": [
               {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION}
