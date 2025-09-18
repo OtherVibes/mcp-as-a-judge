@@ -43,11 +43,9 @@ jobs:
             "name": "io.github.OtherVibes/mcp-as-a-judge",
             "description": desc,
             "version": VERSION,
-            "transports": [
-              {"type": "stdio"}
-            ],
+
             "packages": [
-              {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION}
+              {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION, "transport": {"type": "stdio"}}
             ]
           }
           with open('server.json','w') as f: json.dump(data,f,indent=2)
