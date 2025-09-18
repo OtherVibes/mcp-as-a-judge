@@ -108,6 +108,7 @@ jobs:
           build-args: |
             VERSION=${{ steps.ver.outputs.VERSION }}
           labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
           cache-from: |
             type=gha
