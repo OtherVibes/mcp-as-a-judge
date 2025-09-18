@@ -47,7 +47,6 @@ jobs:
               "stdio"
             ],
             "packages": [
-              {"registry_type": "pypi", "identifier": "mcp-as-a-judge", "version": VERSION, "transport": {"type": "stdio"}},
               {"registry_type": "oci", "registry_base_url": "https://ghcr.io", "identifier": "othervibes/mcp-as-a-judge", "version": VERSION, "transport": {"type": "stdio"}}
             ]
           }
