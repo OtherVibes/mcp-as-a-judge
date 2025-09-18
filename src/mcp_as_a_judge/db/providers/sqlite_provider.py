@@ -348,9 +348,7 @@ class SQLiteProvider(ConversationHistoryDB):
                 # Use the table name from ConversationRecord to avoid type issues
                 table_name = ConversationRecord.__tablename__
                 table = SQLModel.metadata.tables[table_name]
-                delete_stmt = delete(table).where(
-                    table.c.id.in_(record_ids_to_delete)
-                )
+                delete_stmt = delete(table).where(table.c.id.in_(record_ids_to_delete))
                 # Use the underlying SQLAlchemy session for delete operations
                 session.execute(delete_stmt)
                 session.commit()
