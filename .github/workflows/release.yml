@@ -160,7 +160,7 @@ jobs:
               "name": project['name'],
               "description": project['description'],
               "version": VERSION,
-              "homepage": next((url['Homepage'] for url in project.get('urls', {}).items() if url[0] == 'Homepage'), ''),
+              "homepage": next((url[1] for url in project.get('urls', {}).items() if url[0] == 'Homepage'), ''),
               "license": project.get('license', {}).get('text', 'MIT'),
               "runtime": {
                   "type": "uv",
