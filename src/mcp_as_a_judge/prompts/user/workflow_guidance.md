@@ -25,8 +25,10 @@ The coding task follows this state progression:
 
 Each state has specific requirements and valid next steps:
 
-- **CREATED**: Task just created, needs detailed planning with code analysis
-- **PLANNING**: Planning phase in progress, awaiting plan validation
+- **CREATED**: Task just created, needs requirement feedback from user
+- **REQUIREMENTS_FEEDBACK**: Gathering detailed requirements feedback from user (brainstorming phase)
+- **USER_APPROVE_REQUIREMENTS**: Presenting plan to user for approval (brainstorming phase)
+- **PLANNING**: Technical planning phase in progress, awaiting plan validation
 - **PLAN_APPROVED**: Plan validated and approved, ready for implementation
 - **IMPLEMENTING**: Implementation phase in progress, code and tests being written
 - **REVIEW_READY**: Implementation and tests complete and passing, ready for code review
@@ -120,12 +122,9 @@ If task has risk_assessment_required=true:
 {% endif %}
 
 **State-Based Decisions:**
-- If state is **CREATED** →
-{% if task_size in ['xs', 's'] %}
-  - For {{ task_size.upper() }} tasks: Set next_tool to "judge_code_change" (skip planning, proceed to implementation then code review)
-{% else %}
-  - For {{ task_size.upper() }} tasks: Next tool should be planning-related (judge_coding_plan)
-{% endif %}
+- If state is **CREATED** → Next tool should be "get_user_feedback" (gather requirements)
+- If state is **REQUIREMENTS_FEEDBACK** → Next tool should be "get_user_feedback" (continue gathering feedback)
+- If state is **USER_APPROVE_REQUIREMENTS** → Next tool should be "get_user_approve_requirement" (get plan approval)
 - If state is **PLANNING** → Next tool should validate the plan (judge_coding_plan)
 - If state is **PLAN_APPROVED** → Next tool should be "judge_code_change" (implement code AND tests, then review)
 - If state is **IMPLEMENTING** → Next tool should be "judge_code_change" when ALL code AND tests are complete and passing

@@ -19,12 +19,14 @@ from mcp_as_a_judge.workflow import WorkflowGuidance
 
 # Enhanced response models for workflow v3
 from .enhanced_responses import (
+    ElicitationResult,
     EnhancedResponseFactory,
     # Backward compatibility
     JudgeResponse,
     JudgeResponseWithTask,
     MissingRequirementsResult,
     ObstacleResult,
+    PlanApprovalResult,
     TaskAnalysisResult,
     TaskCompletionResult,
 )
@@ -33,6 +35,7 @@ from .task_metadata import RequirementsVersion, TaskMetadata, TaskState
 __all__ = [
     "DynamicSchemaUserVars",
     "ElicitationFallbackUserVars",
+    "ElicitationResult",
     "EnhancedResponseFactory",
     "JudgeCodeChangeUserVars",
     "JudgeCodingPlanUserVars",
@@ -40,6 +43,7 @@ __all__ = [
     "JudgeResponseWithTask",
     "MissingRequirementsResult",
     "ObstacleResult",
+    "PlanApprovalResult",
     "RequirementsVersion",
     "ResearchAspect",
     "ResearchAspectsExtraction",

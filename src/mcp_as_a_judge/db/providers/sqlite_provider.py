@@ -361,3 +361,60 @@ class SQLiteProvider(ConversationHistoryDB):
             logger.error(
                 f"Error deleting previous judge_coding_plan records for session {session_id}: {e}"
             )
+
+    async def delete_previous_user_feedback(self, session_id: str) -> None:
+        """
+        Delete all previous user feedback records when plan is approved.
+
+        This removes brainstorming phase records (get_user_feedback and get_user_approve_requirement)
+        to clean up the conversation history after plan approval.
+        """
+        try:
+            with Session(self.engine) as session:
+                # Find all user feedback records for this session
+                stmt = (
+                    select(ConversationRecord)
+                    .where(ConversationRecord.session_id == session_id)
+                    .where(
+                        (ConversationRecord.source == "get_user_feedback")
+                        | (ConversationRecord.source == "get_user_approve_requirement")
+                    )
+                    .order_by(
+                        desc(ConversationRecord.timestamp),
+                        desc(ConversationRecord.id),
+                    )
+                )
+                feedback_records = list(session.exec(stmt).all())
+
+                if not feedback_records:
+                    logger.info(
+                        f"No user feedback records to delete for session {session_id}"
+                    )
+                    return
+
+                # Delete all user feedback records
+                record_ids_to_delete: list[str] = [
+                    record.id for record in feedback_records if record.id is not None
+                ]
+
+                if not record_ids_to_delete:
+                    logger.info(
+                        f"No valid user feedback record IDs to delete for session {session_id}"
+                    )
+                    return
+
+                # Delete records using SQL IN clause with underlying SQLAlchemy session
+                table_name = ConversationRecord.__tablename__
+                table = SQLModel.metadata.tables[table_name]
+                delete_stmt = delete(table).where(table.c.id.in_(record_ids_to_delete))
+                session.execute(delete_stmt)
+                session.commit()
+
+                logger.info(
+                    f"🗑️ Successfully deleted {len(feedback_records)} user feedback records for session {session_id} after plan approval"
+                )
+
+        except Exception as e:
+            logger.error(
+                f"Error deleting user feedback records for session {session_id}: {e}"
+            )

@@ -45,15 +45,18 @@ def _load_todo_guidance() -> str:
         return ""
 
 
-def should_skip_planning(task_metadata: TaskMetadata) -> bool:
+def should_skip_llm_plan_validation(task_metadata: TaskMetadata) -> bool:
     """
-    Determine if planning should be skipped based on task size.
+    Determine if LLM plan validation (judge_coding_plan) should be skipped based on task size.
+
+    Note: User feedback and user plan approval are ALWAYS required regardless of task size.
+    Only the technical LLM validation (judge_coding_plan) can be skipped for simple tasks.
 
     Args:
         task_metadata: Task metadata containing size information
 
     Returns:
-        True if planning should be skipped (XS/S tasks), False otherwise
+        True if LLM plan validation should be skipped (XS/S tasks), False otherwise
     """
     return task_metadata.task_size in [TaskSize.XS, TaskSize.S]
 
@@ -174,29 +177,106 @@ async def calculate_next_stage(
     logger.info(f"Calculating next stage for task {task_metadata.task_id}")
 
     try:
-        # Check for deterministic task size routing for CREATED state
-        if task_metadata.state == TaskState.CREATED and should_skip_planning(
-            task_metadata
-        ):
-            logger.info(
-                f"Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation"
-            )
-            # XS/S tasks skip planning but still need implementation → code review → testing → completion
-            # For deterministic tests, do not prescribe next tool; provide guidance only
+        # For CREATED tasks, ALWAYS start with user feedback (brainstorming phase is mandatory)
+        if task_metadata.state == TaskState.CREATED:
+            logger.info(f"Task {task_metadata.task_id} in CREATED state - routing to user feedback")
             return WorkflowGuidance(
-                next_tool=None,
-                reasoning=(
-                    f"Task size is {task_metadata.task_size.value.upper()} - planning phase can be skipped for simple fixes and minor features."
-                ),
+                next_tool="get_user_feedback",
+                reasoning="All tasks must start with user feedback to clarify requirements, regardless of size.",
                 preparation_needed=[
-                    "Identify files to modify",
-                    "Implement minimal changes",
-                    "Write and run tests",
+                    "Analyze the repository to detect programming language, frameworks, and existing patterns",
+                    "Analyze current request for requirement gaps and ambiguities",
+                    "Identify technical decisions needed (language, framework, database, API style, etc.)",
+                    "Prepare specific clarifying questions based on repository context",
+                    "Generate suggested options with pros/cons for each decision area",
                 ],
                 guidance=(
                     f"{_load_todo_guidance()}"
-                    "Proceed directly to implementation. Once changes are complete and tests pass, continue with the workflow: "
-                    "call judge_code_change for code review, then judge_testing_implementation for testing validation, and finally judge_coding_task_completion for final validation."
+                    "CRITICAL BRAINSTORMING WORKFLOW - NEVER SKIP:\n"
+                    "1. FIRST: Analyze the repository to understand existing technology stack, programming language, and patterns\n"
+                    "2. THEN: Call get_user_feedback to gather detailed requirements and clarify ambiguities\n"
+                    "3. Use repository analysis to inform technical decisions and provide context-aware questions\n"
+                    "4. This brainstorming phase is MANDATORY for all tasks regardless of size\n"
+                    "5. If elicitation fails, gracefully guide the AI assistant to ask questions directly\n"
+                    "6. Ensure all user responses are captured and stored for context"
+                ),
+            )
+
+        # For REQUIREMENTS_FEEDBACK tasks, determine if we need more feedback or should create plan
+        if task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+            logger.info(f"Task {task_metadata.task_id} in REQUIREMENTS_FEEDBACK state")
+
+            # Check if we have user requirements (indicating feedback was received)
+            if task_metadata.user_requirements and task_metadata.user_requirements.strip():
+                # User feedback received - time to create implementation plan using MCP tool
+                return WorkflowGuidance(
+                    next_tool="create_implementation_plan",
+                    reasoning="User feedback received. Use MCP sampling to create comprehensive implementation plan.",
+                    preparation_needed=[
+                        "Analyze user feedback and technical decisions from get_user_feedback",
+                        "Prepare user requirements summary for plan creation",
+                        "Gather technical decisions made during brainstorming",
+                        "Include repository analysis for context",
+                        "Call create_implementation_plan to generate research-backed plan",
+                    ],
+                    guidance=(
+                        f"{_load_todo_guidance()}"
+                        "USER FEEDBACK RECEIVED - Create implementation plan using MCP:\n"
+                        "1. Analyze the user requirements and technical decisions\n"
+                        "2. Prepare comprehensive user requirements summary\n"
+                        "3. Gather all technical decisions from brainstorming phase\n"
+                        "4. Include repository analysis for context\n"
+                        "5. Call create_implementation_plan to generate Plan A with research and best practices\n\n"
+                        "The MCP tool will create a comprehensive, research-backed implementation plan."
+                    ),
+                )
+            else:
+                # No user feedback yet or plan was rejected - continue brainstorming
+                return WorkflowGuidance(
+                    next_tool="get_user_feedback",
+                    reasoning="Plan was rejected or requirements need refinement. Continue brainstorming phase.",
+                    preparation_needed=[
+                        "Review previous user feedback and plan rejection reasons",
+                        "Identify specific areas that need clarification or changes",
+                        "Prepare refined questions based on user concerns",
+                        "Address technical or scope issues raised by user",
+                    ],
+                    guidance=(
+                        f"{_load_todo_guidance()}"
+                        "CONTINUE BRAINSTORMING - Gather user feedback:\n"
+                        "1. Review any previous feedback or plan rejection reasons\n"
+                        "2. Identify specific concerns or requirements that need clarification\n"
+                        "3. Ask targeted follow-up questions to address user concerns\n"
+                        "4. Refine technical decisions based on user feedback\n"
+                        "5. Ensure all user concerns are addressed before creating a plan\n\n"
+                        "Call get_user_feedback to continue the requirement refinement process."
+                    ),
+                )
+
+        # For USER_APPROVE_REQUIREMENTS tasks, AI assistant must create plan first
+        if task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
+            logger.info(f"Task {task_metadata.task_id} in USER_APPROVE_REQUIREMENTS state - AI assistant should create implementation plan")
+            return WorkflowGuidance(
+                next_tool=None,  # No specific tool - AI assistant should create plan first
+                reasoning="User feedback received. AI assistant must create detailed implementation plan before requesting approval.",
+                preparation_needed=[
+                    "Analyze user feedback and technical decisions from get_user_feedback",
+                    "Create comprehensive implementation plan with architecture and design",
+                    "Include technical decisions, file structure, and implementation approach",
+                    "Prepare research findings and best practices",
+                    "Only AFTER creating the plan, call get_user_approve_requirement",
+                ],
+                guidance=(
+                    f"{_load_todo_guidance()}"
+                    "CRITICAL: Do NOT call get_user_approve_requirement yet!\n\n"
+                    "FIRST: Create a detailed implementation plan based on user feedback:\n"
+                    "1. Analyze the user requirements and technical decisions\n"
+                    "2. Design the architecture and component structure\n"
+                    "3. Plan the file organization and key implementation details\n"
+                    "4. Research relevant libraries and best practices\n"
+                    "5. Create a comprehensive plan document\n\n"
+                    "ONLY AFTER you have created the complete plan, then call get_user_approve_requirement "
+                    "to present it to the user for approval."
                 ),
             )
 
@@ -485,8 +565,14 @@ async def calculate_next_stage(
             if "get_current_coding_task" in available_name_set:
                 workflow_guidance.next_tool = "get_current_coding_task"
             else:
-                # As a last resort, pick judge_coding_plan for created/planning; judge_code_change otherwise
-                if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
+                # As a last resort, pick appropriate tool based on state
+                if task_metadata.state == TaskState.CREATED:
+                    workflow_guidance.next_tool = "get_user_feedback"
+                elif task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+                    workflow_guidance.next_tool = "get_user_feedback"
+                elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
+                    workflow_guidance.next_tool = None  # Let AI assistant create plan first
+                elif task_metadata.state == TaskState.PLANNING:
                     workflow_guidance.next_tool = "judge_coding_plan"
                 elif task_metadata.state in (
                     TaskState.PLAN_APPROVED,
@@ -531,7 +617,13 @@ async def calculate_next_stage(
 
         # Return fallback navigation with appropriate next tool based on state
         fallback_next_tool: str | None = "judge_coding_plan"  # Default fallback
-        if (
+        if task_metadata.state == TaskState.CREATED:
+            fallback_next_tool = "get_user_feedback"
+        elif task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+            fallback_next_tool = "get_user_feedback"
+        elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
+            fallback_next_tool = None  # Let AI assistant create plan first
+        elif (
             task_metadata.state == TaskState.PLAN_APPROVED
             or task_metadata.state == TaskState.IMPLEMENTING
             or task_metadata.state == TaskState.REVIEW_READY
@@ -607,6 +699,8 @@ async def _get_tool_descriptions() -> str:
         # Fallback to static descriptions
         return """
 - **set_coding_task**: Create or update task metadata (entry point for all coding work)
+- **get_user_feedback**: Gather detailed requirements and clarifications from user (brainstorming phase)
+- **get_user_approve_requirement**: Present implementation plan to user for approval (brainstorming phase)
 - **judge_coding_plan**: Validate coding plans with conditional research, internal analysis (when applicable), and risk assessment
 - **judge_testing_implementation**: Validate testing implementation and test coverage (mandatory after implementation)
 - **judge_code_change**: Validate COMPLETE code implementations (only when all code is ready for review)
@@ -632,6 +726,8 @@ async def _get_available_tool_names() -> set[str]:
         return {
             "set_coding_task",
             "get_current_coding_task",
+            "get_user_feedback",
+            "get_user_approve_requirement",
             "judge_coding_plan",
             "judge_code_change",
             "judge_testing_implementation",
@@ -670,8 +766,14 @@ def _normalize_next_tool_name(
 
     # Guardrail: avoid spurious routing back to set_coding_task
     if mapped == "set_coding_task":
-        # During planning/created, keep planning loop unless the user explicitly updates requirements
-        if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
+        # During brainstorming phase, stay in brainstorming tools
+        if task_metadata.state == TaskState.CREATED:
+            return "get_user_feedback"
+        elif task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+            return "get_user_feedback"
+        elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
+            return None  # Let AI assistant create plan first
+        elif task_metadata.state == TaskState.PLANNING:
             return "judge_coding_plan"
         if task_metadata.state in (
             TaskState.PLAN_APPROVED,
@@ -686,7 +788,13 @@ def _normalize_next_tool_name(
 
     # Guardrail: avoid premature completion calls — route to the correct gate
     if mapped == "judge_coding_task_completion":
-        if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
+        if task_metadata.state == TaskState.CREATED:
+            return "get_user_feedback"
+        elif task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+            return "get_user_feedback"
+        elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
+            return None  # Let AI assistant create plan first
+        elif task_metadata.state == TaskState.PLANNING:
             return "judge_coding_plan"
         if task_metadata.state in (
             TaskState.PLAN_APPROVED,
@@ -704,6 +812,14 @@ def _normalize_next_tool_name(
 
     # If still invalid, choose a fallback consistent with current state
     # Mirror the fallback used in exception handling for consistency
+    if task_metadata.state == TaskState.CREATED:
+        return "get_user_feedback"
+    if task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+        return "get_user_feedback"
+    if task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
+        return None  # Let AI assistant create plan first
+    if task_metadata.state == TaskState.PLANNING:
+        return "judge_coding_plan"
     if task_metadata.state in (
         TaskState.PLAN_APPROVED,
         TaskState.IMPLEMENTING,

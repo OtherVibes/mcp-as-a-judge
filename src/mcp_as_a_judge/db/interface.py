@@ -91,3 +91,17 @@ class ConversationHistoryDB(ABC):
             session_id: Session identifier
         """
         pass
+
+    @abstractmethod
+    async def delete_previous_user_feedback(self, session_id: str) -> None:
+        """
+        Delete all previous user feedback records when plan is approved.
+
+        This method removes conversation records with source='get_user_feedback' and
+        source='get_user_approve_requirement' for the given session to clean up
+        brainstorming phase records after plan approval.
+
+        Args:
+            session_id: Session identifier
+        """
+        pass

@@ -42,8 +42,11 @@ class TaskState(str, Enum):
     Coding task state enum with well-documented transitions.
 
     State Transitions:
-    - CREATED → PLANNING: Task created, ready for planning phase (XS/S may skip to IMPLEMENTING)
-    - PLANNING → PLAN_APPROVED: Plan validated and approved
+    - CREATED → REQUIREMENTS_FEEDBACK: Task created, gathering detailed requirements feedback
+    - REQUIREMENTS_FEEDBACK → USER_APPROVE_REQUIREMENTS: Requirements clarified, presenting plan for approval
+    - USER_APPROVE_REQUIREMENTS → PLANNING: Plan approved by user, ready for technical validation
+    - USER_APPROVE_REQUIREMENTS → USER_APPROVE_REQUIREMENTS: Plan rejected, revising based on feedback
+    - PLANNING → PLAN_APPROVED: Plan validated and approved by technical review
     - PLAN_APPROVED → IMPLEMENTING: Implementation phase started
     - IMPLEMENTING → IMPLEMENTING: Multiple code changes during implementation
     - IMPLEMENTING → REVIEW_READY: Implementation complete, ready for code review
@@ -55,8 +58,10 @@ class TaskState(str, Enum):
     - BLOCKED → Previous state: Unblocked, return to previous state
 
     Usage:
-    - CREATED: Default state for new tasks, needs planning (XS/S may proceed directly to IMPLEMENTING)
-    - PLANNING: Planning phase in progress (set when planning starts)
+    - CREATED: Default state for new tasks, needs requirement feedback
+    - REQUIREMENTS_FEEDBACK: Gathering detailed requirements feedback from user (brainstorming phase)
+    - USER_APPROVE_REQUIREMENTS: Presenting plan to user for approval (brainstorming phase)
+    - PLANNING: Technical planning phase in progress (formal workflow starts here)
     - PLAN_APPROVED: Plan validated and approved (set by judge_coding_plan)
     - IMPLEMENTING: Implementation phase in progress (set when coding starts)
     - REVIEW_READY: Implementation complete and ready for code review
@@ -66,8 +71,10 @@ class TaskState(str, Enum):
     - CANCELLED: Task cancelled (manual override)
     """
 
-    CREATED = "created"  # Task just created, needs planning
-    PLANNING = "planning"  # Planning phase in progress
+    CREATED = "created"  # Task just created, needs requirement feedback
+    REQUIREMENTS_FEEDBACK = "requirements_feedback"  # Gathering detailed requirements feedback (brainstorming)
+    USER_APPROVE_REQUIREMENTS = "user_approve_requirements"  # User approving requirements/plan (brainstorming)
+    PLANNING = "planning"  # Technical planning phase in progress (formal workflow)
     PLAN_APPROVED = "plan_approved"  # Plan validated and approved
     IMPLEMENTING = "implementing"  # Implementation phase in progress
     TESTING = "testing"  # Testing phase in progress
@@ -156,6 +163,18 @@ class TaskMetadata(BaseModel):
         description="Last update timestamp (epoch seconds)",
     )
     tags: list[str] = Field(default_factory=list, description="Coding-related tags")
+
+    # TECHNICAL DECISIONS - Captured during requirement gathering phase
+    class TechnicalDecision(BaseModel):
+        decision: str = Field(description="The type of decision made (e.g., 'Programming Language', 'Database Type')")
+        choice: str = Field(description="The chosen option (e.g., 'Python', 'PostgreSQL')")
+        rationale: str = Field(description="Explanation of why this choice was made")
+        timestamp: int = Field(default_factory=lambda: int(time.time()), description="When this decision was made")
+
+    technical_decisions: list[TechnicalDecision] = Field(
+        default_factory=list,
+        description="Technical decisions made during requirement gathering and brainstorming phase"
+    )
 
     # (No explicit decision ledger; decisions are handled via LLM-driven elicitation and conversation history)
 
@@ -401,11 +420,19 @@ class TaskMetadata(BaseModel):
         """
         state_info = {
             TaskState.CREATED: {
-                "description": "Task created, ready for planning",
-                "next_action": "Create detailed implementation plan with code analysis",
+                "description": "Task created, ready for requirement feedback",
+                "next_action": "Gather detailed requirements and clarifications from user",
+            },
+            TaskState.REQUIREMENTS_FEEDBACK: {
+                "description": "Gathering detailed requirements feedback from user",
+                "next_action": "Collect user feedback and clarify requirements",
+            },
+            TaskState.USER_APPROVE_REQUIREMENTS: {
+                "description": "Presenting plan to user for approval",
+                "next_action": "Get user approval for the implementation plan",
             },
             TaskState.PLANNING: {
-                "description": "Planning phase in progress",
+                "description": "Technical planning phase in progress",
                 "next_action": "Complete and validate implementation plan",
             },
             TaskState.PLAN_APPROVED: {

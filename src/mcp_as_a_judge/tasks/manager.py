@@ -296,10 +296,24 @@ def validate_state_transition(current_state: TaskState, new_state: TaskState) ->
     """
     # Define valid state transitions
     valid_transitions = {
-        TaskState.CREATED: [TaskState.PLANNING, TaskState.BLOCKED, TaskState.CANCELLED],
+        TaskState.CREATED: [TaskState.REQUIREMENTS_FEEDBACK, TaskState.PLANNING, TaskState.BLOCKED, TaskState.CANCELLED],
+        TaskState.REQUIREMENTS_FEEDBACK: [
+            TaskState.USER_APPROVE_REQUIREMENTS,
+            TaskState.CREATED,
+            TaskState.BLOCKED,
+            TaskState.CANCELLED,
+        ],
+        TaskState.USER_APPROVE_REQUIREMENTS: [
+            TaskState.PLANNING,
+            TaskState.PLAN_APPROVED,  # Allow direct transition for XS/S tasks that skip LLM validation
+            TaskState.USER_APPROVE_REQUIREMENTS,  # Allow staying in same state for plan revisions
+            TaskState.REQUIREMENTS_FEEDBACK,
+            TaskState.BLOCKED,
+            TaskState.CANCELLED,
+        ],
         TaskState.PLANNING: [
             TaskState.PLAN_APPROVED,
-            TaskState.CREATED,
+            TaskState.USER_APPROVE_REQUIREMENTS,
             TaskState.BLOCKED,
             TaskState.CANCELLED,
         ],
@@ -327,6 +341,8 @@ def validate_state_transition(current_state: TaskState, new_state: TaskState) ->
         ],  # Only allow cancellation of completed tasks
         TaskState.BLOCKED: [
             TaskState.CREATED,
+            TaskState.REQUIREMENTS_FEEDBACK,
+            TaskState.USER_APPROVE_REQUIREMENTS,
             TaskState.PLANNING,
             TaskState.PLAN_APPROVED,
             TaskState.IMPLEMENTING,

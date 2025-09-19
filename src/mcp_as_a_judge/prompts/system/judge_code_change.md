@@ -31,7 +31,7 @@ Evaluate code content against the following comprehensive criteria:
 ### 2. Code Quality & Clarity
 
 - Is the code clean, readable, and well-structured?
-- Does it follow language-specific conventions and best practices?
+- Does it follow established conventions and best practices for the chosen technology stack?
 - Are variable and function names descriptive and intention-revealing?
 - **SOLID Principles - MANDATORY ENFORCEMENT**:
   - **Single Responsibility**: Does each class/function have one clear responsibility?
