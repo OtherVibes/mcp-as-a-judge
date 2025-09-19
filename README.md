@@ -68,53 +68,66 @@ It enforces evidence-based research, reuse over reinvention, and human-in-the-lo
 
 MCP as a Judge implements a sophisticated collaborative workflow that ensures high-quality outcomes through iterative user-LLM collaboration:
 
-```mermaid
-graph TD
-    A[Task Created] --> B[🧠 Brainstorming Phase]
-    B --> C[get_user_feedback<br/>Gather Requirements]
-    C --> D[📋 Plan Creation Phase]
-    D --> E[create_implementation_plan<br/>LLM creates Plan A with research]
-    E --> F[👤 User Review Phase]
-    F --> G[get_user_approve_requirement<br/>User reviews Plan A]
+## 🔄 Enhanced Collaborative Workflow
 
-    G --> H{User Approves Plan A?}
-    H -->|No - Feedback| I[Update Requirements<br/>Based on User Feedback]
-    I --> C
-    H -->|Yes - Plan A Approved| J[🤖 LLM Technical Validation]
-
-    J --> K[judge_coding_plan<br/>LLM validates Plan A]
-    K --> L{LLM Approves Plan A?}
-    L -->|Yes - Plan A Approved by Both| Q[✅ Dual Approval Achieved]
-    L -->|No - Technical Issues| M[update_plan_with_llm_feedback<br/>LLM creates Plan B with improvements]
-
-    M --> N[👤 User Re-Review Phase]
-    N --> O[get_user_approve_requirement<br/>User reviews Plan B - CRITICAL STEP!]
-    O --> P{User Approves Plan B?}
-    P -->|No - Back to brainstorming| I
-    P -->|Yes - Plan B Approved| R[🤖 LLM Re-Validation]
-
-    R --> S[judge_coding_plan<br/>LLM validates Plan B]
-    S --> T{LLM Approves Plan B?}
-    T -->|No - Create Plan C| U[update_plan_with_llm_feedback<br/>LLM creates Plan C]
-    U --> N
-    T -->|Yes - Plan B Approved by Both| Q
-
-    Q --> V[🧹 Clean History<br/>Delete brainstorming records]
-    V --> W[🚀 Implementation Phase]
-    W --> X[judge_code_change]
-    X --> Y[judge_testing_implementation]
-    Y --> Z[judge_coding_task_completion]
-    Z --> AA[Task Complete]
-
-    style A fill:#e1f5fe
-    style B fill:#f3e5f5
-    style D fill:#e8f5e8
-    style F fill:#fff3e0
-    style J fill:#e3f2fd
-    style N fill:#ffebee
-    style Q fill:#e8f5e8
-    style W fill:#f1f8e9
+### **Phase 1: 🧠 Enhanced Brainstorming**
 ```
+📋 get_enhanced_user_feedback
+├── Requirements gathering + clarifications
+├── Documentation & reference requests
+├── Success criteria definition
+├── Environment & deployment context
+└── Testing strategy preferences
+```
+
+### **Phase 2: 📋 Comprehensive Plan Creation**
+```
+🔬 create_implementation_plan
+├── Technical research & analysis
+├── Architecture & design patterns
+├── Test strategy & coverage requirements
+├── Implementation scope & milestones
+└── Risk assessment & mitigation
+```
+
+### **Phase 3: 🔄 Dual Approval Loop**
+```
+👤 User Review → get_user_approve_requirement
+├── ✅ Approved → LLM Technical Validation
+└── ❌ Rejected → Back to Brainstorming
+
+🤖 LLM Review → judge_coding_plan
+├── ✅ Approved → Dual Approval Achieved
+└── ❌ Rejected → update_plan_with_llm_feedback
+    └── Creates Plan B → User Re-Review
+        ├── ✅ Approved → LLM Re-Validation
+        └── ❌ Rejected → Back to Brainstorming
+```
+
+### **Phase 4: 🚀 Enhanced Implementation**
+```
+🧹 Clean History (delete brainstorming records)
+    ↓
+🏗️ judge_code_change (Architecture + Security Review)
+    ↓
+👤 User Code Review (Optional validation step)
+    ↓
+🧪 judge_testing_implementation (Tests + Coverage)
+    ↓
+📚 Documentation Review (Optional documentation check)
+    ↓
+✅ judge_coding_task_completion (Final quality gate)
+    ↓
+🎉 Task Complete
+```
+
+### **🔑 Key Quality Enhancements**
+- **📋 Comprehensive Requirements**: Documentation, success criteria, environment context
+- **🧪 Test-First Planning**: Test strategy integrated from planning phase
+- **🔄 Iterative Refinement**: Multiple approval loops ensure quality
+- **👤 User Involvement**: Optional code review for critical changes
+- **📚 Documentation Focus**: Optional documentation validation
+- **🛡️ Multi-Layer Validation**: Architecture, security, testing, and completion gates
 
 ### **🎯 Key Workflow Principles**
 
