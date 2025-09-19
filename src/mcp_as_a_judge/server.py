@@ -2652,16 +2652,7 @@ async def get_user_feedback(
     # Log tool execution start
     log_tool_execution("get_user_feedback", task_id)
 
-    # Store original input for saving later
-    original_input = {
-        "task_id": task_id,
-        "current_request": current_request,
-        "identified_gaps": identified_gaps,
-        "specific_questions": specific_questions,
-        "decision_areas": decision_areas,
-        "suggested_options": suggested_options,
-        "repository_analysis": repository_analysis,
-    }
+    # Note: original_input was removed as it was unused
 
     try:
         # Use the global conversation service for context and saving
@@ -2682,15 +2673,25 @@ async def get_user_feedback(
             )
 
         # Use elicitation provider to get user input
-        from mcp_as_a_judge.elicitation import elicitation_provider
         from pydantic import BaseModel, Field
+
+        from mcp_as_a_judge.elicitation import elicitation_provider
 
         # Create dynamic schema for user responses
         class UserFeedbackSchema(BaseModel):
-            clarified_requirements: str = Field(description="Updated and clarified requirements")
-            technical_decisions: dict[str, str] = Field(description="Technical decisions made")
-            additional_context: str = Field(default="", description="Any additional context or constraints")
-            workflow_preferences: str = Field(default="", description="Preferences that affect implementation approach")
+            clarified_requirements: str = Field(
+                description="Updated and clarified requirements"
+            )
+            technical_decisions: dict[str, str] = Field(
+                description="Technical decisions made"
+            )
+            additional_context: str = Field(
+                default="", description="Any additional context or constraints"
+            )
+            workflow_preferences: str = Field(
+                default="",
+                description="Preferences that affect implementation approach",
+            )
 
         # Format elicitation message
         elicitation_message = f"""
@@ -2747,17 +2748,20 @@ Please provide clarified requirements and make technical decisions to proceed wi
         if additional_context:
             combined_requirements += f"\n\n## Additional Context:\n{additional_context}"
         if workflow_preferences:
-            combined_requirements += f"\n\n## Workflow Preferences:\n{workflow_preferences}"
+            combined_requirements += (
+                f"\n\n## Workflow Preferences:\n{workflow_preferences}"
+            )
 
         task_metadata.update_requirements(combined_requirements, source="user_feedback")
 
         # Save technical decisions to task metadata
         from mcp_as_a_judge.models.task_metadata import TaskMetadata
+
         for decision_key, decision_value in technical_decisions.items():
             technical_decision = TaskMetadata.TechnicalDecision(
                 decision=decision_key,
                 choice=decision_value,
-                rationale=f"User decision during requirement feedback phase"
+                rationale="User decision during requirement feedback phase",
             )
             task_metadata.technical_decisions.append(technical_decision)
 
@@ -2816,7 +2820,9 @@ Please provide clarified requirements and make technical decisions to proceed wi
         return error_result
 
 
-@mcp.tool(description=tool_description_provider.get_description("create_implementation_plan"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(
+    description=tool_description_provider.get_description("create_implementation_plan")
+)  # type: ignore[misc,unused-ignore]
 async def create_implementation_plan(
     task_id: str,
     user_requirements: str,
@@ -2847,17 +2853,21 @@ async def create_implementation_plan(
             )
 
         # Load context for LLM sampling
-        context_records = await conversation_service.load_filtered_context_for_enrichment(
-            session_id=task_id,
-            current_prompt="create_implementation_plan",
-            ctx=ctx,
+        context_records = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id=task_id,
+                current_prompt="create_implementation_plan",
+                ctx=ctx,
+            )
         )
 
         # Prepare context for plan creation
-        context_text = "\n".join([
-            f"Tool: {record.source}\nInput: {record.input}\nOutput: {record.output}\n---"
-            for record in context_records
-        ])
+        context_text = "\n".join(
+            [
+                f"Tool: {record.source}\nInput: {record.input}\nOutput: {record.output}\n---"
+                for record in context_records
+            ]
+        )
 
         # Create plan creation prompt
         plan_creation_prompt = f"""
@@ -2935,12 +2945,19 @@ Focus on:
         await conversation_service.save_tool_interaction_and_cleanup(
             session_id=task_metadata.task_id,
             tool_name="create_implementation_plan",
-            tool_input=json.dumps({
-                "task_id": task_id,
-                "user_requirements": user_requirements[:500],  # Truncate for storage
-                "technical_decisions": technical_decisions,
-                "repository_analysis": repository_analysis[:500],  # Truncate for storage
-            }, indent=2),
+            tool_input=json.dumps(
+                {
+                    "task_id": task_id,
+                    "user_requirements": user_requirements[
+                        :500
+                    ],  # Truncate for storage
+                    "technical_decisions": technical_decisions,
+                    "repository_analysis": repository_analysis[
+                        :500
+                    ],  # Truncate for storage
+                },
+                indent=2,
+            ),
             tool_output=json.dumps(result.model_dump(), indent=2),
         )
 
@@ -2949,7 +2966,9 @@ Focus on:
     except Exception as e:
         import traceback
 
-        error_details = f"Error during plan creation: {e!s}\nTraceback: {traceback.format_exc()}"
+        error_details = (
+            f"Error during plan creation: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
         logger.error(error_details)
 
         return PlanCreationResult(
@@ -2958,7 +2977,11 @@ Focus on:
         )
 
 
-@mcp.tool(description=tool_description_provider.get_description("update_plan_with_llm_feedback"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(
+    description=tool_description_provider.get_description(
+        "update_plan_with_llm_feedback"
+    )
+)  # type: ignore[misc,unused-ignore]
 async def update_plan_with_llm_feedback(
     task_id: str,
     original_plan: str,
@@ -2990,20 +3013,26 @@ async def update_plan_with_llm_feedback(
             )
 
         # Load context for LLM sampling
-        context_records = await conversation_service.load_filtered_context_for_enrichment(
-            session_id=task_id,
-            current_prompt="update_plan_with_llm_feedback",
-            ctx=ctx,
+        context_records = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id=task_id,
+                current_prompt="update_plan_with_llm_feedback",
+                ctx=ctx,
+            )
         )
 
         # Prepare context for plan update
-        context_text = "\n".join([
-            f"Tool: {record.source}\nInput: {record.input}\nOutput: {record.output}\n---"
-            for record in context_records
-        ])
+        context_text = "\n".join(
+            [
+                f"Tool: {record.source}\nInput: {record.input}\nOutput: {record.output}\n---"
+                for record in context_records
+            ]
+        )
 
         # Create plan update prompt
-        improvements_text = "\n".join([f"- {improvement}" for improvement in required_improvements])
+        improvements_text = "\n".join(
+            [f"- {improvement}" for improvement in required_improvements]
+        )
         concerns_text = "\n".join([f"- {concern}" for concern in technical_concerns])
 
         plan_update_prompt = f"""
@@ -3083,13 +3112,16 @@ Return the updated plan that addresses all technical feedback while preserving u
         await conversation_service.save_tool_interaction_and_cleanup(
             session_id=task_metadata.task_id,
             tool_name="update_plan_with_llm_feedback",
-            tool_input=json.dumps({
-                "task_id": task_id,
-                "original_plan": original_plan[:500],  # Truncate for storage
-                "llm_feedback": llm_feedback[:500],  # Truncate for storage
-                "required_improvements": required_improvements,
-                "technical_concerns": technical_concerns,
-            }, indent=2),
+            tool_input=json.dumps(
+                {
+                    "task_id": task_id,
+                    "original_plan": original_plan[:500],  # Truncate for storage
+                    "llm_feedback": llm_feedback[:500],  # Truncate for storage
+                    "required_improvements": required_improvements,
+                    "technical_concerns": technical_concerns,
+                },
+                indent=2,
+            ),
             tool_output=json.dumps(result.model_dump(), indent=2),
         )
 
@@ -3098,7 +3130,9 @@ Return the updated plan that addresses all technical feedback while preserving u
     except Exception as e:
         import traceback
 
-        error_details = f"Error during plan update: {e!s}\nTraceback: {traceback.format_exc()}"
+        error_details = (
+            f"Error during plan update: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
         logger.error(error_details)
 
         return PlanUpdateResult(
@@ -3107,7 +3141,11 @@ Return the updated plan that addresses all technical feedback while preserving u
         )
 
 
-@mcp.tool(description=tool_description_provider.get_description("get_user_approve_requirement"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(
+    description=tool_description_provider.get_description(
+        "get_user_approve_requirement"
+    )
+)  # type: ignore[misc,unused-ignore]
 async def get_user_approve_requirement(
     plan: str,
     design: str,
@@ -3123,17 +3161,7 @@ async def get_user_approve_requirement(
     # Log tool execution start
     log_tool_execution("get_user_approve_requirement", task_id)
 
-    # Store original input for saving later
-    original_input = {
-        "task_id": task_id,
-        "plan": plan,
-        "design": design,
-        "research": research,
-        "technical_decisions": technical_decisions,
-        "implementation_scope": implementation_scope,
-        "language_specific_practices": language_specific_practices,
-        "user_questions": user_questions,
-    }
+    # Note: original_input was removed as it was unused
 
     try:
         # Use the global conversation service for context and saving
@@ -3166,11 +3194,15 @@ async def get_user_approve_requirement(
                 formatted_technical_decisions.append(decision)
             else:
                 # Handle TaskMetadata.TechnicalDecision objects
-                formatted_technical_decisions.append({
-                    'decision': getattr(decision, 'decision', 'Unknown'),
-                    'choice': getattr(decision, 'choice', 'Unknown'),
-                    'rationale': getattr(decision, 'rationale', 'No rationale provided')
-                })
+                formatted_technical_decisions.append(
+                    {
+                        "decision": getattr(decision, "decision", "Unknown"),
+                        "choice": getattr(decision, "choice", "Unknown"),
+                        "rationale": getattr(
+                            decision, "rationale", "No rationale provided"
+                        ),
+                    }
+                )
 
         # Format the plan for user presentation
         formatted_plan, plan_summary = PlanFormatter.format_plan_for_approval(
@@ -3184,16 +3216,26 @@ async def get_user_approve_requirement(
         )
 
         # Use elicitation provider to get user approval
-        from mcp_as_a_judge.elicitation import elicitation_provider
         from pydantic import BaseModel, Field
+
+        from mcp_as_a_judge.elicitation import elicitation_provider
 
         # Create dynamic schema for user approval
         class PlanApprovalSchema(BaseModel):
-            approved: bool = Field(description="Whether you approve this implementation plan")
+            approved: bool = Field(
+                description="Whether you approve this implementation plan"
+            )
             feedback: str = Field(default="", description="Your feedback on the plan")
-            requirement_updates: str = Field(default="", description="Any updates to requirements based on the plan")
-            plan_modifications: list[str] = Field(default_factory=list, description="Specific modifications you want to the plan")
-            technical_concerns: list[str] = Field(default_factory=list, description="Any technical concerns you have")
+            requirement_updates: str = Field(
+                default="", description="Any updates to requirements based on the plan"
+            )
+            plan_modifications: list[str] = Field(
+                default_factory=list,
+                description="Specific modifications you want to the plan",
+            )
+            technical_concerns: list[str] = Field(
+                default_factory=list, description="Any technical concerns you have"
+            )
 
         # Format the plan presentation message
         technical_decisions_text = "\n".join(
@@ -3202,12 +3244,14 @@ async def get_user_approve_requirement(
         )
 
         scope_text = f"""
-**Files to Create:** {', '.join(implementation_scope.get('files_to_create', []))}
-**Files to Modify:** {', '.join(implementation_scope.get('files_to_modify', []))}
-**Estimated Complexity:** {implementation_scope.get('estimated_complexity', 'Unknown')}
+**Files to Create:** {", ".join(implementation_scope.get("files_to_create", []))}
+**Files to Modify:** {", ".join(implementation_scope.get("files_to_modify", []))}
+**Estimated Complexity:** {implementation_scope.get("estimated_complexity", "Unknown")}
 """
 
-        practices_text = "\n".join(f"- {practice}" for practice in language_specific_practices)
+        practices_text = "\n".join(
+            f"- {practice}" for practice in language_specific_practices
+        )
 
         questions_text = "\n".join(f"- {question}" for question in user_questions)
 
@@ -3261,7 +3305,9 @@ async def get_user_approve_requirement(
         # Update task metadata based on user response
         if approved:
             # Import the function to check if LLM validation should be skipped
-            from mcp_as_a_judge.workflow.workflow_guidance import should_skip_llm_plan_validation
+            from mcp_as_a_judge.workflow.workflow_guidance import (
+                should_skip_llm_plan_validation,
+            )
 
             # For XS/S tasks, skip LLM validation and go directly to PLAN_APPROVED
             if should_skip_llm_plan_validation(task_metadata):
@@ -3276,7 +3322,9 @@ async def get_user_approve_requirement(
             # Add approved plan to requirements if user provided updates
             if requirement_updates:
                 updated_requirements = f"{task_metadata.user_requirements}\n\n## Plan Approval Updates:\n{requirement_updates}"
-                task_metadata.update_requirements(updated_requirements, source="plan_approval")
+                task_metadata.update_requirements(
+                    updated_requirements, source="plan_approval"
+                )
         else:
             # Plan not approved - go back to brainstorming phase to refine requirements
             task_metadata.update_state(TaskState.REQUIREMENTS_FEEDBACK)
@@ -3286,9 +3334,15 @@ async def get_user_approve_requirement(
             if user_feedback or requirement_updates:
                 feedback_text = f"## User Plan Feedback:\n{user_feedback}"
                 if requirement_updates:
-                    feedback_text += f"\n\n## Requirement Updates:\n{requirement_updates}"
-                updated_requirements = f"{task_metadata.user_requirements}\n\n{feedback_text}"
-                task_metadata.update_requirements(updated_requirements, source="plan_feedback")
+                    feedback_text += (
+                        f"\n\n## Requirement Updates:\n{requirement_updates}"
+                    )
+                updated_requirements = (
+                    f"{task_metadata.user_requirements}\n\n{feedback_text}"
+                )
+                task_metadata.update_requirements(
+                    updated_requirements, source="plan_feedback"
+                )
 
         # Create result
         result = PlanApprovalResult(
@@ -3322,7 +3376,9 @@ async def get_user_approve_requirement(
     except Exception as e:
         import traceback
 
-        error_details = f"Error during plan approval: {e!s}\nTraceback: {traceback.format_exc()}"
+        error_details = (
+            f"Error during plan approval: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
         logger.error(error_details)
 
         error_result = PlanApprovalResult(

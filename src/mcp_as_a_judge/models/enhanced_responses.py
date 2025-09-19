@@ -195,12 +195,24 @@ class ElicitationResult(TrimmedBaseModel):
     """Result from user requirement elicitation."""
 
     success: bool = Field(description="Whether elicitation was successful")
-    clarified_requirements: str = Field(default="", description="Updated requirements based on user input")
-    technical_decisions: dict[str, str] = Field(default_factory=dict, description="Technical decisions made by user")
-    user_responses: dict[str, str] = Field(default_factory=dict, description="Raw user responses to questions")
-    repository_context: str = Field(default="", description="Repository analysis that informed decisions")
-    workflow_impact: str = Field(default="", description="How user input affects workflow and tool selection")
-    error_message: str = Field(default="", description="Error message if elicitation failed")
+    clarified_requirements: str = Field(
+        default="", description="Updated requirements based on user input"
+    )
+    technical_decisions: dict[str, str] = Field(
+        default_factory=dict, description="Technical decisions made by user"
+    )
+    user_responses: dict[str, str] = Field(
+        default_factory=dict, description="Raw user responses to questions"
+    )
+    repository_context: str = Field(
+        default="", description="Repository analysis that informed decisions"
+    )
+    workflow_impact: str = Field(
+        default="", description="How user input affects workflow and tool selection"
+    )
+    error_message: str = Field(
+        default="", description="Error message if elicitation failed"
+    )
 
 
 class PlanCreationResult(TrimmedBaseModel):
@@ -209,12 +221,24 @@ class PlanCreationResult(TrimmedBaseModel):
     success: bool = Field(description="Whether plan creation was successful")
     plan: str = Field(default="", description="Detailed implementation plan")
     design: str = Field(default="", description="System design and architecture")
-    research: str = Field(default="", description="Research findings and best practices")
-    technical_decisions: list[dict] = Field(default_factory=list, description="Technical decisions made during planning")
-    implementation_scope: dict = Field(default_factory=dict, description="Scope breakdown with files and complexity")
-    language_specific_practices: list[str] = Field(default_factory=list, description="Best practices for chosen technology stack")
-    risk_assessment: str = Field(default="", description="Potential risks and mitigation strategies")
-    error_message: str = Field(default="", description="Error message if plan creation failed")
+    research: str = Field(
+        default="", description="Research findings and best practices"
+    )
+    technical_decisions: list[dict] = Field(
+        default_factory=list, description="Technical decisions made during planning"
+    )
+    implementation_scope: dict = Field(
+        default_factory=dict, description="Scope breakdown with files and complexity"
+    )
+    language_specific_practices: list[str] = Field(
+        default_factory=list, description="Best practices for chosen technology stack"
+    )
+    risk_assessment: str = Field(
+        default="", description="Potential risks and mitigation strategies"
+    )
+    error_message: str = Field(
+        default="", description="Error message if plan creation failed"
+    )
 
 
 class PlanUpdateResult(TrimmedBaseModel):
@@ -222,13 +246,28 @@ class PlanUpdateResult(TrimmedBaseModel):
 
     success: bool = Field(description="Whether plan update was successful")
     updated_plan: str = Field(default="", description="Updated implementation plan")
-    updated_design: str = Field(default="", description="Updated system design and architecture")
-    updated_research: str = Field(default="", description="Updated research findings and best practices")
-    llm_improvements: list[str] = Field(default_factory=list, description="List of improvements made by LLM")
-    technical_changes: list[dict] = Field(default_factory=list, description="Technical changes made to the plan")
-    change_rationale: str = Field(default="", description="Explanation of why changes were made")
-    version_info: str = Field(default="", description="Plan version information (e.g., 'Plan B based on LLM feedback')")
-    error_message: str = Field(default="", description="Error message if plan update failed")
+    updated_design: str = Field(
+        default="", description="Updated system design and architecture"
+    )
+    updated_research: str = Field(
+        default="", description="Updated research findings and best practices"
+    )
+    llm_improvements: list[str] = Field(
+        default_factory=list, description="List of improvements made by LLM"
+    )
+    technical_changes: list[dict] = Field(
+        default_factory=list, description="Technical changes made to the plan"
+    )
+    change_rationale: str = Field(
+        default="", description="Explanation of why changes were made"
+    )
+    version_info: str = Field(
+        default="",
+        description="Plan version information (e.g., 'Plan B based on LLM feedback')",
+    )
+    error_message: str = Field(
+        default="", description="Error message if plan update failed"
+    )
 
 
 class PlanApprovalResult(TrimmedBaseModel):
@@ -236,8 +275,18 @@ class PlanApprovalResult(TrimmedBaseModel):
 
     approved: bool = Field(description="Whether user approved the plan")
     user_feedback: str = Field(default="", description="User feedback on the plan")
-    requirement_updates: str = Field(default="", description="Updates to requirements based on user feedback")
-    plan_modifications: list[str] = Field(default_factory=list, description="Specific plan modifications requested")
-    technical_concerns: list[str] = Field(default_factory=list, description="Technical concerns raised by user")
-    workflow_changes: str = Field(default="", description="How approval/feedback affects next steps")
-    error_message: str = Field(default="", description="Error message if approval process failed")
+    requirement_updates: str = Field(
+        default="", description="Updates to requirements based on user feedback"
+    )
+    plan_modifications: list[str] = Field(
+        default_factory=list, description="Specific plan modifications requested"
+    )
+    technical_concerns: list[str] = Field(
+        default_factory=list, description="Technical concerns raised by user"
+    )
+    workflow_changes: str = Field(
+        default="", description="How approval/feedback affects next steps"
+    )
+    error_message: str = Field(
+        default="", description="Error message if approval process failed"
+    )

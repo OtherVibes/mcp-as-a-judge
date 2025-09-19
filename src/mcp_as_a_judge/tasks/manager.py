@@ -296,7 +296,12 @@ def validate_state_transition(current_state: TaskState, new_state: TaskState) ->
     """
     # Define valid state transitions
     valid_transitions = {
-        TaskState.CREATED: [TaskState.REQUIREMENTS_FEEDBACK, TaskState.PLANNING, TaskState.BLOCKED, TaskState.CANCELLED],
+        TaskState.CREATED: [
+            TaskState.REQUIREMENTS_FEEDBACK,
+            TaskState.PLANNING,
+            TaskState.BLOCKED,
+            TaskState.CANCELLED,
+        ],
         TaskState.REQUIREMENTS_FEEDBACK: [
             TaskState.USER_APPROVE_REQUIREMENTS,
             TaskState.CREATED,

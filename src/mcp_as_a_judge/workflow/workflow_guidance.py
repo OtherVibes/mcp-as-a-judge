@@ -179,7 +179,9 @@ async def calculate_next_stage(
     try:
         # For CREATED tasks, ALWAYS start with user feedback (brainstorming phase is mandatory)
         if task_metadata.state == TaskState.CREATED:
-            logger.info(f"Task {task_metadata.task_id} in CREATED state - routing to user feedback")
+            logger.info(
+                f"Task {task_metadata.task_id} in CREATED state - routing to user feedback"
+            )
             return WorkflowGuidance(
                 next_tool="get_user_feedback",
                 reasoning="All tasks must start with user feedback to clarify requirements, regardless of size.",
@@ -207,7 +209,10 @@ async def calculate_next_stage(
             logger.info(f"Task {task_metadata.task_id} in REQUIREMENTS_FEEDBACK state")
 
             # Check if we have user requirements (indicating feedback was received)
-            if task_metadata.user_requirements and task_metadata.user_requirements.strip():
+            if (
+                task_metadata.user_requirements
+                and task_metadata.user_requirements.strip()
+            ):
                 # User feedback received - time to create implementation plan using MCP tool
                 return WorkflowGuidance(
                     next_tool="create_implementation_plan",
@@ -255,7 +260,9 @@ async def calculate_next_stage(
 
         # For USER_APPROVE_REQUIREMENTS tasks, AI assistant must create plan first
         if task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
-            logger.info(f"Task {task_metadata.task_id} in USER_APPROVE_REQUIREMENTS state - AI assistant should create implementation plan")
+            logger.info(
+                f"Task {task_metadata.task_id} in USER_APPROVE_REQUIREMENTS state - AI assistant should create implementation plan"
+            )
             return WorkflowGuidance(
                 next_tool=None,  # No specific tool - AI assistant should create plan first
                 reasoning="User feedback received. AI assistant must create detailed implementation plan before requesting approval.",
@@ -566,12 +573,15 @@ async def calculate_next_stage(
                 workflow_guidance.next_tool = "get_current_coding_task"
             else:
                 # As a last resort, pick appropriate tool based on state
-                if task_metadata.state == TaskState.CREATED:
-                    workflow_guidance.next_tool = "get_user_feedback"
-                elif task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+                if (
+                    task_metadata.state == TaskState.CREATED
+                    or task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK
+                ):
                     workflow_guidance.next_tool = "get_user_feedback"
                 elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
-                    workflow_guidance.next_tool = None  # Let AI assistant create plan first
+                    workflow_guidance.next_tool = (
+                        None  # Let AI assistant create plan first
+                    )
                 elif task_metadata.state == TaskState.PLANNING:
                     workflow_guidance.next_tool = "judge_coding_plan"
                 elif task_metadata.state in (
@@ -617,9 +627,10 @@ async def calculate_next_stage(
 
         # Return fallback navigation with appropriate next tool based on state
         fallback_next_tool: str | None = "judge_coding_plan"  # Default fallback
-        if task_metadata.state == TaskState.CREATED:
-            fallback_next_tool = "get_user_feedback"
-        elif task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+        if (
+            task_metadata.state == TaskState.CREATED
+            or task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK
+        ):
             fallback_next_tool = "get_user_feedback"
         elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
             fallback_next_tool = None  # Let AI assistant create plan first
@@ -767,9 +778,10 @@ def _normalize_next_tool_name(
     # Guardrail: avoid spurious routing back to set_coding_task
     if mapped == "set_coding_task":
         # During brainstorming phase, stay in brainstorming tools
-        if task_metadata.state == TaskState.CREATED:
-            return "get_user_feedback"
-        elif task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+        if (
+            task_metadata.state == TaskState.CREATED
+            or task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK
+        ):
             return "get_user_feedback"
         elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
             return None  # Let AI assistant create plan first
@@ -788,9 +800,10 @@ def _normalize_next_tool_name(
 
     # Guardrail: avoid premature completion calls — route to the correct gate
     if mapped == "judge_coding_task_completion":
-        if task_metadata.state == TaskState.CREATED:
-            return "get_user_feedback"
-        elif task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK:
+        if (
+            task_metadata.state == TaskState.CREATED
+            or task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK
+        ):
             return "get_user_feedback"
         elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
             return None  # Let AI assistant create plan first

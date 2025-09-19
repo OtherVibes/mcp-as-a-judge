@@ -73,7 +73,9 @@ class TaskState(str, Enum):
 
     CREATED = "created"  # Task just created, needs requirement feedback
     REQUIREMENTS_FEEDBACK = "requirements_feedback"  # Gathering detailed requirements feedback (brainstorming)
-    USER_APPROVE_REQUIREMENTS = "user_approve_requirements"  # User approving requirements/plan (brainstorming)
+    USER_APPROVE_REQUIREMENTS = (
+        "user_approve_requirements"  # User approving requirements/plan (brainstorming)
+    )
     PLANNING = "planning"  # Technical planning phase in progress (formal workflow)
     PLAN_APPROVED = "plan_approved"  # Plan validated and approved
     IMPLEMENTING = "implementing"  # Implementation phase in progress
@@ -166,14 +168,21 @@ class TaskMetadata(BaseModel):
 
     # TECHNICAL DECISIONS - Captured during requirement gathering phase
     class TechnicalDecision(BaseModel):
-        decision: str = Field(description="The type of decision made (e.g., 'Programming Language', 'Database Type')")
-        choice: str = Field(description="The chosen option (e.g., 'Python', 'PostgreSQL')")
+        decision: str = Field(
+            description="The type of decision made (e.g., 'Programming Language', 'Database Type')"
+        )
+        choice: str = Field(
+            description="The chosen option (e.g., 'Python', 'PostgreSQL')"
+        )
         rationale: str = Field(description="Explanation of why this choice was made")
-        timestamp: int = Field(default_factory=lambda: int(time.time()), description="When this decision was made")
+        timestamp: int = Field(
+            default_factory=lambda: int(time.time()),
+            description="When this decision was made",
+        )
 
     technical_decisions: list[TechnicalDecision] = Field(
         default_factory=list,
-        description="Technical decisions made during requirement gathering and brainstorming phase"
+        description="Technical decisions made during requirement gathering and brainstorming phase",
     )
 
     # (No explicit decision ledger; decisions are handled via LLM-driven elicitation and conversation history)
