@@ -109,14 +109,29 @@ MCP as a Judge implements a sophisticated collaborative workflow that ensures hi
 🧹 Clean History (delete brainstorming records)
     ↓
 🏗️ judge_code_change (Architecture + Security Review)
+    ├── LLM validates: Code structure & patterns
+    ├── LLM checks: Security best practices
+    └── LLM ensures: Requirements compliance
     ↓
 👤 User Code Review (Optional validation step)
+    ├── User validates: Business logic correctness
+    └── User approves: Implementation approach
     ↓
 🧪 judge_testing_implementation (Tests + Coverage)
+    ├── LLM validates: Test completeness & quality
+    ├── LLM checks: Coverage requirements met
+    └── LLM ensures: Edge cases covered
     ↓
 📚 Documentation Review (Optional documentation check)
+    ├── LLM validates: Documentation completeness
+    ├── LLM checks: Code comments & clarity
+    └── LLM ensures: Usage examples provided
     ↓
 ✅ judge_coding_task_completion (Final quality gate)
+    ├── LLM validates: All requirements implemented
+    ├── LLM checks: Best practices followed
+    ├── LLM ensures: Production readiness
+    └── LLM confirms: Task completion criteria met
     ↓
 🎉 Task Complete
 ```
@@ -126,8 +141,12 @@ MCP as a Judge implements a sophisticated collaborative workflow that ensures hi
 - **🧪 Test-First Planning**: Test strategy integrated from planning phase
 - **🔄 Iterative Refinement**: Multiple approval loops ensure quality
 - **👤 User Involvement**: Optional code review for critical changes
-- **📚 Documentation Focus**: Optional documentation validation
+- **🤖 LLM Quality Gates**: Continuous validation of requirements, best practices, and completeness
+- **📚 Documentation Focus**: Optional documentation validation with LLM review
 - **🛡️ Multi-Layer Validation**: Architecture, security, testing, and completion gates
+- **✅ Requirements Traceability**: LLM ensures all original requirements are implemented
+- **🏆 Best Practice Enforcement**: LLM validates coding standards and patterns
+- **🔍 Comprehensive Coverage**: LLM checks edge cases, error handling, and production readiness
 
 ### **🎯 Key Workflow Principles**
 
