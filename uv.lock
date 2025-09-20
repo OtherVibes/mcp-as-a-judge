@@ -721,7 +721,7 @@ cli = [
 
 [[package]]
 name = "mcp-as-a-judge"
-version = "0.3.15"
+version = "0.3.17"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
