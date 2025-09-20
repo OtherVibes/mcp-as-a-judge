@@ -8,7 +8,19 @@ Please evaluate the following coding plan:
 
 {{ context }}
 
-## Previous Conversation History as JSON array 
+{% if technical_decisions %}
+## Technology Stack Decisions
+
+The following technology decisions were made during requirement gathering:
+{% for decision in technical_decisions %}
+- **{{ decision.decision }}**: {{ decision.choice }}
+  - Rationale: {{ decision.rationale }}
+{% endfor %}
+
+**Important**: Your plan must use these agreed-upon technologies and follow their established best practices.
+{% endif %}
+
+## Previous Conversation History as JSON array
 {{ conversation_history }}
 
 ## Plan

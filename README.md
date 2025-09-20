@@ -57,12 +57,124 @@ It enforces evidence-based research, reuse over reinvention, and human-in-the-lo
 |------|-----------------|
 | `set_coding_task` | Creates/updates task metadata; classifies task_size; returns next-step workflow guidance |
 | `get_current_coding_task` | Recovers the latest task_id and metadata to resume work safely |
-| `judge_coding_plan` | Validates plan/design; requires library selection and internal reuse maps; flags risks |
-| `judge_code_change` | Reviews unified Git diffs for correctness, reuse, security, and code quality |
-| `judge_testing_implementation` | Validates tests using real runner output and optional coverage |
-| `judge_coding_task_completion` | Final gate ensuring plan, code, and tests approvals before completion |
+| `get_user_feedback` | **MANDATORY FIRST STEP**: Elicits requirements, technical decisions, and repository analysis |
+| `create_implementation_plan` | LLM creates detailed implementation plan with research and best practices |
+| `update_plan_with_llm_feedback` | Refines plans based on LLM technical validation feedback |
+| `get_user_approve_requirement` | **MANDATORY**: Gets user approval for implementation plans |
+| `judge_coding_plan` | LLM validates plan/design; requires library selection and internal reuse maps; flags risks |
+| `judge_code_change` | LLM reviews code for correctness, reuse, security, and code quality |
+| `judge_testing_implementation` | LLM validates tests using real runner output and coverage reports |
+| `judge_coding_task_completion` | Final LLM gate ensuring plan, code, and tests approvals before completion |
 | `raise_missing_requirements` | Elicits missing details and decisions to unblock progress |
 | `raise_obstacle` | Engages the user on trade‑offs, constraints, and enforced changes |
+
+## 🔄 **Collaborative Refinement Workflow**
+
+MCP as a Judge implements a sophisticated collaborative workflow that ensures high-quality outcomes through iterative user-LLM collaboration:
+
+## 🔄 Enhanced Collaborative Workflow
+
+### **Phase 1: 🧠 Requirements Brainstorming**
+```
+📋 get_user_feedback
+├── Requirements gathering + clarifications
+├── Technical decision areas (framework, database, etc.)
+├── Repository analysis for language/framework decisions
+├── Specific questions to clarify gaps
+└── Suggested options with pros/cons
+```
+
+### **Phase 2: 📋 Plan Creation & Refinement**
+```
+🔬 create_implementation_plan
+├── Technical research & analysis
+├── Architecture & design patterns
+├── Implementation scope & approach
+├── Language-specific best practices
+└── Risk assessment & considerations
+
+🔧 update_plan_with_llm_feedback (if needed)
+├── LLM identifies technical issues
+├── Creates improved plan version
+├── Addresses technical concerns
+└── Maintains user requirements
+```
+
+### **Phase 3: 🔄 Dual Approval Loop**
+```
+👤 User Review → get_user_approve_requirement
+├── ✅ Approved → LLM Technical Validation
+└── ❌ Rejected → Back to Brainstorming
+
+🤖 LLM Review → judge_coding_plan
+├── ✅ Approved → Dual Approval Achieved
+└── ❌ Rejected → update_plan_with_llm_feedback
+    └── Creates Plan B → User Re-Review
+        ├── ✅ Approved → LLM Re-Validation
+        └── ❌ Rejected → Back to Brainstorming
+```
+
+### **Phase 4: 🚀 Implementation & Validation**
+```
+🧹 Clean History (delete brainstorming records)
+    ↓
+🏗️ judge_code_change (Code Review & Validation)
+    ├── LLM validates: Code structure & patterns
+    ├── LLM checks: Security best practices
+    ├── LLM ensures: Requirements compliance
+    ├── LLM reviews: Architecture decisions
+    └── LLM verifies: Best practice adherence
+    ↓
+🧪 judge_testing_implementation (Test Validation)
+    ├── LLM validates: Test completeness & quality
+    ├── LLM checks: Test execution results
+    ├── LLM ensures: Coverage requirements met
+    ├── LLM reviews: Test types implemented
+    └── LLM verifies: Edge cases covered
+    ↓
+✅ judge_coding_task_completion (Final Quality Gate)
+    ├── LLM validates: All requirements implemented
+    ├── LLM checks: All approvals obtained
+    ├── LLM ensures: Production readiness
+    ├── LLM verifies: Best practices followed
+    └── LLM confirms: Task completion criteria met
+    ↓
+🎉 Task Complete
+```
+
+### **🔑 Key Quality Features**
+- **📋 Structured Requirements**: Systematic gathering with technical decision support
+- **🔄 Dual Approval Process**: Both user and LLM must approve plans before implementation
+- **🤖 LLM Quality Gates**: Continuous validation at every implementation step
+- **🛡️ Multi-Layer Validation**: Plan validation, code review, testing, and completion gates
+- **✅ Requirements Traceability**: LLM ensures all original requirements are implemented
+- **🏆 Best Practice Enforcement**: LLM validates coding standards and security practices
+- **🔍 Comprehensive Testing**: Test execution results and coverage validation
+- **🧹 Context Management**: Automatic cleanup of brainstorming records for focused implementation
+- **📊 Progress Tracking**: Task state management with workflow guidance
+- **🔧 Plan Refinement**: Automatic plan improvement based on LLM technical feedback
+
+### **🎯 Key Workflow Principles**
+
+**Phase 1: Collaborative Requirements Refinement**
+- **Iterative Brainstorming**: Multiple cycles until requirements are crystal clear
+- **LLM Plan Creation**: Research-backed, best-practice implementation plans
+- **User Control**: User has final say on approach and requirements
+- **Quality Focus**: No plan proceeds without user satisfaction
+
+**Phase 2: Dual Approval System (CRITICAL)**
+- **User Approves Plan A**: Initial plan approval by user
+- **LLM Technical Review**: LLM validates Plan A for technical soundness
+- **Plan Modification**: If LLM rejects, creates Plan B with improvements
+- **User Re-Approval Required**: User MUST approve Plan B (different from Plan A!)
+- **Iterative Refinement**: Continues until BOTH user + LLM approve SAME plan
+- **True Collaboration**: No automatic plan changes without user consent
+
+**Phase 3: Implementation Excellence**
+- **Dual Approval Guarantee**: Implementation uses plan approved by BOTH parties
+- **History Cleanup**: Removes brainstorming records after dual approval
+- **Focused Context**: Implementation uses only the final dual-approved plan
+- **Quality Assurance**: Multiple validation layers ensure excellent outcomes
 
 ## 🚀 **Quick Start**
 

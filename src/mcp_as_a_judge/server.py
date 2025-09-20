@@ -45,7 +45,11 @@ from mcp_as_a_judge.models import (
     WorkflowGuidance,
 )
 from mcp_as_a_judge.models.enhanced_responses import (
+    ElicitationResult,
     EnhancedResponseFactory,
+    PlanApprovalResult,
+    PlanCreationResult,
+    PlanUpdateResult,
     TaskAnalysisResult,
     TaskCompletionResult,
 )
@@ -63,6 +67,7 @@ from mcp_as_a_judge.tasks.manager import (
 from mcp_as_a_judge.tool_description.factory import (
     tool_description_provider,
 )
+from mcp_as_a_judge.utils.plan_formatter import PlanFormatter
 from mcp_as_a_judge.workflow import calculate_next_stage
 
 setup_logging("INFO")
@@ -1692,6 +1697,11 @@ async def judge_coding_plan(
                 updated_task_metadata.task_id
             )
 
+            # Delete previous user feedback records to clean up brainstorming phase
+            await conversation_service.db.delete_previous_user_feedback(
+                updated_task_metadata.task_id
+            )
+
             # Force next step to code review implementation gate
             workflow_guidance.next_tool = "judge_code_change"
             if not workflow_guidance.reasoning:
@@ -2623,6 +2633,761 @@ async def judge_testing_implementation(
                     )
                 ),
             )
+
+        return error_result
+
+
+@mcp.tool(description=tool_description_provider.get_description("get_user_feedback"))  # type: ignore[misc,unused-ignore]
+async def get_user_feedback(
+    current_request: str,
+    identified_gaps: list[str],
+    specific_questions: list[str],
+    decision_areas: list[str],
+    suggested_options: list[dict],
+    repository_analysis: str,
+    task_id: str,
+    ctx: Context,
+) -> ElicitationResult:
+    """Get user feedback for requirement clarification - description loaded from tool_description_provider."""
+    # Log tool execution start
+    log_tool_execution("get_user_feedback", task_id)
+
+    # Note: original_input was removed as it was unused
+
+    try:
+        # Use the global conversation service for context and saving
+        # conversation_service is defined globally at module level
+
+        # Load task metadata to get current context
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        if not task_metadata:
+            return ElicitationResult(
+                success=False,
+                error_message=f"Task not found: {task_id}",
+            )
+
+        # Use elicitation provider to get user input
+        from pydantic import BaseModel, Field
+
+        from mcp_as_a_judge.elicitation import elicitation_provider
+
+        # Create dynamic schema for user responses
+        class UserFeedbackSchema(BaseModel):
+            clarified_requirements: str = Field(
+                description="Updated and clarified requirements"
+            )
+            technical_decisions: dict[str, str] = Field(
+                description="Technical decisions made"
+            )
+            additional_context: str = Field(
+                default="", description="Any additional context or constraints"
+            )
+            workflow_preferences: str = Field(
+                default="",
+                description="Preferences that affect implementation approach",
+            )
+
+        # Format elicitation message
+        elicitation_message = f"""
+## Requirement Clarification Needed
+
+**Current Understanding:** {current_request}
+
+**Repository Analysis:** {repository_analysis}
+
+**Identified Gaps:**
+{chr(10).join(f"- {gap}" for gap in identified_gaps)}
+
+**Specific Questions:**
+{chr(10).join(f"- {question}" for question in specific_questions)}
+
+**Technical Decisions Needed:**
+{chr(10).join(f"- {area}" for area in decision_areas)}
+
+**Suggested Options:**
+{chr(10).join(f"- **{opt.get('area', 'Unknown')}**: {', '.join(o.get('name', 'Unknown') for o in opt.get('options', []))}" for opt in suggested_options)}
+
+Please provide clarified requirements and make technical decisions to proceed with implementation.
+"""
+
+        # Get user input through elicitation
+        elicitation_result = await elicitation_provider.elicit_user_input(
+            message=elicitation_message,
+            schema=UserFeedbackSchema,
+            ctx=ctx,
+        )
+
+        if not elicitation_result.success:
+            # Instead of failing, provide a structured fallback that guides the AI assistant
+            # to ask the questions directly in a user-friendly way
+            return ElicitationResult(
+                success=True,  # Mark as success to continue workflow
+                clarified_requirements="Please provide clarified requirements based on the questions below.",
+                technical_decisions={},
+                user_responses={},
+                repository_context=repository_analysis,
+                workflow_impact="AI assistant should ask the user the questions directly and collect responses.",
+                error_message="",  # Clear error message since we're handling it gracefully
+            )
+
+        # Parse user responses
+        user_data = elicitation_result.data
+        clarified_requirements = user_data.get("clarified_requirements", "")
+        technical_decisions = user_data.get("technical_decisions", {})
+        additional_context = user_data.get("additional_context", "")
+        workflow_preferences = user_data.get("workflow_preferences", "")
+
+        # Update task metadata with new requirements
+        combined_requirements = f"{task_metadata.user_requirements}\n\n## User Clarifications:\n{clarified_requirements}"
+        if additional_context:
+            combined_requirements += f"\n\n## Additional Context:\n{additional_context}"
+        if workflow_preferences:
+            combined_requirements += (
+                f"\n\n## Workflow Preferences:\n{workflow_preferences}"
+            )
+
+        task_metadata.update_requirements(combined_requirements, source="user_feedback")
+
+        # Save technical decisions to task metadata
+        from mcp_as_a_judge.models.task_metadata import TaskMetadata
+
+        for decision_key, decision_value in technical_decisions.items():
+            technical_decision = TaskMetadata.TechnicalDecision(
+                decision=decision_key,
+                choice=decision_value,
+                rationale="User decision during requirement feedback phase",
+            )
+            task_metadata.technical_decisions.append(technical_decision)
+
+        # Keep in REQUIREMENTS_FEEDBACK state until plan is created and ready for approval
+        # The AI assistant needs to create the plan first before transitioning to USER_APPROVE_REQUIREMENTS
+        task_metadata.update_state(TaskState.REQUIREMENTS_FEEDBACK)
+
+        # Determine workflow impact based on user decisions
+        workflow_impact = "User feedback received. AI assistant should now create detailed implementation plan, then call get_user_approve_requirement for user approval."
+
+        # Create result
+        result = ElicitationResult(
+            success=True,
+            clarified_requirements=combined_requirements,
+            technical_decisions=technical_decisions,
+            user_responses=user_data,
+            repository_context=repository_analysis,
+            workflow_impact=workflow_impact,
+        )
+
+        # Save user feedback interaction to database for better LLM context
+        # This helps provide historical context for future tool calls
+        feedback_context = {
+            "repository_analysis": repository_analysis,
+            "task_description": task_metadata.description,
+            "task_size": task_metadata.size.value if task_metadata.size else "unknown",
+            "workflow_state": task_metadata.state.value,
+            "elicitation_success": elicitation_result.success,
+            "questions_asked": specific_questions[:5],  # Limit to avoid token bloat
+            "decision_areas": decision_areas[:5],  # Limit to avoid token bloat
+        }
+
+        await conversation_service.save_tool_interaction_and_cleanup(
+            session_id=task_metadata.task_id,
+            tool_name="get_user_feedback",
+            tool_input=json.dumps(feedback_context, indent=2),
+            tool_output=json.dumps(result.model_dump(), indent=2),
+        )
+
+        return result
+
+    except Exception as e:
+        import traceback
+
+        error_details = f"Error during user feedback elicitation: {e!s}\nTraceback: {traceback.format_exc()}"
+        logger.error(error_details)
+
+        error_result = ElicitationResult(
+            success=False,
+            error_message=error_details,
+        )
+
+        # NOTE: Do not save brainstorming phase errors to database
+        # Only formal workflow errors (starting with judge_coding_plan) are saved
+
+        return error_result
+
+
+@mcp.tool(
+    description=tool_description_provider.get_description("create_implementation_plan")
+)  # type: ignore[misc,unused-ignore]
+async def create_implementation_plan(
+    task_id: str,
+    user_requirements: str,
+    technical_decisions: list[dict],
+    repository_analysis: str,
+    ctx: Context,
+) -> PlanCreationResult:
+    """Create detailed implementation plan using LLM sampling with research and best practices."""
+    # Log tool execution start
+    log_tool_execution("create_implementation_plan", task_id)
+
+    try:
+        # Use global conversation service (already initialized with config)
+        # conversation_service is already available globally
+
+        # Load task metadata
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        if not task_metadata:
+            return PlanCreationResult(
+                success=False,
+                error_message=f"Task not found: {task_id}",
+            )
+
+        # Load context for LLM sampling
+        context_records = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id=task_id,
+                current_prompt="create_implementation_plan",
+                ctx=ctx,
+            )
+        )
+
+        # Prepare context for plan creation
+        context_text = "\n".join(
+            [
+                f"Tool: {record.source}\nInput: {record.input}\nOutput: {record.output}\n---"
+                for record in context_records
+            ]
+        )
+
+        # Create plan creation prompt
+        plan_creation_prompt = f"""
+# Implementation Plan Creation
+
+## Task Requirements
+{user_requirements}
+
+## Technical Decisions Made
+{json.dumps(technical_decisions, indent=2)}
+
+## Repository Analysis
+{repository_analysis}
+
+## Previous Context
+{context_text}
+
+## Your Task
+Create a comprehensive implementation plan that includes:
+
+1. **Detailed Implementation Plan**: Step-by-step approach with code examples
+2. **System Design**: Architecture, components, and data flow
+3. **Research Findings**: Best practices, libraries, and patterns to use
+4. **Technical Decisions**: Rationale for technology choices
+5. **Implementation Scope**: Files to create/modify, estimated complexity
+6. **Language-Specific Practices**: Best practices for the chosen stack
+7. **Risk Assessment**: Potential issues and mitigation strategies
+
+Focus on:
+- Following established patterns in the codebase
+- Using industry best practices
+- Providing specific, actionable implementation steps
+- Including relevant code examples and patterns
+- Identifying potential risks and solutions
+"""
+
+        # Use LLM provider to create the plan
+        plan_response = await llm_provider.send_message(
+            messages=[{"role": "user", "content": plan_creation_prompt}],
+            ctx=ctx,
+            max_tokens=4000,
+            temperature=0.1,
+            prefer_sampling=True,
+        )
+
+        if not plan_response or not plan_response.strip():
+            return PlanCreationResult(
+                success=False,
+                error_message="Failed to generate implementation plan - empty response from LLM",
+            )
+
+        # Parse the plan response - plan_response is already a string
+        plan_content = plan_response
+
+        # Create result with structured data
+        result = PlanCreationResult(
+            success=True,
+            plan=plan_content,
+            design="System design extracted from plan",  # Would parse from plan_content
+            research="Research findings extracted from plan",  # Would parse from plan_content
+            technical_decisions=technical_decisions,
+            implementation_scope={
+                "files_to_create": [],  # Would extract from plan
+                "files_to_modify": [],  # Would extract from plan
+                "estimated_complexity": "medium",  # Would analyze from plan
+            },
+            language_specific_practices=[],  # Would extract from plan
+            risk_assessment="Risk assessment extracted from plan",  # Would parse from plan_content
+        )
+
+        # Update task state to indicate plan is ready for user approval
+        task_metadata.update_state(TaskState.USER_APPROVE_REQUIREMENTS)
+
+        # Save tool interaction to database
+        await conversation_service.save_tool_interaction_and_cleanup(
+            session_id=task_metadata.task_id,
+            tool_name="create_implementation_plan",
+            tool_input=json.dumps(
+                {
+                    "task_id": task_id,
+                    "user_requirements": user_requirements[
+                        :500
+                    ],  # Truncate for storage
+                    "technical_decisions": technical_decisions,
+                    "repository_analysis": repository_analysis[
+                        :500
+                    ],  # Truncate for storage
+                },
+                indent=2,
+            ),
+            tool_output=json.dumps(result.model_dump(), indent=2),
+        )
+
+        return result
+
+    except Exception as e:
+        import traceback
+
+        error_details = (
+            f"Error during plan creation: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
+        logger.error(error_details)
+
+        return PlanCreationResult(
+            success=False,
+            error_message=error_details,
+        )
+
+
+@mcp.tool(
+    description=tool_description_provider.get_description(
+        "update_plan_with_llm_feedback"
+    )
+)  # type: ignore[misc,unused-ignore]
+async def update_plan_with_llm_feedback(
+    task_id: str,
+    original_plan: str,
+    llm_feedback: str,
+    required_improvements: list[str],
+    technical_concerns: list[str],
+    ctx: Context,
+) -> PlanUpdateResult:
+    """Update implementation plan based on LLM technical feedback and suggestions."""
+    # Log tool execution start
+    log_tool_execution("update_plan_with_llm_feedback", task_id)
+
+    try:
+        # Use global conversation service (already initialized with config)
+        # conversation_service is already available globally
+
+        # Load task metadata
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        if not task_metadata:
+            return PlanUpdateResult(
+                success=False,
+                error_message=f"Task not found: {task_id}",
+            )
+
+        # Load context for LLM sampling
+        context_records = (
+            await conversation_service.load_filtered_context_for_enrichment(
+                session_id=task_id,
+                current_prompt="update_plan_with_llm_feedback",
+                ctx=ctx,
+            )
+        )
+
+        # Prepare context for plan update
+        context_text = "\n".join(
+            [
+                f"Tool: {record.source}\nInput: {record.input}\nOutput: {record.output}\n---"
+                for record in context_records
+            ]
+        )
+
+        # Create plan update prompt
+        improvements_text = "\n".join(
+            [f"- {improvement}" for improvement in required_improvements]
+        )
+        concerns_text = "\n".join([f"- {concern}" for concern in technical_concerns])
+
+        plan_update_prompt = f"""
+# Plan Update Based on LLM Technical Feedback
+
+## Original Plan
+{original_plan}
+
+## LLM Technical Feedback
+{llm_feedback}
+
+## Required Improvements
+{improvements_text}
+
+## Technical Concerns to Address
+{concerns_text}
+
+## Previous Context
+{context_text}
+
+## Your Task
+Update the implementation plan to address ALL the LLM feedback and technical concerns:
+
+1. **Address Each Required Improvement**: Modify the plan to incorporate each improvement
+2. **Resolve Technical Concerns**: Update technical decisions to address concerns
+3. **Maintain User Requirements**: Keep all user-approved requirements intact
+4. **Improve Technical Quality**: Enhance architecture, patterns, and best practices
+5. **Provide Clear Rationale**: Explain what changed and why
+
+Focus on:
+- Addressing every point in the LLM feedback
+- Maintaining the core user requirements and approach
+- Improving technical implementation without changing scope
+- Providing specific, actionable implementation steps
+- Including updated code examples and patterns
+
+Return the updated plan that addresses all technical feedback while preserving user intent.
+"""
+
+        # Use LLM provider to update the plan
+        update_response = await llm_provider.send_message(
+            messages=[{"role": "user", "content": plan_update_prompt}],
+            ctx=ctx,
+            max_tokens=4000,
+            temperature=0.1,
+            prefer_sampling=True,
+        )
+
+        if not update_response or not update_response.strip():
+            return PlanUpdateResult(
+                success=False,
+                error_message="Failed to update implementation plan - empty response from LLM",
+            )
+
+        # Parse the updated plan response - update_response is already a string
+        updated_plan_content = update_response
+
+        # Create result with structured data
+        result = PlanUpdateResult(
+            success=True,
+            updated_plan=updated_plan_content,
+            updated_design="Updated system design based on LLM feedback",  # Would parse from updated_plan_content
+            updated_research="Updated research findings based on LLM feedback",  # Would parse from updated_plan_content
+            llm_improvements=required_improvements,
+            technical_changes=[
+                {"change": improvement, "rationale": "Addressed LLM technical feedback"}
+                for improvement in required_improvements
+            ],
+            change_rationale=f"Plan updated to address LLM technical feedback: {llm_feedback[:200]}...",
+            version_info="Plan B - Updated based on LLM technical validation feedback",
+        )
+
+        # Keep task in REQUIREMENTS_FEEDBACK state so user can review the updated plan
+        task_metadata.update_state(TaskState.REQUIREMENTS_FEEDBACK)
+
+        # Save tool interaction to database
+        await conversation_service.save_tool_interaction_and_cleanup(
+            session_id=task_metadata.task_id,
+            tool_name="update_plan_with_llm_feedback",
+            tool_input=json.dumps(
+                {
+                    "task_id": task_id,
+                    "original_plan": original_plan[:500],  # Truncate for storage
+                    "llm_feedback": llm_feedback[:500],  # Truncate for storage
+                    "required_improvements": required_improvements,
+                    "technical_concerns": technical_concerns,
+                },
+                indent=2,
+            ),
+            tool_output=json.dumps(result.model_dump(), indent=2),
+        )
+
+        return result
+
+    except Exception as e:
+        import traceback
+
+        error_details = (
+            f"Error during plan update: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
+        logger.error(error_details)
+
+        return PlanUpdateResult(
+            success=False,
+            error_message=error_details,
+        )
+
+
+@mcp.tool(
+    description=tool_description_provider.get_description(
+        "get_user_approve_requirement"
+    )
+)  # type: ignore[misc,unused-ignore]
+async def get_user_approve_requirement(
+    plan: str,
+    design: str,
+    research: str,
+    technical_decisions: list[dict],
+    implementation_scope: dict,
+    language_specific_practices: list[str],
+    task_id: str,
+    ctx: Context,
+    user_questions: list[str] | None = None,
+) -> PlanApprovalResult:
+    """Get user approval for implementation plan - description loaded from tool_description_provider."""
+    # Log tool execution start
+    log_tool_execution("get_user_approve_requirement", task_id)
+
+    # Note: original_input was removed as it was unused
+
+    try:
+        # Use the global conversation service for context and saving
+        # conversation_service is defined globally at module level
+
+        # Load task metadata to get current context
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id=task_id,
+            conversation_service=conversation_service,
+        )
+
+        if not task_metadata:
+            return PlanApprovalResult(
+                approved=False,
+                error_message=f"Task not found: {task_id}",
+            )
+
+        # Generate user questions if not provided
+        if user_questions is None:
+            user_questions = PlanFormatter.generate_user_questions(
+                technical_decisions, implementation_scope, plan
+            )
+
+        # Convert technical_decisions to the expected format for the formatter
+        formatted_technical_decisions = []
+        for decision in technical_decisions:
+            if isinstance(decision, dict):
+                formatted_technical_decisions.append(decision)
+            else:
+                # Handle TaskMetadata.TechnicalDecision objects
+                formatted_technical_decisions.append(
+                    {
+                        "decision": getattr(decision, "decision", "Unknown"),
+                        "choice": getattr(decision, "choice", "Unknown"),
+                        "rationale": getattr(
+                            decision, "rationale", "No rationale provided"
+                        ),
+                    }
+                )
+
+        # Format the plan for user presentation
+        formatted_plan, plan_summary = PlanFormatter.format_plan_for_approval(
+            plan=plan,
+            design=design,
+            research=research,
+            technical_decisions=formatted_technical_decisions,
+            implementation_scope=implementation_scope,
+            language_specific_practices=language_specific_practices,
+            user_questions=user_questions,
+        )
+
+        # Use elicitation provider to get user approval
+        from pydantic import BaseModel, Field
+
+        from mcp_as_a_judge.elicitation import elicitation_provider
+
+        # Create dynamic schema for user approval
+        class PlanApprovalSchema(BaseModel):
+            approved: bool = Field(
+                description="Whether you approve this implementation plan"
+            )
+            feedback: str = Field(default="", description="Your feedback on the plan")
+            requirement_updates: str = Field(
+                default="", description="Any updates to requirements based on the plan"
+            )
+            plan_modifications: list[str] = Field(
+                default_factory=list,
+                description="Specific modifications you want to the plan",
+            )
+            technical_concerns: list[str] = Field(
+                default_factory=list, description="Any technical concerns you have"
+            )
+
+        # Format the plan presentation message
+        technical_decisions_text = "\n".join(
+            f"- **{decision.get('decision', 'Unknown')}**: {decision.get('choice', 'Unknown')} - {decision.get('rationale', 'No rationale provided')}"
+            for decision in formatted_technical_decisions
+        )
+
+        scope_text = f"""
+**Files to Create:** {", ".join(implementation_scope.get("files_to_create", []))}
+**Files to Modify:** {", ".join(implementation_scope.get("files_to_modify", []))}
+**Estimated Complexity:** {implementation_scope.get("estimated_complexity", "Unknown")}
+"""
+
+        practices_text = "\n".join(
+            f"- {practice}" for practice in language_specific_practices
+        )
+
+        questions_text = "\n".join(f"- {question}" for question in user_questions)
+
+        approval_message = f"""
+# Implementation Plan for Review
+
+## Executive Summary
+{plan_summary}
+
+## Technical Decisions Made
+{technical_decisions_text}
+
+## Implementation Scope
+{scope_text}
+
+## Language-Specific Best Practices
+{practices_text}
+
+## Detailed Plan
+{formatted_plan}
+
+## Questions for Your Consideration
+{questions_text}
+
+---
+
+**Please review this implementation plan and provide your approval or feedback.**
+"""
+
+        # Get user approval through elicitation
+        elicitation_result = await elicitation_provider.elicit_user_input(
+            message=approval_message,
+            schema=PlanApprovalSchema,
+            ctx=ctx,
+        )
+
+        if not elicitation_result.success:
+            return PlanApprovalResult(
+                approved=False,
+                error_message=f"Failed to get user approval: {elicitation_result.message}",
+            )
+
+        # Parse user approval response
+        user_data = elicitation_result.data
+        approved = user_data.get("approved", False)
+        user_feedback = user_data.get("feedback", "")
+        requirement_updates = user_data.get("requirement_updates", "")
+        plan_modifications = user_data.get("plan_modifications", [])
+        technical_concerns = user_data.get("technical_concerns", [])
+
+        # Update task metadata based on user response
+        if approved:
+            # Import the function to check if LLM validation should be skipped
+            from mcp_as_a_judge.workflow.workflow_guidance import (
+                should_skip_llm_plan_validation,
+            )
+
+            # For XS/S tasks, skip LLM validation and go directly to PLAN_APPROVED
+            if should_skip_llm_plan_validation(task_metadata):
+                task_metadata.update_state(TaskState.PLAN_APPROVED)
+                task_metadata.mark_plan_approved()  # Mark as approved since user approved it
+                workflow_changes = f"Plan approved by user. Task size is {task_metadata.task_size.value.upper()} - skipping LLM validation, proceeding directly to implementation."
+            else:
+                # For M/L/XL tasks, proceed to PLANNING for technical validation
+                task_metadata.update_state(TaskState.PLANNING)
+                workflow_changes = "Plan approved by user. Ready for technical validation via judge_coding_plan."
+
+            # Add approved plan to requirements if user provided updates
+            if requirement_updates:
+                updated_requirements = f"{task_metadata.user_requirements}\n\n## Plan Approval Updates:\n{requirement_updates}"
+                task_metadata.update_requirements(
+                    updated_requirements, source="plan_approval"
+                )
+        else:
+            # Plan not approved - go back to brainstorming phase to refine requirements
+            task_metadata.update_state(TaskState.REQUIREMENTS_FEEDBACK)
+            workflow_changes = "Plan not approved. Returning to brainstorming phase to refine requirements based on user feedback."
+
+            # Add user feedback to requirements
+            if user_feedback or requirement_updates:
+                feedback_text = f"## User Plan Feedback:\n{user_feedback}"
+                if requirement_updates:
+                    feedback_text += (
+                        f"\n\n## Requirement Updates:\n{requirement_updates}"
+                    )
+                updated_requirements = (
+                    f"{task_metadata.user_requirements}\n\n{feedback_text}"
+                )
+                task_metadata.update_requirements(
+                    updated_requirements, source="plan_feedback"
+                )
+
+        # Create result
+        result = PlanApprovalResult(
+            approved=approved,
+            user_feedback=user_feedback,
+            requirement_updates=requirement_updates,
+            plan_modifications=plan_modifications,
+            technical_concerns=technical_concerns,
+            workflow_changes=workflow_changes,
+        )
+
+        # Save plan approval interaction to database for better LLM context
+        approval_context = {
+            "task_description": task_metadata.description,
+            "task_size": task_metadata.size.value if task_metadata.size else "unknown",
+            "workflow_state": task_metadata.state.value,
+            "plan_content": formatted_plan[:1000],  # Limit to avoid token bloat
+            "user_approved": approved,
+            "skip_llm_validation": should_skip_llm_plan_validation(task_metadata),
+        }
+
+        await conversation_service.save_tool_interaction_and_cleanup(
+            session_id=task_metadata.task_id,
+            tool_name="get_user_approve_requirement",
+            tool_input=json.dumps(approval_context, indent=2),
+            tool_output=json.dumps(result.model_dump(), indent=2),
+        )
+
+        return result
+
+    except Exception as e:
+        import traceback
+
+        error_details = (
+            f"Error during plan approval: {e!s}\nTraceback: {traceback.format_exc()}"
+        )
+        logger.error(error_details)
+
+        error_result = PlanApprovalResult(
+            approved=False,
+            error_message=error_details,
+        )
+
+        # NOTE: Do not save brainstorming phase errors to database
+        # Only formal workflow errors (starting with judge_coding_plan) are saved
 
         return error_result
 

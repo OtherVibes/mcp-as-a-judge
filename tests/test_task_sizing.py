@@ -14,7 +14,7 @@ from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskStat
 from mcp_as_a_judge.tasks.manager import create_new_coding_task
 from mcp_as_a_judge.workflow.workflow_guidance import (
     calculate_next_stage,
-    should_skip_planning,
+    should_skip_llm_plan_validation,
 )
 
 
@@ -84,53 +84,53 @@ class TestTaskMetadataWithSizing:
         assert task.task_size == TaskSize.S
 
 
-class TestShouldSkipPlanning:
-    """Test the should_skip_planning helper function."""
+class TestShouldSkipLLMPlanValidation:
+    """Test the should_skip_llm_plan_validation helper function."""
 
-    def test_skip_planning_for_xs_task(self):
-        """Test that XS tasks skip planning."""
+    def test_skip_llm_validation_for_xs_task(self):
+        """Test that XS tasks skip LLM plan validation."""
         task = TaskMetadata(
             title="Fix typo",
             description="Fix typo in documentation",
             task_size=TaskSize.XS,
         )
-        assert should_skip_planning(task) is True
+        assert should_skip_llm_plan_validation(task) is True
 
-    def test_skip_planning_for_s_task(self):
-        """Test that S tasks skip planning."""
+    def test_skip_llm_validation_for_s_task(self):
+        """Test that S tasks skip LLM plan validation."""
         task = TaskMetadata(
             title="Minor refactor",
             description="Simple refactoring",
             task_size=TaskSize.S,
         )
-        assert should_skip_planning(task) is True
+        assert should_skip_llm_plan_validation(task) is True
 
-    def test_no_skip_planning_for_m_task(self):
-        """Test that M tasks do not skip planning."""
+    def test_no_skip_llm_validation_for_m_task(self):
+        """Test that M tasks do not skip LLM plan validation."""
         task = TaskMetadata(
             title="Standard feature",
             description="Implement standard feature",
             task_size=TaskSize.M,
         )
-        assert should_skip_planning(task) is False
+        assert should_skip_llm_plan_validation(task) is False
 
-    def test_no_skip_planning_for_l_task(self):
-        """Test that L tasks do not skip planning."""
+    def test_no_skip_llm_validation_for_l_task(self):
+        """Test that L tasks do not skip LLM plan validation."""
         task = TaskMetadata(
             title="Complex feature",
             description="Implement complex feature",
             task_size=TaskSize.L,
         )
-        assert should_skip_planning(task) is False
+        assert should_skip_llm_plan_validation(task) is False
 
-    def test_no_skip_planning_for_xl_task(self):
-        """Test that XL tasks do not skip planning."""
+    def test_no_skip_llm_validation_for_xl_task(self):
+        """Test that XL tasks do not skip LLM plan validation."""
         task = TaskMetadata(
             title="Architecture redesign",
             description="Complete system redesign",
             task_size=TaskSize.XL,
         )
-        assert should_skip_planning(task) is False
+        assert should_skip_llm_plan_validation(task) is False
 
 
 class TestCreateNewCodingTaskWithSizing:
@@ -209,8 +209,8 @@ class TestWorkflowGuidanceWithSizing:
         assert task.task_size.value == "l"
 
     @pytest.mark.asyncio
-    async def test_small_task_skips_planning_deterministically(self):
-        """Test that XS/S tasks skip planning deterministically."""
+    async def test_small_task_requires_user_feedback_first(self):
+        """Test that small tasks still require user feedback first, but can skip LLM plan validation."""
         from unittest.mock import AsyncMock
 
         # Create a small task in CREATED state
@@ -233,24 +233,12 @@ class TestWorkflowGuidanceWithSizing:
             ctx=None,
         )
 
-        # Verify that planning is skipped but full workflow is explained
-        assert guidance.next_tool is None
-        assert "skip" in guidance.reasoning.lower()
-        assert (
-            "task size is s" in guidance.reasoning.lower()
-            or "small" in guidance.reasoning.lower()
-        )
-        assert "implement" in guidance.guidance.lower()
-        # Verify that the guidance mentions the full workflow steps
-        assert "judge_code_change" in guidance.guidance.lower()
-        assert (
-            "judge_testing_implementation" in guidance.guidance.lower()
-            or "testing" in guidance.guidance.lower()
-        )
-        assert (
-            "judge_coding_task_completion" in guidance.guidance.lower()
-            or "completion" in guidance.guidance.lower()
-        )
+        # Verify that user feedback is still required first (ALL tasks start with user feedback)
+        assert guidance.next_tool == "get_user_feedback"
+        assert "user feedback" in guidance.reasoning.lower()
+
+        # Test that LLM plan validation can be skipped for small tasks
+        assert should_skip_llm_plan_validation(task) is True
 
     @pytest.mark.asyncio
     async def test_large_task_requires_planning(self):
