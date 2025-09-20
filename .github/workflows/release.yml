@@ -138,78 +138,44 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v5
-      - name: Install MCP Publisher CLI
-        run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/download/v1.0.0/mcp-publisher_1.0.0_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
       - name: Extract version from tag
         id: ver
         run: |
           echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      - name: Generate server.json
-        id: server
+      - name: Extract project metadata
+        id: metadata
         env:
           VERSION: ${{ steps.ver.outputs.VERSION }}
         run: |
           python - <<'PY'
-          import json, tomllib, os
+          import tomllib, os
           VERSION = os.environ['VERSION']
           with open('pyproject.toml','rb') as f:
               data = tomllib.load(f)
           project = data['project']
-          server = {
-              "name": f"io.github.OtherVibes/{project['name']}",
-              "description": project['description'],
-              "version": VERSION,
-              "homepage": next((url[1] for url in project.get('urls', {}).items() if url[0] == 'Homepage'), ''),
-              "license": project.get('license', {}).get('text', 'MIT'),
-              "runtime": {
-                  "type": "uv",
-                  "package": f"{project['name']}=={VERSION}",
-                  "transport": {"type": "stdio"}
-              }
-          }
-          with open('server.json', 'w') as f:
-              json.dump(server, f, indent=2)
+
+          # Extract metadata for the action
+          name = f"io.github.OtherVibes/{project['name']}"
+          description = project['description']
+          homepage = next((url[1] for url in project.get('urls', {}).items() if url[0] == 'Homepage'), '')
+          package_name = project['name']
+
+          # Write to GitHub outputs
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"json={json.dumps(server)}\n")
+              f.write(f"name={name}\n")
+              f.write(f"description={description}\n")
+              f.write(f"homepage={homepage}\n")
+              f.write(f"package_name={package_name}\n")
           PY
-      - name: Login to MCP Registry (GitHub OIDC)
-        run: |
-          ./mcp-publisher login github-oidc
       - name: Publish to MCP Registry
-        env:
-          NAME: ${{ fromJSON(steps.server.outputs.json).name }}
-        run: |
-          ./mcp-publisher publish server.json
-      - name: Verify publication
-        env:
-          NAME: ${{ fromJSON(steps.server.outputs.json).name }}
-          VERSION: ${{ fromJSON(steps.server.outputs.json).version }}
-        run: |
-          echo "✅ Publication command completed successfully"
-          echo "📋 Published server: $NAME version $VERSION"
-
-          echo "🔍 Verifying publication in registry..."
-
-          # Use search parameter to find our server (includes all versions)
-          server_name_only=$(echo "$NAME" | sed 's/.*\///')
-          curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=$server_name_only" > search_results.json
-
-          # Check if our specific version exists
-          version_found=$(jq -r --arg name "$NAME" --arg version "$VERSION" '.servers[] | select(.name == $name and .version == $version) | .version' search_results.json)
-
-          if [ -n "$version_found" ]; then
-            echo "✅ Server $NAME version $VERSION is published in MCP Registry!"
-            echo "📋 Server details:"
-            jq -r --arg name "$NAME" --arg version "$VERSION" '.servers[] | select(.name == $name and .version == $version) | {name, version, description, is_latest: ._meta."io.modelcontextprotocol.registry/official".is_latest}' search_results.json
-
-            # Show all versions of this server
-            echo ""
-            echo "� All published versions:"
-            jq -r --arg name "$NAME" '.servers[] | select(.name == $name) | "  - v" + .version + " (latest: " + (._meta."io.modelcontextprotocol.registry/official".is_latest | tostring) + ")"' search_results.json | sort -V
-          else
-            echo "❌ Server $NAME version $VERSION not found in registry"
-            echo "🔍 Available versions for this server:"
-            jq -r --arg name "$NAME" '.servers[] | select(.name == $name) | "  - v" + .version' search_results.json | sort -V
-            exit 1
-          fi
+        uses: OtherVibes/mcp-publish-action@v1
+        with:
+          name: ${{ steps.metadata.outputs.name }}
+          description: ${{ steps.metadata.outputs.description }}
+          version: ${{ steps.ver.outputs.VERSION }}
+          website_url: ${{ steps.metadata.outputs.homepage }}
+          registry_type: pypi
+          identifier: ${{ steps.metadata.outputs.package_name }}
+          package_version: ${{ steps.ver.outputs.VERSION }}
+          transport_type: stdio
+          verify: true
