@@ -1686,6 +1686,12 @@ async def judge_coding_plan(
             # Mark plan as approved for completion validation and update state
             updated_task_metadata.mark_plan_approved()
             updated_task_metadata.update_state(TaskState.PLAN_APPROVED)
+
+            # Delete previous failed plan attempts, keeping only the most recent approved one
+            await conversation_service.db.delete_previous_plan(
+                updated_task_metadata.task_id
+            )
+
             # Force next step to code review implementation gate
             workflow_guidance.next_tool = "judge_code_change"
             if not workflow_guidance.reasoning:
