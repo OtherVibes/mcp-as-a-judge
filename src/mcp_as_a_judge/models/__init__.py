@@ -69,6 +69,7 @@ class SystemVars(BaseModel):
     task_size_definitions: str = Field(default="")
     plan_input_schema: str = Field(default="")
     plan_evaluation_criteria: str = Field(default="")
+    workflow_guidance: str = Field(default="")
 
 
 class DynamicSchemaUserVars(BaseModel):

@@ -514,7 +514,7 @@ async def calculate_next_stage(
         )
 
         # Generate plan required fields if next tool is judge_coding_plan
-        plan_required_fields: list[PlanRequiredField] = []
+        dynamic_plan_required_fields: list[PlanRequiredField] = []
         if normalized_next_tool == "judge_coding_plan":
             # Combine persisted metadata with any freshly-determined requirements
             metadata_for_requirements = task_metadata.model_copy(deep=True)
@@ -536,7 +536,7 @@ async def calculate_next_stage(
                     update=overrides
                 )
 
-            plan_required_fields = _generate_plan_required_fields(
+            dynamic_plan_required_fields = _generate_plan_required_fields(
                 metadata_for_requirements
             )
 
@@ -557,7 +557,7 @@ async def calculate_next_stage(
                 "design_patterns_enforcement"
             ),
             # Plan requirements for judge_coding_plan
-            plan_required_fields=plan_required_fields,
+            plan_required_fields=dynamic_plan_required_fields,
         )
 
         # Fallback: if next_tool missing/None and not completed, route to get_current_coding_task
