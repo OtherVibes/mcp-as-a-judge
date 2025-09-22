@@ -58,7 +58,8 @@ class JudgeResponse(BaseModel):
     )
 
     # Use a lazy default factory to avoid importing workflow at module import time
-    def _default_workflow_guidance():  # type: ignore[no-redef]
+    @staticmethod
+    def _default_workflow_guidance() -> "WorkflowGuidance":
         from mcp_as_a_judge.workflow import WorkflowGuidance
 
         return WorkflowGuidance(
@@ -260,6 +261,10 @@ class SystemVars(BaseModel):
     workflow_guidance: str = Field(
         default="",
         description="Workflow guidance from task state to use as evaluation criteria (optional)",
+    )
+    plan_required_fields_json: str = Field(
+        default="[]",
+        description="JSON array of required fields for judge_coding_plan dynamic validation (optional)",
     )
 
 

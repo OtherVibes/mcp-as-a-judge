@@ -297,25 +297,31 @@ You must respond with a JSON object that matches this schema:
 
 **CRITICAL: You MUST evaluate ALL requirements in ONE PASS. NO iterative discovery allowed.**
 
-### STEP 1: CHECK REQUIRED FIELDS (Reject immediately if ANY missing)
-- [ ] `plan` field exists and non-empty
-- [ ] `design` field exists and non-empty
-- [ ] `research` field exists and non-empty
-- [ ] `problem_domain` field exists and non-empty
-- [ ] `problem_non_goals` array exists (can be empty)
-- [ ] `library_plan` array exists and non-empty
-- [ ] `internal_reuse_components` array exists (empty with greenfield note OK)
+### DYNAMIC FIELD VALIDATION
 
-### STEP 2: CHECK CONDITIONAL FIELDS (Based on task metadata)
-- [ ] If `research_required=true` → `research_urls` array must exist and be non-empty
-- [ ] If `risk_assessment_required=true` → `identified_risks` AND `risk_mitigation_strategies` arrays must exist with 1:1 mapping
-- [ ] If `design_patterns_enforcement=true` → `design_patterns` array must exist with name/area objects
+The following fields are required based on the current task metadata:
 
-### STEP 3: APPROVE OR REJECT WITH COMPLETE FEEDBACK
-- **IF ALL FIELDS PRESENT**: Approve with brief positive feedback
-- **IF ANY FIELDS MISSING**: Reject with ALL missing items listed at once
+{{ plan_required_fields_json }}
+
+**VALIDATION STEPS:**
+
+1. **Parse the field requirements** from the JSON specification above
+2. **Check each required field** (where `required: true`) exists and is non-empty
+3. **Check conditional fields** (where `conditional_on` is specified) only when their condition is met
+4. **Validate data types** match the specified `type` for each field
+5. **Approve or reject** with complete feedback listing ALL missing fields at once
+
+### FIELD VALIDATION RULES:
+- **String fields**: Must exist and contain non-whitespace content
+- **Array fields**: Must exist as arrays (can be empty only if explicitly noted in description)
+- **Object arrays**: Must exist and contain properly structured objects as described
+- **Conditional fields**: Only validate when the specified task metadata condition is true
+
+### APPROVAL CRITERIA:
+- ✅ **APPROVE** if all required and applicable conditional fields are populated with reasonable content
+- ❌ **REJECT** only if required or applicable conditional fields are missing or empty
 - **DO NOT**: Ask for additional details, implementation specifics, or code snippets
-- **DO NOT**: Discover new requirements not listed above
+- **DO NOT**: Discover new requirements beyond the specified field list
 
 ### SIMPLIFIED APPROVAL CRITERIA:
 ✅ **APPROVE** if all required/conditional fields are populated with reasonable content

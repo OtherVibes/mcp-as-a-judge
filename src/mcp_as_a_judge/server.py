@@ -39,7 +39,6 @@ from mcp_as_a_judge.models import (
     DesignPattern,
     JudgeCodeChangeUserVars,
     JudgeCodingPlanUserVars,
-    JudgeResponse,
     ResearchValidationResponse,
     ResearchValidationUserVars,
     SystemVars,
@@ -47,6 +46,7 @@ from mcp_as_a_judge.models import (
 )
 from mcp_as_a_judge.models.enhanced_responses import (
     EnhancedResponseFactory,
+    JudgeResponse,
     TaskAnalysisResult,
     TaskCompletionResult,
 )
@@ -1292,11 +1292,20 @@ async def _evaluate_coding_plan(
 
         workflow_guidance_text = "\n".join(guidance_parts)
 
+    # Generate plan required fields for dynamic validation
+    from mcp_as_a_judge.workflow.workflow_guidance import _generate_plan_required_fields
+
+    plan_required_fields = _generate_plan_required_fields(task_metadata)
+    plan_required_fields_json = json.dumps(
+        [field.model_dump() for field in plan_required_fields], indent=2
+    )
+
     # Create system and user messages from templates
     system_vars = SystemVars(
         response_schema=json.dumps(JudgeResponse.model_json_schema()),
         max_tokens=MAX_TOKENS,
         workflow_guidance=workflow_guidance_text,
+        plan_required_fields_json=plan_required_fields_json,
     )
     user_vars = JudgeCodingPlanUserVars(
         user_requirements=user_requirements,

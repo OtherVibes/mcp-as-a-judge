@@ -144,13 +144,12 @@ When recommending judge_coding_plan, you MUST:
 2. **Include ALL required fields** (both always-required and conditional based on task metadata)
 3. **Provide clear examples** for complex field types like library_plan and design_patterns
 
-The plan_required_fields array will be automatically populated based on task metadata and should include:
-- Always required: plan, design, research, problem_domain, problem_non_goals, library_plan, internal_reuse_components
-- Conditional on research_required=true: research_urls
-- Conditional on risk_assessment_required=true: identified_risks, risk_mitigation_strategies
-- Conditional on design_patterns_enforcement=true: design_patterns
+The plan_required_fields array will be automatically populated based on task metadata. The dynamic validation system will:
+- Include always-required fields (plan, design, research, problem_domain, problem_non_goals, library_plan, internal_reuse_components)
+- Add conditional fields based on task metadata flags (research_urls, identified_risks, risk_mitigation_strategies, design_patterns)
+- Provide detailed field specifications with types, descriptions, and examples
 
-**FAILURE TO POPULATE CONDITIONAL FIELDS WILL RESULT IN REJECTION**
+**FAILURE TO POPULATE REQUIRED OR APPLICABLE CONDITIONAL FIELDS WILL RESULT IN REJECTION**
 
 ### CRITICAL: judge_code_change Usage Rules
 
