@@ -67,6 +67,8 @@ class SystemVars(BaseModel):
     response_schema: str = Field(default="")
     max_tokens: int = Field(default=0)
     task_size_definitions: str = Field(default="")
+    plan_input_schema: str = Field(default="")
+    plan_evaluation_criteria: str = Field(default="")
 
 
 class DynamicSchemaUserVars(BaseModel):
@@ -84,6 +86,10 @@ class ValidationErrorUserVars(BaseModel):
 # Type stub for mypy - the actual class is imported dynamically below
 if TYPE_CHECKING:
     # Forward declaration for mypy with all fields from models.py
+    class DesignPattern(BaseModel):
+        name: str
+        area: str
+
     class JudgeCodingPlanUserVars(BaseModel):
         user_requirements: str
         context: str
@@ -107,6 +113,7 @@ if TYPE_CHECKING:
         expected_url_count: int = 0
         minimum_url_count: int = 0
         url_requirement_reasoning: str = ""
+        design_patterns: list[DesignPattern] = Field(default_factory=list)
 
     conversation_history: list[_Any] = Field(default_factory=list)
     # Conditional research fields
@@ -238,6 +245,7 @@ models_py = _load_models_py()
 
 # Names to re-export from models.py
 _NAMES = [
+    "DesignPattern",
     "ElicitationFallbackUserVars",
     "JudgeCodeChangeUserVars",
     "JudgeCodingPlanUserVars",

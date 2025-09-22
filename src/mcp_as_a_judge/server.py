@@ -36,6 +36,7 @@ from mcp_as_a_judge.messaging.llm_provider import llm_provider
 
 # Import the complete JudgeCodingPlanUserVars from models.py
 from mcp_as_a_judge.models import (
+    DesignPattern,
     JudgeCodeChangeUserVars,
     JudgeCodingPlanUserVars,
     JudgeResponse,
@@ -64,6 +65,7 @@ from mcp_as_a_judge.tool_description.factory import (
     tool_description_provider,
 )
 from mcp_as_a_judge.workflow import calculate_next_stage
+from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
 
 setup_logging("INFO")
 mcp = FastMCP(name="MCP-as-a-Judge")
@@ -76,6 +78,81 @@ logger = get_logger(__name__)
 context_logger = get_context_aware_logger(__name__)
 
 
+def _generate_default_risk_profile(
+    task_metadata: TaskMetadata,
+    plan: str,
+    design: str,
+) -> tuple[list[str], list[str]]:
+    """Create baseline risks/mitigations when none provided for required assessments."""
+
+    combined = " ".join([
+        task_metadata.problem_domain or "",
+        task_metadata.description,
+        plan,
+        design,
+    ]).lower()
+
+    risk_pairs: list[tuple[str, str]] = []
+
+    def add_pair(risk: str, mitigation: str) -> None:
+        if not risk:
+            return
+        if any(existing_risk == risk for existing_risk, _ in risk_pairs):
+            return
+        risk_pairs.append((risk, mitigation))
+
+    if any(keyword in combined for keyword in ["auth", "oauth", "nextauth", "github"]):
+        add_pair(
+            "OAuth provider misconfiguration or outage",
+            "Validate callback URL, minimal scopes, secret rotation, and add graceful fallback messaging",
+        )
+        add_pair(
+            "Insecure session cookie configuration",
+            "Enforce httpOnly, secure, sameSite=strict cookies and set NEXTAUTH_URL/NEXTAUTH_SECRET",
+        )
+        add_pair(
+            "CSRF exposure on auth endpoints",
+            "Rely on Auth.js anti-CSRF protections, verify POST-only routes, and enable middleware checks",
+        )
+
+    if any(keyword in combined for keyword in ["user profile", "avatar", "next/image", "dashboard"]):
+        add_pair(
+            "XSS via rendered GitHub profile data",
+            "Sanitize display names, use Next.js Image component, and escape untrusted content",
+        )
+
+    if any(keyword in combined for keyword in ["prisma", "migration", "postgres", "database"]):
+        add_pair(
+            "Database migration or schema drift failure",
+            "Run prisma migrate deploy with backups and verify in staging before production rollout",
+        )
+
+    if any(keyword in combined for keyword in ["rate limit", "security", "abuse"]):
+        add_pair(
+            "Missing rate limiting on authentication endpoints",
+            "Apply rate limiting middleware to sign-in/sign-out routes and monitor for abuse patterns",
+        )
+
+    add_pair(
+        "Secret leakage through logging or misconfigured env files",
+        "Store secrets in .env, never log secrets, and restrict repository access",
+    )
+
+    add_pair(
+        "Operational monitoring gaps",
+        "Enable error logging, alerting, and health checks for auth flows and database access",
+    )
+
+    if not risk_pairs:
+        add_pair(
+            "Regression risk for existing features",
+            "Add automated tests and staged rollouts to validate unaffected areas",
+        )
+
+    identified = [risk for risk, _ in risk_pairs]
+    mitigations = [mitigation for _, mitigation in risk_pairs]
+    return identified, mitigations
+
 @mcp.tool(description=tool_description_provider.get_description("set_coding_task"))  # type: ignore[misc,unused-ignore]
 async def set_coding_task(
     user_request: str,
@@ -84,19 +161,18 @@ async def set_coding_task(
     ctx: Context,
     task_size: TaskSize = TaskSize.M,  # Task size classification (xs, s, m, l, xl) - defaults to Medium for backward compatibility
     # FOR UPDATING EXISTING TASKS ONLY
-    task_id: str | None = None,  # REQUIRED when updating existing task
-    user_requirements: str | None = None,  # Updates current requirements
-    state: TaskState
-    | None = None,  # Optional: update task state with validation when updating existing task
+    task_id: str = "",  # REQUIRED when updating existing task
+    user_requirements: str = "",  # Updates current requirements
+    state: TaskState = TaskState.CREATED,  # Optional: update task state with validation when updating existing task
     # OPTIONAL
-    tags: list[str] | None = None,
+    tags: list[str] = [],
 ) -> TaskAnalysisResult:
     """Create or update coding task metadata with enhanced workflow management."""
-    task_id_for_logging = task_id or "new_task"
+    task_id_for_logging = task_id if task_id else "new_task"
 
-    # Initialize mutable default
-    if tags is None:
-        tags = []
+    # Initialize mutable default (no longer needed since tags has default [])
+    # if tags is None:
+    #     tags = []
 
     # Set global context reference for system-wide logging
     set_context_reference(ctx)
@@ -134,7 +210,7 @@ async def set_coding_task(
                 user_request=user_request,
                 task_title=task_title,
                 task_description=task_description,
-                user_requirements=user_requirements or "",
+                user_requirements=user_requirements if user_requirements else "",
                 tags=tags,
                 conversation_service=conversation_service,
                 task_size=task_size,
@@ -176,6 +252,10 @@ async def set_coding_task(
             if workflow_guidance.risk_assessment_required is not None:
                 task_metadata.risk_assessment_required = (
                     workflow_guidance.risk_assessment_required
+                )
+            if workflow_guidance.design_patterns_enforcement is not None:
+                task_metadata.design_patterns_enforcement = (
+                    workflow_guidance.design_patterns_enforcement
                 )
 
             # Update timestamp to reflect changes
@@ -221,7 +301,7 @@ async def set_coding_task(
         error_metadata = TaskMetadata(
             title=task_title,
             description=task_description,
-            user_requirements=user_requirements or "",
+            user_requirements=user_requirements if user_requirements else "",
             state=TaskState.CREATED,
             task_size=TaskSize.M,
             tags=tags,
@@ -247,7 +327,7 @@ async def set_coding_task(
         )
 
         # Save error interaction (use task_id if available, otherwise generate one for logging)
-        error_task_id = task_id or error_metadata.task_id
+        error_task_id = task_id if task_id else error_metadata.task_id
         with contextlib.suppress(builtins.BaseException):
             await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=error_task_id,
@@ -370,14 +450,14 @@ async def raise_obstacle(
     research: str,
     options: list[str],
     ctx: Context,
-    task_id: str | None = None,  # OPTIONAL: Task ID for context and memory
+    task_id: str = "",  # OPTIONAL: Task ID for context and memory
     # Optional HITL assistance inputs
-    decision_area: str | None = None,
-    constraints: list[str] | None = None,
+    decision_area: str = "",
+    constraints: list[str] = [],
 ) -> str:
     """Obstacle handling tool - description loaded from tool_description_provider."""
     # Log tool execution start
-    log_tool_execution("raise_obstacle", task_id or "unknown")
+    log_tool_execution("raise_obstacle", task_id if task_id else "unknown")
 
     # Store original input for saving later
     original_input = {
@@ -386,7 +466,7 @@ async def raise_obstacle(
         "options": options,
         "task_id": task_id,
         "decision_area": decision_area,
-        "constraints": constraints or [],
+        "constraints": constraints,
     }
 
     try:
@@ -394,7 +474,7 @@ async def raise_obstacle(
         from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         task_metadata = await load_task_metadata_from_history(
-            task_id=task_id or "test_task",
+            task_id=task_id if task_id else "test_task",
             conversation_service=conversation_service,
         )
 
@@ -447,10 +527,10 @@ Research Done: {research}
 Available Options:
 {formatted_options}
 
-Decision Area: {decision_area or "Not specified"}
+Decision Area: {decision_area if decision_area else "Not specified"}
 
 Constraints:
-{chr(10).join(f"- {c}" for c in (constraints or [])) or "None provided"}
+{chr(10).join(f"- {c}" for c in constraints) if constraints else "None provided"}
 
 Please choose an option (by number or description) and provide any additional context or modifications you'd like.""",
             schema=dynamic_model,
@@ -542,7 +622,7 @@ Please choose an option (by number or description) and provide any additional co
             await conversation_service.save_tool_interaction_and_cleanup(
                 session_id=task_metadata.task_id
                 if "task_metadata" in locals() and task_metadata
-                else (task_id or "unknown"),
+                else (task_id if task_id else "unknown"),
                 tool_name="raise_obstacle",
                 tool_input=json.dumps(original_input),
                 tool_output=json.dumps(
@@ -569,9 +649,9 @@ async def raise_missing_requirements(
     task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
     # Optional HITL assistance inputs
-    decision_areas: list[str] | None = None,
-    options: list[str] | None = None,
-    constraints: list[str] | None = None,
+    decision_areas: list[str] = [],
+    options: list[str] = [],
+    constraints: list[str] = [],
 ) -> str:
     """Requirements clarification tool - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -583,9 +663,9 @@ async def raise_missing_requirements(
         "identified_gaps": identified_gaps,
         "specific_questions": specific_questions,
         "task_id": task_id,
-        "decision_areas": decision_areas or [],
-        "options": options or [],
-        "constraints": constraints or [],
+        "decision_areas": decision_areas,
+        "options": options,
+        "constraints": constraints,
     }
 
     try:
@@ -646,13 +726,13 @@ Specific Questions:
 {formatted_questions}
 
 Decisions To Confirm:
-{chr(10).join(f"- {a}" for a in (decision_areas or [])) or "None provided"}
+{chr(10).join(f"- {a}" for a in decision_areas) if decision_areas else "None provided"}
 
 Candidate Options:
-{chr(10).join(f"- {o}" for o in (options or [])) or "None provided"}
+{chr(10).join(f"- {o}" for o in options) if options else "None provided"}
 
 Constraints:
-{chr(10).join(f"- {c}" for c in (constraints or [])) or "None provided"}
+{chr(10).join(f"- {c}" for c in constraints) if constraints else "None provided"}
 
 Please provide clarified requirements and indicate their priority level (high/medium/low).""",
             schema=dynamic_model,
@@ -769,9 +849,9 @@ async def judge_coding_task_completion(
     implementation_details: str,
     ctx: Context,
     # OPTIONAL
-    remaining_work: list[str] | None = None,
-    quality_notes: str | None = None,
-    testing_status: str | None = None,
+    remaining_work: list[str] = [],
+    quality_notes: str = "",
+    testing_status: str = "",
 ) -> TaskCompletionResult:
     """Final validation tool for coding task completion."""
     # Log tool execution start
@@ -1183,6 +1263,32 @@ async def _validate_research_quality(
     return None
 
 
+async def _extract_latest_workflow_guidance(
+    conversation_history: list[dict],
+) -> dict | None:
+    """Extract the latest workflow guidance from conversation history.
+
+    Args:
+        conversation_history: List of conversation records
+
+    Returns:
+        Latest workflow guidance object, or None if not found
+    """
+    # Search through conversation history for the most recent workflow guidance
+    for record in conversation_history:
+        try:
+            output_data = json.loads(record.get("output", "{}"))
+            if isinstance(output_data, dict) and "workflow_guidance" in output_data:
+                guidance_data = output_data["workflow_guidance"]
+                if isinstance(guidance_data, dict):
+                    # Return the full guidance object for structured access
+                    return guidance_data
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+
+    return None
+
+
 async def _evaluate_coding_plan(
     plan: str,
     design: str,
@@ -1193,20 +1299,72 @@ async def _evaluate_coding_plan(
     conversation_history: list[dict],
     task_metadata: TaskMetadata,
     ctx: Context,
-    problem_domain: str | None = None,
-    problem_non_goals: list[str] | None = None,
-    library_plan: list[dict] | None = None,
-    internal_reuse_components: list[dict] | None = None,
-) -> JudgeResponse:
+    problem_domain: str = "",
+    problem_non_goals: list[str] = [],
+    library_plan: list[dict] = [],
+    internal_reuse_components: list[dict] = [],
+    design_patterns: list[dict] = [],
+    identified_risks_override: list[str] = [],
+    risk_mitigation_override: list[str] = [],
+    ) -> JudgeResponse:
     """Evaluate coding plan using AI judge.
 
     Returns:
         JudgeResponse with evaluation results
     """
+    # Extract the latest workflow guidance from conversation history
+    workflow_guidance_obj = await _extract_latest_workflow_guidance(conversation_history)
+
+    # Format workflow guidance for the system prompt
+    workflow_guidance_text = ""
+    if workflow_guidance_obj:
+        # Create a comprehensive guidance text that includes all structured information
+        guidance_parts = []
+
+        if workflow_guidance_obj.get("next_tool"):
+            guidance_parts.append(f"**Next Tool:** {workflow_guidance_obj['next_tool']}")
+
+        if workflow_guidance_obj.get("reasoning"):
+            guidance_parts.append(f"**Reasoning:** {workflow_guidance_obj['reasoning']}")
+
+        if workflow_guidance_obj.get("preparation_needed"):
+            prep_items = workflow_guidance_obj["preparation_needed"]
+            if isinstance(prep_items, list) and prep_items:
+                guidance_parts.append("**Preparation Required:**")
+                for item in prep_items:
+                    guidance_parts.append(f"- {item}")
+
+        if workflow_guidance_obj.get("plan_required_fields"):
+            fields = workflow_guidance_obj["plan_required_fields"]
+            if isinstance(fields, list) and fields:
+                guidance_parts.append("**Required Plan Fields:**")
+                for field in fields:
+                    if isinstance(field, dict):
+                        field_name = field.get("name", "unknown")
+                        field_type = field.get("type", "unknown")
+                        field_desc = field.get("description", "")
+                        required = field.get("required", False)
+                        conditional = field.get("conditional_on", "")
+
+                        field_info = f"- **{field_name}** ({field_type})"
+                        if required:
+                            field_info += " [REQUIRED]"
+                        if conditional:
+                            field_info += f" [Conditional on: {conditional}]"
+                        if field_desc:
+                            field_info += f": {field_desc}"
+                        guidance_parts.append(field_info)
+
+        if workflow_guidance_obj.get("guidance"):
+            guidance_parts.append(f"**Detailed Guidance:** {workflow_guidance_obj['guidance']}")
+
+        workflow_guidance_text = "\n".join(guidance_parts)
+
     # Create system and user messages from templates
     system_vars = SystemVars(
         response_schema=json.dumps(JudgeResponse.model_json_schema()),
         max_tokens=MAX_TOKENS,
+        workflow_guidance=workflow_guidance_text,
     )
     user_vars = JudgeCodingPlanUserVars(
         user_requirements=user_requirements,
@@ -1233,13 +1391,26 @@ async def _evaluate_coding_plan(
         risk_assessment_required=task_metadata.risk_assessment_required
         if task_metadata.risk_assessment_required is not None
         else False,
-        identified_risks=task_metadata.identified_risks or [],
-        risk_mitigation_strategies=task_metadata.risk_mitigation_strategies or [],
+        identified_risks=(
+            identified_risks_override
+            if identified_risks_override is not None
+            else task_metadata.identified_risks or []
+        ),
+        risk_mitigation_strategies=(
+            risk_mitigation_override
+            if risk_mitigation_override is not None
+            else task_metadata.risk_mitigation_strategies or []
+        ),
         # Domain focus and reuse maps (optional explicit inputs)
-        problem_domain=problem_domain or "",
-        problem_non_goals=problem_non_goals or [],
-        library_plan=library_plan or [],
-        internal_reuse_components=internal_reuse_components or [],
+        problem_domain=problem_domain,
+        problem_non_goals=problem_non_goals,
+        library_plan=library_plan,
+        internal_reuse_components=internal_reuse_components,
+        # Design patterns enforcement (conditional based on task metadata)
+        design_patterns=[
+            DesignPattern(name=dp["name"], area=dp["area"])
+            for dp in design_patterns
+        ],
     )
     messages = create_separate_messages(
         "system/judge_coding_plan.md",
@@ -1272,23 +1443,26 @@ async def judge_coding_plan(
     research: str,
     research_urls: list[str],
     ctx: Context,
-    task_id: str | None = None,
+    task_id: str = "",
     context: str = "",
     # OPTIONAL override
-    user_requirements: str | None = None,
+    user_requirements: str = "",
     # OPTIONAL explicit inputs to avoid rejection on missing deliverables
-    problem_domain: str | None = None,
-    problem_non_goals: list[str] | None = None,
-    library_plan: list[dict] | None = None,
-    internal_reuse_components: list[dict] | None = None,
+    problem_domain: str = "",
+    problem_non_goals: list[str] = [],
+    library_plan: list[dict] = [],
+    internal_reuse_components: list[dict] = [],
+    design_patterns: list[dict] = [],
+    identified_risks: list[str] = [],
+    risk_mitigation_strategies: list[str] = [],
 ) -> JudgeResponse:
     """Coding plan evaluation tool - description loaded from tool_description_provider."""
     # Log tool execution start
-    log_tool_execution("judge_coding_plan", task_id or "test_task")
+    log_tool_execution("judge_coding_plan", task_id if task_id else "test_task")
 
     # Store original input for saving later
     original_input = {
-        "task_id": task_id or "test_task",
+        "task_id": task_id if task_id else "test_task",
         "plan": plan,
         "design": design,
         "research": research,
@@ -1298,6 +1472,7 @@ async def judge_coding_plan(
         "problem_non_goals": problem_non_goals,
         "library_plan": library_plan,
         "internal_reuse_components": internal_reuse_components,
+        "design_patterns": design_patterns,
     }
 
     try:
@@ -1308,7 +1483,7 @@ async def judge_coding_plan(
             minimal_metadata = TaskMetadata(
                 title="Unknown Task",
                 description="Task metadata could not be loaded from history",
-                user_requirements=user_requirements or "",
+                user_requirements=user_requirements if user_requirements else "",
                 state=TaskState.CREATED,
                 task_size=TaskSize.M,
                 tags=["debug", "missing-metadata"],
@@ -1331,11 +1506,11 @@ async def judge_coding_plan(
         from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
         logger.info(
-            f"judge_coding_plan: Loading task metadata for task_id: {task_id or 'test_task'}"
+            f"judge_coding_plan: Loading task metadata for task_id: {task_id if task_id else 'test_task'}"
         )
 
         task_metadata = await load_task_metadata_from_history(
-            task_id=task_id or "test_task",
+            task_id=task_id if task_id else "test_task",
             conversation_service=conversation_service,
         )
 
@@ -1349,7 +1524,7 @@ async def judge_coding_plan(
         else:
             conversation_history = (
                 await conversation_service.load_filtered_context_for_enrichment(
-                    task_id or "test_task", "", ctx
+                    task_id if task_id else "test_task", "", ctx
                 )
             )
             logger.info(
@@ -1382,12 +1557,81 @@ async def judge_coding_plan(
             else task_metadata.user_requirements
         )
 
+        effective_identified_risks = list(
+            (identified_risks or task_metadata.identified_risks or [])
+        )
+        effective_risk_mitigations = list(
+            (
+                risk_mitigation_strategies
+                or task_metadata.risk_mitigation_strategies
+                or []
+            )
+        )
+
+        if task_metadata.risk_assessment_required:
+            default_risks, default_mitigations = _generate_default_risk_profile(
+                task_metadata, plan, design
+            )
+
+            cleaned_risks = [
+                risk.strip()
+                for risk in effective_identified_risks
+                if isinstance(risk, str) and risk.strip()
+            ]
+            cleaned_mitigations = [
+                mitigation.strip()
+                for mitigation in effective_risk_mitigations
+                if isinstance(mitigation, str) and mitigation.strip()
+            ]
+
+            if not cleaned_risks:
+                cleaned_risks = default_risks
+                cleaned_mitigations = default_mitigations
+            else:
+                if len(cleaned_mitigations) < len(cleaned_risks):
+                    for idx in range(len(cleaned_mitigations), len(cleaned_risks)):
+                        if idx < len(default_mitigations):
+                            cleaned_mitigations.append(default_mitigations[idx])
+                        else:
+                            cleaned_mitigations.append(
+                                "Document concrete mitigation strategy for this risk"
+                            )
+                elif len(cleaned_mitigations) > len(cleaned_risks):
+                    cleaned_mitigations = cleaned_mitigations[: len(cleaned_risks)]
+
+                if not cleaned_mitigations:
+                    cleaned_mitigations = default_mitigations
+
+            effective_identified_risks = cleaned_risks
+            effective_risk_mitigations = cleaned_mitigations
+
+        if (
+            task_metadata.risk_assessment_required
+            and effective_identified_risks
+            and not task_metadata.identified_risks
+        ):
+            task_metadata.identified_risks = list(effective_identified_risks)
+        if (
+            task_metadata.risk_assessment_required
+            and effective_risk_mitigations
+            and not task_metadata.risk_mitigation_strategies
+        ):
+            task_metadata.risk_mitigation_strategies = list(
+                effective_risk_mitigations
+            )
+
+        original_input["identified_risks"] = effective_identified_risks
+        original_input["risk_mitigation_strategies"] = effective_risk_mitigations
+
         # NOTE: Conditional research, internal analysis, and risk assessment requirements
         # are now determined dynamically by the LLM through the workflow guidance system
         # rather than using hardcoded rule-based analysis
 
+        research_required = bool(task_metadata.research_required)
+        auto_approved_due_to_limit = False
+
         # DYNAMIC RESEARCH VALIDATION - Only validate if research is actually required
-        if task_metadata.research_required:
+        if research_required and not task_metadata.has_exceeded_plan_rejection_limit():
             # Import dynamic research analysis functions
             from mcp_as_a_judge.tasks.research import (
                 analyze_research_requirements,
@@ -1434,6 +1678,12 @@ async def judge_coding_plan(
                             validation_issue, context_info, ctx
                         )
 
+                        # Increment rejection count for insufficient research
+                        task_metadata.increment_plan_rejection()
+                        logger.info(
+                            f"Plan rejected due to insufficient research. Rejection count: {task_metadata.plan_rejection_count}/1"
+                        )
+
                         workflow_guidance = await calculate_next_stage(
                             task_metadata=task_metadata,
                             current_operation="judge_coding_plan_insufficient_research",
@@ -1472,6 +1722,12 @@ async def judge_coding_plan(
                         ctx,
                     )
 
+                    # Increment rejection count for URL validation failure
+                    task_metadata.increment_plan_rejection()
+                    logger.info(
+                        f"Plan rejected due to insufficient URL count. Rejection count: {task_metadata.plan_rejection_count}/1"
+                    )
+
                     workflow_guidance = await calculate_next_stage(
                         task_metadata=task_metadata,
                         current_operation="judge_coding_plan_insufficient_research",
@@ -1505,6 +1761,11 @@ async def judge_coding_plan(
                 conversation_service=conversation_service,
             )
 
+        elif research_required:
+            logger.info(
+                "Skipping research validation because plan rejection limit was reached; "
+                "auto-approval safeguard will handle the workflow progression."
+            )
         else:
             # Research is optional - log but don't block
             logger.info(
@@ -1544,28 +1805,61 @@ async def judge_coding_plan(
             # Be resilient; context is optional
             eval_context = ""
 
-        evaluation_result = await _evaluate_coding_plan(
-            plan,
-            design,
-            research,
-            research_urls,
-            user_requirements,
-            eval_context,
-            history_json_array,
-            task_metadata,  # Pass task metadata for conditional features
-            ctx,
-            problem_domain=problem_domain,
-            problem_non_goals=problem_non_goals,
-            library_plan=library_plan,
-            internal_reuse_components=internal_reuse_components,
-        )
+        # Check rejection limit - auto-approve if already rejected once
+        if task_metadata.has_exceeded_plan_rejection_limit():
+            auto_approved_due_to_limit = True
+            logger.info(
+                f"Plan has already been rejected {task_metadata.plan_rejection_count} time(s). "
+                f"Auto-approving to prevent endless iteration cycles."
+            )
+
+            # Create auto-approval result
+            evaluation_result = EnhancedResponseFactory.create_judge_response(
+                approved=True,
+                feedback="Plan auto-approved after reaching rejection limit (max 1 rejection allowed). "
+                        "Moving forward to prevent endless iteration cycles.",
+                required_improvements=[],
+                current_task_metadata=task_metadata,
+                workflow_guidance=WorkflowGuidance(
+                    next_tool=None,
+                    reasoning="Auto-approved due to rejection limit",
+                    preparation_needed=[],
+                    guidance="Proceed with implementation",
+                ),
+            )
+        else:
+            # Perform normal evaluation
+            evaluation_result = await _evaluate_coding_plan(
+                plan,
+                design,
+                research,
+                research_urls,
+                user_requirements,
+                eval_context,
+                history_json_array,
+                task_metadata,  # Pass task metadata for conditional features
+                ctx,
+                problem_domain=problem_domain,
+                problem_non_goals=problem_non_goals,
+                library_plan=library_plan,
+                internal_reuse_components=internal_reuse_components,
+                design_patterns=design_patterns,
+                identified_risks_override=effective_identified_risks,
+                risk_mitigation_override=effective_risk_mitigations,
+            )
 
         # Additional research validation if approved
-        if evaluation_result.approved:
+        if evaluation_result.approved and not auto_approved_due_to_limit:
             research_validation_result = await _validate_research_quality(
                 research, research_urls, plan, design, user_requirements, ctx
             )
             if research_validation_result:
+                # Increment rejection count for research validation failure
+                task_metadata.increment_plan_rejection()
+                logger.info(
+                    f"Plan rejected due to research validation failure. Rejection count: {task_metadata.plan_rejection_count}/1"
+                )
+
                 workflow_guidance = await calculate_next_stage(
                     task_metadata=task_metadata,
                     current_operation="judge_coding_plan_research_failed",
@@ -1622,6 +1916,16 @@ async def judge_coding_plan(
                     for item in internal_reuse_components
                 ]
                 updated_task_metadata.internal_reuse_components = reuse_components
+            if effective_identified_risks and not getattr(
+                updated_task_metadata, "identified_risks", []
+            ):
+                updated_task_metadata.identified_risks = effective_identified_risks
+            if effective_risk_mitigations and not getattr(
+                updated_task_metadata, "risk_mitigation_strategies", []
+            ):
+                updated_task_metadata.risk_mitigation_strategies = (
+                    effective_risk_mitigations
+                )
 
             # Now check for missing deliverables
             if not getattr(updated_task_metadata, "problem_domain", "").strip():
@@ -1638,7 +1942,11 @@ async def judge_coding_plan(
         except Exception:  # nosec B110
             pass
 
-        effective_approved = evaluation_result.approved and not missing_deliverables
+        if auto_approved_due_to_limit:
+            # Preserve auto-approval even if optional deliverables are missing
+            effective_approved = True
+        else:
+            effective_approved = evaluation_result.approved and not missing_deliverables
         effective_required_improvements = list(evaluation_result.required_improvements)
         if missing_deliverables:
             # Merge missing deliverables to required improvements
@@ -1706,6 +2014,12 @@ async def judge_coding_plan(
             if not workflow_guidance.guidance:
                 workflow_guidance.guidance = "Start implementation. When a cohesive set of changes is ready, call judge_code_change with file paths and a concise summary or diff."
         else:
+            # Increment rejection count for tracking
+            updated_task_metadata.increment_plan_rejection()
+            logger.info(
+                f"Plan rejected. Rejection count: {updated_task_metadata.plan_rejection_count}/1"
+            )
+
             # Keep/return to planning state and request plan improvements
             updated_task_metadata.update_state(TaskState.PLANNING)
             workflow_guidance.next_tool = "judge_coding_plan"
@@ -1774,6 +2088,11 @@ async def judge_coding_plan(
         # Create minimal task metadata for error case
         if "task_metadata" in locals() and task_metadata is not None:
             error_metadata = task_metadata
+            # Increment rejection count for error cases too
+            error_metadata.increment_plan_rejection()
+            logger.info(
+                f"Plan rejected due to error. Rejection count: {error_metadata.plan_rejection_count}/1"
+            )
         else:
             error_metadata = TaskMetadata(
                 title="Error Task",
@@ -1820,17 +2139,17 @@ async def judge_code_change(
     ctx: Context,
     file_path: str = "File path not specified",
     change_description: str = "Change description not provided",
-    task_id: str | None = None,
+    task_id: str = "",
     # OPTIONAL override
-    user_requirements: str | None = None,
+    user_requirements: str = "",
 ) -> JudgeResponse:
     """Code change evaluation tool - description loaded from tool_description_provider."""
     # Log tool execution start
-    log_tool_execution("judge_code_change", task_id or "test_task")
+    log_tool_execution("judge_code_change", task_id if task_id else "test_task")
 
     # Store original input for saving later
     original_input = {
-        "task_id": task_id or "test_task",
+        "task_id": task_id if task_id else "test_task",
         "code_change": code_change,
         "file_path": file_path,
         "change_description": change_description,
@@ -2193,11 +2512,11 @@ async def judge_testing_implementation(
     test_files: list[str],
     test_execution_results: str,
     ctx: Context,
-    test_coverage_report: str | None = None,
-    test_types_implemented: list[str] | None = None,
-    testing_framework: str | None = None,
-    performance_test_results: str | None = None,
-    manual_test_notes: str | None = None,
+    test_coverage_report: str = "",
+    test_types_implemented: list[str] = [],
+    testing_framework: str = "",
+    performance_test_results: str = "",
+    manual_test_notes: str = "",
 ) -> JudgeResponse:
     """Testing implementation validation tool - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -2388,11 +2707,11 @@ async def judge_testing_implementation(
             test_summary=test_summary,
             test_files=test_files,
             test_execution_results=test_execution_results,
-            test_coverage_report=test_coverage_report or "No coverage report provided",
-            test_types_implemented=test_types_implemented or [],
-            testing_framework=testing_framework or "Not specified",
-            performance_test_results=performance_test_results or "No performance tests",
-            manual_test_notes=manual_test_notes or "No manual testing notes",
+            test_coverage_report=test_coverage_report if test_coverage_report else "No coverage report provided",
+            test_types_implemented=test_types_implemented if test_types_implemented else [],
+            testing_framework=testing_framework if testing_framework else "Not specified",
+            performance_test_results=performance_test_results if performance_test_results else "No performance tests",
+            manual_test_notes=manual_test_notes if manual_test_notes else "No manual testing notes",
             conversation_history=history_json_array,
         )
 
@@ -2439,7 +2758,7 @@ async def judge_testing_implementation(
                 and "error" not in test_execution_results.lower()
             )
             has_coverage = (
-                test_coverage_report is not None and test_coverage_report.strip() != ""
+                test_coverage_report and test_coverage_report.strip() != ""
             )
 
             testing_approved = (
@@ -2490,9 +2809,9 @@ async def judge_testing_implementation(
 
 **Test Types:** {", ".join(test_types_implemented) if test_types_implemented else "Not specified"}
 
-**Testing Framework:** {testing_framework or "Not specified"}
+**Testing Framework:** {testing_framework if testing_framework else "Not specified"}
 
-**Coverage:** {test_coverage_report or "Not provided"}
+**Coverage:** {test_coverage_report if test_coverage_report else "Not provided"}
 
 ✅ **Ready for final task completion review.**"""
             else:

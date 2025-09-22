@@ -8,7 +8,7 @@ the foundation of the enhanced workflow v3 system.
 import time
 import uuid
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -107,6 +107,8 @@ class TaskMetadata(BaseModel):
     This model serves as the foundation for the enhanced workflow v3 system,
     replacing session-based tracking with task-centric approach.
     """
+
+    PLAN_REJECTION_LIMIT: ClassVar[int] = 1
 
     # IMMUTABLE FIELDS - Never change after creation
     task_id: str = Field(
@@ -262,10 +264,20 @@ class TaskMetadata(BaseModel):
         default_factory=list, description="Strategies to mitigate identified risks"
     )
 
+    # DESIGN PATTERNS ENFORCEMENT - For tracking if task requires design patterns
+    design_patterns_enforcement: bool | None = Field(
+        default=None,
+        description="Whether design patterns are required for this task (None=undetermined, True=required, False=not needed)",
+    )
+
     # APPROVAL TRACKING FIELDS - For validating completion requirements
     plan_approved_at: int | None = Field(
         default=None,
         description="Timestamp when plan was approved by judge_coding_plan (None=not approved)",
+    )
+    plan_rejection_count: int = Field(
+        default=0,
+        description="Number of times the plan has been rejected (max 1 allowed)",
     )
     code_approved_files: dict[str, int] = Field(
         default_factory=dict,
@@ -464,6 +476,16 @@ class TaskMetadata(BaseModel):
         self.testing_approved_at = int(time.time())
         self.updated_at = int(time.time())
         self._update_approval_validation()
+
+    def increment_plan_rejection(self) -> None:
+        """Increment the plan rejection count up to the configured limit."""
+        if self.plan_rejection_count < self.PLAN_REJECTION_LIMIT:
+            self.plan_rejection_count += 1
+        self.updated_at = int(time.time())
+
+    def has_exceeded_plan_rejection_limit(self) -> bool:
+        """Check if plan has been rejected too many times (max 1)."""
+        return self.plan_rejection_count >= self.PLAN_REJECTION_LIMIT
 
     def get_approval_status(self) -> dict[str, Any]:
         """

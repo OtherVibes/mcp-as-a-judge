@@ -16,6 +16,13 @@ if TYPE_CHECKING:  # Avoid import cycle at runtime
     from mcp_as_a_judge.workflow import WorkflowGuidance
 
 
+class DesignPattern(BaseModel):
+    """Design pattern specification for plan validation."""
+
+    name: str = Field(description="Name of known design pattern required to be selected")
+    area: str = Field(description="Which part of the code will be solved using the pattern")
+
+
 class JudgeResponse(BaseModel):
     """Enhanced response model for all judge tool evaluations.
 
@@ -238,6 +245,18 @@ class SystemVars(BaseModel):
         default="",
         description="Task size classifications and workflow routing rules (optional)",
     )
+    plan_input_schema: str = Field(
+        default="",
+        description="JSON schema for judge_coding_plan input requirements (optional)",
+    )
+    plan_evaluation_criteria: str = Field(
+        default="",
+        description="Complete plan evaluation criteria and expectations (optional)",
+    )
+    workflow_guidance: str = Field(
+        default="",
+        description="Workflow guidance from task state to use as evaluation criteria (optional)",
+    )
 
 
 class JudgeCodingPlanUserVars(BaseModel):
@@ -323,6 +342,12 @@ class JudgeCodingPlanUserVars(BaseModel):
         default="", description="LLM explanation of why specific URL count is needed"
     )
 
+    # Design patterns enforcement fields
+    design_patterns: list[DesignPattern] = Field(
+        default_factory=list,
+        description="List of design patterns to be used with their coverage areas"
+    )
+
 
 class JudgeCodeChangeUserVars(BaseModel):
     """Variables for judge_code_change user prompt."""
@@ -378,6 +403,10 @@ class WorkflowGuidanceUserVars(BaseModel):
     operation_context: str = Field(description="Current operation context")
     response_schema: str = Field(
         description="JSON schema for the expected response format"
+    )
+    plan_required_fields_json: str = Field(
+        default="[]",
+        description="JSON array of required fields for judge_coding_plan (when next_tool is judge_coding_plan)"
     )
 
 
