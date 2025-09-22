@@ -805,60 +805,65 @@ def _normalize_next_tool_name(
 def _generate_plan_required_fields(
     task_metadata: "TaskMetadata",
 ) -> list[PlanRequiredField]:
-    """Generate structured plan required fields based on task metadata."""
+    """Generate structured plan required fields based on task metadata and task size."""
 
-    # Always required fields
+    # Basic required fields for all tasks that go through planning
     required_fields = [
         PlanRequiredField(
             name="plan",
             type="string",
-            description="Detailed implementation plan with phases and steps",
+            description="Implementation plan with key steps" if task_metadata.task_size == TaskSize.M else "Detailed implementation plan with phases and steps",
             required=True,
-            example_value="Phase 1: Project scaffolding..., Phase 2: Database setup...",
+            example_value="1. Update config file, 2. Test changes" if task_metadata.task_size == TaskSize.M else "Phase 1: Project scaffolding..., Phase 2: Database setup...",
         ),
         PlanRequiredField(
             name="design",
             type="string",
-            description="Architecture, components, data flow, and key technical decisions",
+            description="Key technical approach and decisions" if task_metadata.task_size == TaskSize.M else "Architecture, components, data flow, and key technical decisions",
             required=True,
-            example_value="Architecture: Next.js App Router with TypeScript, Components: AuthService, UserRepository...",
+            example_value="Modify existing component to add new feature" if task_metadata.task_size == TaskSize.M else "Architecture: Next.js App Router with TypeScript, Components: AuthService, UserRepository...",
         ),
         PlanRequiredField(
             name="research",
             type="string",
-            description="Research findings and rationale for technology choices",
+            description="Brief research summary and approach" if task_metadata.task_size == TaskSize.M else "Research findings and rationale for technology choices",
             required=True,
-            example_value="Auth.js provides secure OAuth integration with GitHub provider...",
-        ),
-        PlanRequiredField(
-            name="problem_domain",
-            type="string",
-            description="Concise statement of the problem domain and scope",
-            required=True,
-            example_value="GitHub OAuth authentication with user dashboard for Next.js application",
-        ),
-        PlanRequiredField(
-            name="problem_non_goals",
-            type="list[str]",
-            description="Explicit non-goals/boundaries to prevent scope creep",
-            required=True,
-            example_value='["Multi-provider authentication", "Admin panel", "Payment processing"]',
-        ),
-        PlanRequiredField(
-            name="library_plan",
-            type="list[dict]",
-            description="Library Selection Map: {purpose, selection, source, justification} for each dependency",
-            required=True,
-            example_value='[{"purpose": "Authentication", "selection": "Auth.js", "source": "external", "justification": "Industry standard OAuth implementation"}]',
-        ),
-        PlanRequiredField(
-            name="internal_reuse_components",
-            type="list[dict]",
-            description="Internal Reuse Map: {path, purpose, notes} for existing repo components",
-            required=True,
-            example_value='[{"path": "lib/db.ts", "purpose": "Database connection", "notes": "Existing Prisma setup"}] or [] with note "greenfield project"',
+            example_value="Checked documentation for best practices" if task_metadata.task_size == TaskSize.M else "Auth.js provides secure OAuth integration with GitHub provider...",
         ),
     ]
+
+    # Add complex fields only for Large/XL tasks
+    if task_metadata.task_size in [TaskSize.L, TaskSize.XL]:
+        required_fields.extend([
+            PlanRequiredField(
+                name="problem_domain",
+                type="string",
+                description="Concise statement of the problem domain and scope",
+                required=True,
+                example_value="GitHub OAuth authentication with user dashboard for Next.js application",
+            ),
+            PlanRequiredField(
+                name="problem_non_goals",
+                type="list[str]",
+                description="Explicit non-goals/boundaries to prevent scope creep",
+                required=True,
+                example_value='["Multi-provider authentication", "Admin panel", "Payment processing"]',
+            ),
+            PlanRequiredField(
+                name="library_plan",
+                type="list[dict]",
+                description="Library Selection Map: {purpose, selection, source, justification} for each dependency",
+                required=True,
+                example_value='[{"purpose": "Authentication", "selection": "Auth.js", "source": "external", "justification": "Industry standard OAuth implementation"}]',
+            ),
+            PlanRequiredField(
+                name="internal_reuse_components",
+                type="list[dict]",
+                description="Internal Reuse Map: {path, purpose, notes} for existing repo components",
+                required=True,
+                example_value='[{"path": "lib/db.ts", "purpose": "Database connection", "notes": "Existing Prisma setup"}] or [] with note "greenfield project"',
+            ),
+        ])
 
     # Conditional fields based on task metadata
     if task_metadata.research_required:
