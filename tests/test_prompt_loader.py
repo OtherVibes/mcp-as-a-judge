@@ -60,7 +60,14 @@ class TestPromptLoader:
             conversation_history=[],
             problem_domain="Calculator application",
             problem_non_goals=["Advanced scientific functions"],
-            library_plan=[{"purpose": "Math operations", "selection": "Python math", "source": "external", "justification": "Built-in library"}],
+            library_plan=[
+                {
+                    "purpose": "Math operations",
+                    "selection": "Python math",
+                    "source": "external",
+                    "justification": "Built-in library",
+                }
+            ],
             internal_reuse_components=[],
             research_required=False,
             research_scope="none",

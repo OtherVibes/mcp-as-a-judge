@@ -62,16 +62,17 @@ class PlanRequiredField(BaseModel):
     """Specification for a required field in judge_coding_plan."""
 
     name: str = Field(description="Field name in the judge_coding_plan tool")
-    type: str = Field(description="Expected data type (string, list[str], list[dict], etc.)")
+    type: str = Field(
+        description="Expected data type (string, list[str], list[dict], etc.)"
+    )
     description: str = Field(description="What this field should contain")
     required: bool = Field(description="Whether this field is required")
     conditional_on: str | None = Field(
         default=None,
-        description="Task metadata field this requirement depends on (e.g., 'design_patterns_enforcement')"
+        description="Task metadata field this requirement depends on (e.g., 'design_patterns_enforcement')",
     )
     example_value: str | None = Field(
-        default=None,
-        description="Example of what this field should contain"
+        default=None, description="Example of what this field should contain"
     )
 
 
@@ -129,7 +130,7 @@ class WorkflowGuidance(BaseModel):
     # Structured plan requirements for judge_coding_plan (only populated when next_tool is judge_coding_plan)
     plan_required_fields: list[PlanRequiredField] = Field(
         default_factory=list,
-        description="Structured specification of required fields for judge_coding_plan tool"
+        description="Structured specification of required fields for judge_coding_plan tool",
     )
 
     # Backward compatibility property
@@ -169,7 +170,7 @@ class WorkflowGuidanceUserVars(BaseModel):
     )
     plan_required_fields_json: str = Field(
         default="[]",
-        description="JSON array of required fields for judge_coding_plan (when next_tool is judge_coding_plan)"
+        description="JSON array of required fields for judge_coding_plan (when next_tool is judge_coding_plan)",
     )
 
 
@@ -419,14 +420,18 @@ async def calculate_next_stage(
         # Get plan input schema and evaluation criteria for comprehensive guidance
         from mcp_as_a_judge.models import JudgeCodingPlanUserVars
 
-        plan_input_schema = json.dumps(JudgeCodingPlanUserVars.model_json_schema(), indent=2)
+        plan_input_schema = json.dumps(
+            JudgeCodingPlanUserVars.model_json_schema(), indent=2
+        )
 
         # Load plan evaluation criteria from the judge prompt
         plan_evaluation_criteria = _load_plan_evaluation_criteria()
 
         # Generate plan required fields for judge_coding_plan guidance
         plan_required_fields = _generate_plan_required_fields(task_metadata)
-        plan_required_fields_json = json.dumps([field.model_dump() for field in plan_required_fields], indent=2)
+        plan_required_fields_json = json.dumps(
+            [field.model_dump() for field in plan_required_fields], indent=2
+        )
 
         # Create system and user variables for the workflow guidance
         system_vars = SystemVars(
@@ -548,7 +553,9 @@ async def calculate_next_stage(
                 "internal_research_required"
             ),
             risk_assessment_required=navigation_data.get("risk_assessment_required"),
-            design_patterns_enforcement=navigation_data.get("design_patterns_enforcement"),
+            design_patterns_enforcement=navigation_data.get(
+                "design_patterns_enforcement"
+            ),
             # Plan requirements for judge_coding_plan
             plan_required_fields=plan_required_fields,
         )
@@ -795,7 +802,9 @@ def _normalize_next_tool_name(
     return "get_current_coding_task"
 
 
-def _generate_plan_required_fields(task_metadata: "TaskMetadata") -> list[PlanRequiredField]:
+def _generate_plan_required_fields(
+    task_metadata: "TaskMetadata",
+) -> list[PlanRequiredField]:
     """Generate structured plan required fields based on task metadata."""
 
     # Always required fields
@@ -805,92 +814,98 @@ def _generate_plan_required_fields(task_metadata: "TaskMetadata") -> list[PlanRe
             type="string",
             description="Detailed implementation plan with phases and steps",
             required=True,
-            example_value="Phase 1: Project scaffolding..., Phase 2: Database setup..."
+            example_value="Phase 1: Project scaffolding..., Phase 2: Database setup...",
         ),
         PlanRequiredField(
             name="design",
             type="string",
             description="Architecture, components, data flow, and key technical decisions",
             required=True,
-            example_value="Architecture: Next.js App Router with TypeScript, Components: AuthService, UserRepository..."
+            example_value="Architecture: Next.js App Router with TypeScript, Components: AuthService, UserRepository...",
         ),
         PlanRequiredField(
             name="research",
             type="string",
             description="Research findings and rationale for technology choices",
             required=True,
-            example_value="Auth.js provides secure OAuth integration with GitHub provider..."
+            example_value="Auth.js provides secure OAuth integration with GitHub provider...",
         ),
         PlanRequiredField(
             name="problem_domain",
             type="string",
             description="Concise statement of the problem domain and scope",
             required=True,
-            example_value="GitHub OAuth authentication with user dashboard for Next.js application"
+            example_value="GitHub OAuth authentication with user dashboard for Next.js application",
         ),
         PlanRequiredField(
             name="problem_non_goals",
             type="list[str]",
             description="Explicit non-goals/boundaries to prevent scope creep",
             required=True,
-            example_value='["Multi-provider authentication", "Admin panel", "Payment processing"]'
+            example_value='["Multi-provider authentication", "Admin panel", "Payment processing"]',
         ),
         PlanRequiredField(
             name="library_plan",
             type="list[dict]",
             description="Library Selection Map: {purpose, selection, source, justification} for each dependency",
             required=True,
-            example_value='[{"purpose": "Authentication", "selection": "Auth.js", "source": "external", "justification": "Industry standard OAuth implementation"}]'
+            example_value='[{"purpose": "Authentication", "selection": "Auth.js", "source": "external", "justification": "Industry standard OAuth implementation"}]',
         ),
         PlanRequiredField(
             name="internal_reuse_components",
             type="list[dict]",
             description="Internal Reuse Map: {path, purpose, notes} for existing repo components",
             required=True,
-            example_value='[{"path": "lib/db.ts", "purpose": "Database connection", "notes": "Existing Prisma setup"}] or [] with note "greenfield project"'
+            example_value='[{"path": "lib/db.ts", "purpose": "Database connection", "notes": "Existing Prisma setup"}] or [] with note "greenfield project"',
         ),
     ]
 
     # Conditional fields based on task metadata
     if task_metadata.research_required:
-        required_fields.append(PlanRequiredField(
-            name="research_urls",
-            type="list[str]",
-            description="URLs from external research sources",
-            required=True,
-            conditional_on="research_required",
-            example_value='["https://authjs.dev/getting-started/providers/github", "https://nextjs.org/docs/app"]'
-        ))
+        required_fields.append(
+            PlanRequiredField(
+                name="research_urls",
+                type="list[str]",
+                description="URLs from external research sources",
+                required=True,
+                conditional_on="research_required",
+                example_value='["https://authjs.dev/getting-started/providers/github", "https://nextjs.org/docs/app"]',
+            )
+        )
 
     if task_metadata.risk_assessment_required:
-        required_fields.extend([
-            PlanRequiredField(
-                name="identified_risks",
-                type="list[str]",
-                description="Areas that could be harmed by the proposed changes",
-                required=True,
-                conditional_on="risk_assessment_required",
-                example_value='["OAuth misconfiguration", "CSRF attacks", "Session fixation"]'
-            ),
-            PlanRequiredField(
-                name="risk_mitigation_strategies",
-                type="list[str]",
-                description="Strategies to mitigate identified risks (same order as identified_risks)",
-                required=True,
-                conditional_on="risk_assessment_required",
-                example_value='["Use Auth.js secure defaults", "Enable CSRF protection", "Rotate sessions on login"]'
-            ),
-        ])
+        required_fields.extend(
+            [
+                PlanRequiredField(
+                    name="identified_risks",
+                    type="list[str]",
+                    description="Areas that could be harmed by the proposed changes",
+                    required=True,
+                    conditional_on="risk_assessment_required",
+                    example_value='["OAuth misconfiguration", "CSRF attacks", "Session fixation"]',
+                ),
+                PlanRequiredField(
+                    name="risk_mitigation_strategies",
+                    type="list[str]",
+                    description="Strategies to mitigate identified risks (same order as identified_risks)",
+                    required=True,
+                    conditional_on="risk_assessment_required",
+                    example_value='["Use Auth.js secure defaults", "Enable CSRF protection", "Rotate sessions on login"]',
+                ),
+            ]
+        )
 
     if task_metadata.design_patterns_enforcement:
-        required_fields.append(PlanRequiredField(
-            name="design_patterns",
-            type="list[dict]",
-            description="Design patterns to be applied: {name, area}",
-            required=True,
-            conditional_on="design_patterns_enforcement",
-            example_value='[{"name": "Singleton", "area": "Database connection"}, {"name": "Repository", "area": "Data access"}]'
-        ))
+        required_fields.append(
+            PlanRequiredField(
+                name="design_patterns",
+                type="list[dict]",
+                description="Design patterns to be applied: {name, area}",
+                required=True,
+                conditional_on="design_patterns_enforcement",
+                example_value='[{"name": "Singleton", "area": "Database connection"}, {"name": "Repository", "area": "Data access"}]',
+            )
+        )
 
     return required_fields
 
@@ -913,7 +928,9 @@ def _load_plan_evaluation_criteria() -> str:
 
         # Generate field-by-field preparation instructions
         criteria_sections.append("## Schema-Driven Preparation Requirements\n")
-        criteria_sections.append("You MUST populate judge_coding_plan tool parameters with exact data types:\n")
+        criteria_sections.append(
+            "You MUST populate judge_coding_plan tool parameters with exact data types:\n"
+        )
 
         for field_name, field_info in properties.items():
             field_type = field_info.get("type", "unknown")
@@ -924,39 +941,81 @@ def _load_plan_evaluation_criteria() -> str:
                 items_info = field_info.get("items", {})
                 if "$ref" in items_info:
                     # Handle array of objects (like design_patterns, library_plan)
-                    criteria_sections.append(f"- **{field_name}** (array of objects, {'required' if is_required else 'optional'}): {description}")
-                    criteria_sections.append(f"  Format: JSON array with double-quoted keys/values, no markdown fences")
+                    criteria_sections.append(
+                        f"- **{field_name}** (array of objects, {'required' if is_required else 'optional'}): {description}"
+                    )
+                    criteria_sections.append(
+                        "  Format: JSON array with double-quoted keys/values, no markdown fences"
+                    )
                 else:
                     # Handle array of strings
-                    criteria_sections.append(f"- **{field_name}** (array of strings, {'required' if is_required else 'optional'}): {description}")
+                    criteria_sections.append(
+                        f"- **{field_name}** (array of strings, {'required' if is_required else 'optional'}): {description}"
+                    )
             elif field_type == "string":
-                criteria_sections.append(f"- **{field_name}** (string, {'required' if is_required else 'optional'}): {description}")
+                criteria_sections.append(
+                    f"- **{field_name}** (string, {'required' if is_required else 'optional'}): {description}"
+                )
             else:
-                criteria_sections.append(f"- **{field_name}** ({field_type}, {'required' if is_required else 'optional'}): {description}")
+                criteria_sections.append(
+                    f"- **{field_name}** ({field_type}, {'required' if is_required else 'optional'}): {description}"
+                )
 
         criteria_sections.append("\n## Critical JSON Format Rules:")
-        criteria_sections.append("- Use double quotes for all JSON keys and string values")
+        criteria_sections.append(
+            "- Use double quotes for all JSON keys and string values"
+        )
         criteria_sections.append("- Do NOT wrap JSON in markdown code fences")
         criteria_sections.append("- Embed JSON directly into tool parameter values")
-        criteria_sections.append("- Ensure valid JSON syntax (no trailing commas, proper escaping)")
-        criteria_sections.append("- Arrays must contain proper object structures as defined in schema")
+        criteria_sections.append(
+            "- Ensure valid JSON syntax (no trailing commas, proper escaping)"
+        )
+        criteria_sections.append(
+            "- Arrays must contain proper object structures as defined in schema"
+        )
 
         criteria_sections.append("\n## Empty Repository Handling:")
-        criteria_sections.append("- **internal_reuse_components**: For empty/greenfield repositories, provide empty array [] with note 'greenfield project - no existing components to reuse'")
-        criteria_sections.append("- **library_plan**: Focus on establishing new patterns rather than reusing existing ones")
-        criteria_sections.append("- **design_patterns**: Choose patterns appropriate for new project architecture")
+        criteria_sections.append(
+            "- **internal_reuse_components**: For empty/greenfield repositories, provide empty array [] with note 'greenfield project - no existing components to reuse'"
+        )
+        criteria_sections.append(
+            "- **library_plan**: Focus on establishing new patterns rather than reusing existing ones"
+        )
+        criteria_sections.append(
+            "- **design_patterns**: Choose patterns appropriate for new project architecture"
+        )
 
         criteria_sections.append("\n## Dynamic Schema-Driven Requirements:")
-        criteria_sections.append("- **Complete Library Coverage**: Analyze task domain and ensure library_plan covers ALL non-domain concerns")
-        criteria_sections.append("- **Context-Appropriate Patterns**: Select design patterns based on actual architecture needs, not predetermined lists")
-        criteria_sections.append("- **Domain-Specific Risk Assessment**: Generate risks and mitigations relevant to the specific technology stack and use case")
-        criteria_sections.append("- **Repository State Awareness**: Handle internal_reuse_components based on actual repository contents (empty for greenfield)")
-        criteria_sections.append("- **Technology Stack Completeness**: Ensure all layers covered (framework, auth, data, UI, testing, deployment, security)")
-        criteria_sections.append("- **Architecture Pattern Alignment**: Choose patterns that solve actual problems in the proposed design")
-        criteria_sections.append("- **Security Posture Matching**: Risk assessment should reflect the specific attack surface of the chosen technologies")
-        criteria_sections.append("- **Operational Readiness**: Include deployment, monitoring, logging, and maintenance considerations")
-        criteria_sections.append("- **Quality Assurance Coverage**: Testing strategy appropriate for the application type and complexity")
-        criteria_sections.append("- **Development Workflow Integration**: Tooling choices that support the development and deployment pipeline")
+        criteria_sections.append(
+            "- **Complete Library Coverage**: Analyze task domain and ensure library_plan covers ALL non-domain concerns"
+        )
+        criteria_sections.append(
+            "- **Context-Appropriate Patterns**: Select design patterns based on actual architecture needs, not predetermined lists"
+        )
+        criteria_sections.append(
+            "- **Domain-Specific Risk Assessment**: Generate risks and mitigations relevant to the specific technology stack and use case"
+        )
+        criteria_sections.append(
+            "- **Repository State Awareness**: Handle internal_reuse_components based on actual repository contents (empty for greenfield)"
+        )
+        criteria_sections.append(
+            "- **Technology Stack Completeness**: Ensure all layers covered (framework, auth, data, UI, testing, deployment, security)"
+        )
+        criteria_sections.append(
+            "- **Architecture Pattern Alignment**: Choose patterns that solve actual problems in the proposed design"
+        )
+        criteria_sections.append(
+            "- **Security Posture Matching**: Risk assessment should reflect the specific attack surface of the chosen technologies"
+        )
+        criteria_sections.append(
+            "- **Operational Readiness**: Include deployment, monitoring, logging, and maintenance considerations"
+        )
+        criteria_sections.append(
+            "- **Quality Assurance Coverage**: Testing strategy appropriate for the application type and complexity"
+        )
+        criteria_sections.append(
+            "- **Development Workflow Integration**: Tooling choices that support the development and deployment pipeline"
+        )
 
         # Add comprehensive evaluation criteria
         criteria_sections.append("""

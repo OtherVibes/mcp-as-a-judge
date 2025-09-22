@@ -17,6 +17,7 @@ Outputs:
   - Prints a machine-readable list of other files containing the old version preceded by 'FOUND: '
   - Exits non-zero on validation failure or if expected files are missing
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,7 +50,9 @@ def extract_current_version() -> str:
     # naive toml line parse to avoid adding deps
     m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
     if not m:
-        print("ERROR: Could not find [project].version in pyproject.toml", file=sys.stderr)
+        print(
+            "ERROR: Could not find [project].version in pyproject.toml", file=sys.stderr
+        )
         sys.exit(2)
     return m.group(1)
 
@@ -90,7 +93,15 @@ def bump_init(version: str) -> bool:
 
 def find_other_references(old_version: str) -> None:
     # Report-only scan for the old version string across repo (excluding venvs, git, dist, etc.)
-    skip_dirs = {".git", ".venv", "dist", "build", "__pycache__", ".mypy_cache", ".ruff_cache"}
+    skip_dirs = {
+        ".git",
+        ".venv",
+        "dist",
+        "build",
+        "__pycache__",
+        ".mypy_cache",
+        ".ruff_cache",
+    }
     for path in REPO_ROOT.rglob("*"):
         if path.is_dir():
             if path.name in skip_dirs:
@@ -98,7 +109,16 @@ def find_other_references(old_version: str) -> None:
                 for _ in []:
                     pass
             continue
-        if path.suffix in {".png", ".jpg", ".jpeg", ".gif", ".zip", ".whl", ".tar", ".gz"}:
+        if path.suffix in {
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".zip",
+            ".whl",
+            ".tar",
+            ".gz",
+        }:
             continue
         # Avoid scanning the lock file for noisy matches
         if path.name == "uv.lock":
@@ -113,7 +133,9 @@ def find_other_references(old_version: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bump project version across files")
-    parser.add_argument("--version", required=True, help="Semantic version, e.g., 0.3.0")
+    parser.add_argument(
+        "--version", required=True, help="Semantic version, e.g., 0.3.0"
+    )
     args = parser.parse_args()
 
     new_version = args.version.strip()
@@ -146,4 +168,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

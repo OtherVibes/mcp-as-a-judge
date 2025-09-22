@@ -65,7 +65,6 @@ from mcp_as_a_judge.tool_description.factory import (
     tool_description_provider,
 )
 from mcp_as_a_judge.workflow import calculate_next_stage
-from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
 
 setup_logging("INFO")
 mcp = FastMCP(name="MCP-as-a-Judge")
@@ -78,80 +77,8 @@ logger = get_logger(__name__)
 context_logger = get_context_aware_logger(__name__)
 
 
-def _generate_default_risk_profile(
-    task_metadata: TaskMetadata,
-    plan: str,
-    design: str,
-) -> tuple[list[str], list[str]]:
-    """Create baseline risks/mitigations when none provided for required assessments."""
 
-    combined = " ".join([
-        task_metadata.problem_domain or "",
-        task_metadata.description,
-        plan,
-        design,
-    ]).lower()
 
-    risk_pairs: list[tuple[str, str]] = []
-
-    def add_pair(risk: str, mitigation: str) -> None:
-        if not risk:
-            return
-        if any(existing_risk == risk for existing_risk, _ in risk_pairs):
-            return
-        risk_pairs.append((risk, mitigation))
-
-    if any(keyword in combined for keyword in ["auth", "oauth", "nextauth", "github"]):
-        add_pair(
-            "OAuth provider misconfiguration or outage",
-            "Validate callback URL, minimal scopes, secret rotation, and add graceful fallback messaging",
-        )
-        add_pair(
-            "Insecure session cookie configuration",
-            "Enforce httpOnly, secure, sameSite=strict cookies and set NEXTAUTH_URL/NEXTAUTH_SECRET",
-        )
-        add_pair(
-            "CSRF exposure on auth endpoints",
-            "Rely on Auth.js anti-CSRF protections, verify POST-only routes, and enable middleware checks",
-        )
-
-    if any(keyword in combined for keyword in ["user profile", "avatar", "next/image", "dashboard"]):
-        add_pair(
-            "XSS via rendered GitHub profile data",
-            "Sanitize display names, use Next.js Image component, and escape untrusted content",
-        )
-
-    if any(keyword in combined for keyword in ["prisma", "migration", "postgres", "database"]):
-        add_pair(
-            "Database migration or schema drift failure",
-            "Run prisma migrate deploy with backups and verify in staging before production rollout",
-        )
-
-    if any(keyword in combined for keyword in ["rate limit", "security", "abuse"]):
-        add_pair(
-            "Missing rate limiting on authentication endpoints",
-            "Apply rate limiting middleware to sign-in/sign-out routes and monitor for abuse patterns",
-        )
-
-    add_pair(
-        "Secret leakage through logging or misconfigured env files",
-        "Store secrets in .env, never log secrets, and restrict repository access",
-    )
-
-    add_pair(
-        "Operational monitoring gaps",
-        "Enable error logging, alerting, and health checks for auth flows and database access",
-    )
-
-    if not risk_pairs:
-        add_pair(
-            "Regression risk for existing features",
-            "Add automated tests and staged rollouts to validate unaffected areas",
-        )
-
-    identified = [risk for risk, _ in risk_pairs]
-    mitigations = [mitigation for _, mitigation in risk_pairs]
-    return identified, mitigations
 
 @mcp.tool(description=tool_description_provider.get_description("set_coding_task"))  # type: ignore[misc,unused-ignore]
 async def set_coding_task(
@@ -1306,14 +1233,16 @@ async def _evaluate_coding_plan(
     design_patterns: list[dict] = [],
     identified_risks_override: list[str] = [],
     risk_mitigation_override: list[str] = [],
-    ) -> JudgeResponse:
+) -> JudgeResponse:
     """Evaluate coding plan using AI judge.
 
     Returns:
         JudgeResponse with evaluation results
     """
     # Extract the latest workflow guidance from conversation history
-    workflow_guidance_obj = await _extract_latest_workflow_guidance(conversation_history)
+    workflow_guidance_obj = await _extract_latest_workflow_guidance(
+        conversation_history
+    )
 
     # Format workflow guidance for the system prompt
     workflow_guidance_text = ""
@@ -1322,10 +1251,14 @@ async def _evaluate_coding_plan(
         guidance_parts = []
 
         if workflow_guidance_obj.get("next_tool"):
-            guidance_parts.append(f"**Next Tool:** {workflow_guidance_obj['next_tool']}")
+            guidance_parts.append(
+                f"**Next Tool:** {workflow_guidance_obj['next_tool']}"
+            )
 
         if workflow_guidance_obj.get("reasoning"):
-            guidance_parts.append(f"**Reasoning:** {workflow_guidance_obj['reasoning']}")
+            guidance_parts.append(
+                f"**Reasoning:** {workflow_guidance_obj['reasoning']}"
+            )
 
         if workflow_guidance_obj.get("preparation_needed"):
             prep_items = workflow_guidance_obj["preparation_needed"]
@@ -1356,7 +1289,9 @@ async def _evaluate_coding_plan(
                         guidance_parts.append(field_info)
 
         if workflow_guidance_obj.get("guidance"):
-            guidance_parts.append(f"**Detailed Guidance:** {workflow_guidance_obj['guidance']}")
+            guidance_parts.append(
+                f"**Detailed Guidance:** {workflow_guidance_obj['guidance']}"
+            )
 
         workflow_guidance_text = "\n".join(guidance_parts)
 
@@ -1408,8 +1343,7 @@ async def _evaluate_coding_plan(
         internal_reuse_components=internal_reuse_components,
         # Design patterns enforcement (conditional based on task metadata)
         design_patterns=[
-            DesignPattern(name=dp["name"], area=dp["area"])
-            for dp in design_patterns
+            DesignPattern(name=dp["name"], area=dp["area"]) for dp in design_patterns
         ],
     )
     messages = create_separate_messages(
@@ -1558,21 +1492,16 @@ async def judge_coding_plan(
         )
 
         effective_identified_risks = list(
-            (identified_risks or task_metadata.identified_risks or [])
+            identified_risks or task_metadata.identified_risks or []
         )
         effective_risk_mitigations = list(
-            (
-                risk_mitigation_strategies
-                or task_metadata.risk_mitigation_strategies
-                or []
-            )
+            risk_mitigation_strategies
+            or task_metadata.risk_mitigation_strategies
+            or []
         )
 
+        # Clean up risk assessment data if required
         if task_metadata.risk_assessment_required:
-            default_risks, default_mitigations = _generate_default_risk_profile(
-                task_metadata, plan, design
-            )
-
             cleaned_risks = [
                 risk.strip()
                 for risk in effective_identified_risks
@@ -1584,23 +1513,14 @@ async def judge_coding_plan(
                 if isinstance(mitigation, str) and mitigation.strip()
             ]
 
-            if not cleaned_risks:
-                cleaned_risks = default_risks
-                cleaned_mitigations = default_mitigations
-            else:
-                if len(cleaned_mitigations) < len(cleaned_risks):
-                    for idx in range(len(cleaned_mitigations), len(cleaned_risks)):
-                        if idx < len(default_mitigations):
-                            cleaned_mitigations.append(default_mitigations[idx])
-                        else:
-                            cleaned_mitigations.append(
-                                "Document concrete mitigation strategy for this risk"
-                            )
-                elif len(cleaned_mitigations) > len(cleaned_risks):
-                    cleaned_mitigations = cleaned_mitigations[: len(cleaned_risks)]
-
-                if not cleaned_mitigations:
-                    cleaned_mitigations = default_mitigations
+            # Ensure 1:1 mapping between risks and mitigations
+            if len(cleaned_mitigations) < len(cleaned_risks):
+                for _ in range(len(cleaned_mitigations), len(cleaned_risks)):
+                    cleaned_mitigations.append(
+                        "Document concrete mitigation strategy for this risk"
+                    )
+            elif len(cleaned_mitigations) > len(cleaned_risks):
+                cleaned_mitigations = cleaned_mitigations[: len(cleaned_risks)]
 
             effective_identified_risks = cleaned_risks
             effective_risk_mitigations = cleaned_mitigations
@@ -1616,9 +1536,7 @@ async def judge_coding_plan(
             and effective_risk_mitigations
             and not task_metadata.risk_mitigation_strategies
         ):
-            task_metadata.risk_mitigation_strategies = list(
-                effective_risk_mitigations
-            )
+            task_metadata.risk_mitigation_strategies = list(effective_risk_mitigations)
 
         original_input["identified_risks"] = effective_identified_risks
         original_input["risk_mitigation_strategies"] = effective_risk_mitigations
@@ -1817,7 +1735,7 @@ async def judge_coding_plan(
             evaluation_result = EnhancedResponseFactory.create_judge_response(
                 approved=True,
                 feedback="Plan auto-approved after reaching rejection limit (max 1 rejection allowed). "
-                        "Moving forward to prevent endless iteration cycles.",
+                "Moving forward to prevent endless iteration cycles.",
                 required_improvements=[],
                 current_task_metadata=task_metadata,
                 workflow_guidance=WorkflowGuidance(
@@ -2707,11 +2625,21 @@ async def judge_testing_implementation(
             test_summary=test_summary,
             test_files=test_files,
             test_execution_results=test_execution_results,
-            test_coverage_report=test_coverage_report if test_coverage_report else "No coverage report provided",
-            test_types_implemented=test_types_implemented if test_types_implemented else [],
-            testing_framework=testing_framework if testing_framework else "Not specified",
-            performance_test_results=performance_test_results if performance_test_results else "No performance tests",
-            manual_test_notes=manual_test_notes if manual_test_notes else "No manual testing notes",
+            test_coverage_report=test_coverage_report
+            if test_coverage_report
+            else "No coverage report provided",
+            test_types_implemented=test_types_implemented
+            if test_types_implemented
+            else [],
+            testing_framework=testing_framework
+            if testing_framework
+            else "Not specified",
+            performance_test_results=performance_test_results
+            if performance_test_results
+            else "No performance tests",
+            manual_test_notes=manual_test_notes
+            if manual_test_notes
+            else "No manual testing notes",
             conversation_history=history_json_array,
         )
 
@@ -2757,9 +2685,7 @@ async def judge_testing_implementation(
                 "failed" not in test_execution_results.lower()
                 and "error" not in test_execution_results.lower()
             )
-            has_coverage = (
-                test_coverage_report and test_coverage_report.strip() != ""
-            )
+            has_coverage = test_coverage_report and test_coverage_report.strip() != ""
 
             testing_approved = (
                 has_adequate_tests and tests_passing and no_warnings and no_failures

@@ -1,11 +1,10 @@
 """Test workflow guidance exposure to plan system prompt."""
 
 import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 
-from mcp_as_a_judge.server import _extract_latest_workflow_guidance, _evaluate_coding_plan
-from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
+import pytest
+
+from mcp_as_a_judge.server import _extract_latest_workflow_guidance
 
 
 class TestWorkflowGuidanceExtraction:
@@ -17,50 +16,52 @@ class TestWorkflowGuidanceExtraction:
         # Sample conversation history with workflow guidance
         conversation_history = [
             {
-                "output": json.dumps({
-                    "workflow_guidance": {
-                        "next_tool": "judge_coding_plan",
-                        "reasoning": "Plan needs validation before implementation",
-                        "preparation_needed": [
-                            "Prepare comprehensive design document",
-                            "Define library selection map"
-                        ],
-                        "plan_required_fields": [
-                            {
-                                "name": "plan",
-                                "type": "string",
-                                "required": True,
-                                "description": "Detailed implementation plan"
-                            },
-                            {
-                                "name": "design_patterns",
-                                "type": "list[dict]",
-                                "required": True,
-                                "conditional_on": "design_patterns_enforcement",
-                                "description": "Design patterns to be applied"
-                            }
-                        ],
-                        "guidance": "Create comprehensive plan with all required fields"
+                "output": json.dumps(
+                    {
+                        "workflow_guidance": {
+                            "next_tool": "judge_coding_plan",
+                            "reasoning": "Plan needs validation before implementation",
+                            "preparation_needed": [
+                                "Prepare comprehensive design document",
+                                "Define library selection map",
+                            ],
+                            "plan_required_fields": [
+                                {
+                                    "name": "plan",
+                                    "type": "string",
+                                    "required": True,
+                                    "description": "Detailed implementation plan",
+                                },
+                                {
+                                    "name": "design_patterns",
+                                    "type": "list[dict]",
+                                    "required": True,
+                                    "conditional_on": "design_patterns_enforcement",
+                                    "description": "Design patterns to be applied",
+                                },
+                            ],
+                            "guidance": "Create comprehensive plan with all required fields",
+                        }
                     }
-                })
+                )
             }
         ]
 
         result = await _extract_latest_workflow_guidance(conversation_history)
-        
+
         assert result is not None
         assert isinstance(result, dict)
         assert result["next_tool"] == "judge_coding_plan"
         assert result["reasoning"] == "Plan needs validation before implementation"
         assert len(result["preparation_needed"]) == 2
         assert len(result["plan_required_fields"]) == 2
-        
+
         # Check plan required fields structure
         plan_field = result["plan_required_fields"][0]
         assert plan_field["name"] == "plan"
         assert plan_field["type"] == "string"
         assert plan_field["required"] is True
-        
+
         patterns_field = result["plan_required_fields"][1]
         assert patterns_field["conditional_on"] == "design_patterns_enforcement"
 
@@ -70,7 +71,7 @@ class TestWorkflowGuidanceExtraction:
         conversation_history = [
             {"output": json.dumps({"some_other_field": "value"})},
             {"output": "invalid json"},
-            {"output": json.dumps({})}
+            {"output": json.dumps({})},
         ]
 
         result = await _extract_latest_workflow_guidance(conversation_history)
@@ -98,44 +99,45 @@ class TestWorkflowGuidanceFormatting:
         workflow_guidance_obj = {
             "next_tool": "judge_coding_plan",
             "reasoning": "Plan validation required",
-            "preparation_needed": [
-                "Prepare design document",
-                "Define library map"
-            ],
+            "preparation_needed": ["Prepare design document", "Define library map"],
             "plan_required_fields": [
                 {
                     "name": "plan",
                     "type": "string",
                     "required": True,
-                    "description": "Implementation plan"
+                    "description": "Implementation plan",
                 },
                 {
                     "name": "design_patterns",
                     "type": "list[dict]",
                     "required": True,
                     "conditional_on": "design_patterns_enforcement",
-                    "description": "Design patterns to apply"
-                }
+                    "description": "Design patterns to apply",
+                },
             ],
-            "guidance": "Create comprehensive plan"
+            "guidance": "Create comprehensive plan",
         }
 
         # Simulate the formatting logic from _evaluate_coding_plan
         guidance_parts = []
-        
+
         if workflow_guidance_obj.get("next_tool"):
-            guidance_parts.append(f"**Next Tool:** {workflow_guidance_obj['next_tool']}")
-        
+            guidance_parts.append(
+                f"**Next Tool:** {workflow_guidance_obj['next_tool']}"
+            )
+
         if workflow_guidance_obj.get("reasoning"):
-            guidance_parts.append(f"**Reasoning:** {workflow_guidance_obj['reasoning']}")
-        
+            guidance_parts.append(
+                f"**Reasoning:** {workflow_guidance_obj['reasoning']}"
+            )
+
         if workflow_guidance_obj.get("preparation_needed"):
             prep_items = workflow_guidance_obj["preparation_needed"]
             if isinstance(prep_items, list) and prep_items:
                 guidance_parts.append("**Preparation Required:**")
                 for item in prep_items:
                     guidance_parts.append(f"- {item}")
-        
+
         if workflow_guidance_obj.get("plan_required_fields"):
             fields = workflow_guidance_obj["plan_required_fields"]
             if isinstance(fields, list) and fields:
@@ -147,7 +149,7 @@ class TestWorkflowGuidanceFormatting:
                         field_desc = field.get("description", "")
                         required = field.get("required", False)
                         conditional = field.get("conditional_on", "")
-                        
+
                         field_info = f"- **{field_name}** ({field_type})"
                         if required:
                             field_info += " [REQUIRED]"
@@ -156,12 +158,14 @@ class TestWorkflowGuidanceFormatting:
                         if field_desc:
                             field_info += f": {field_desc}"
                         guidance_parts.append(field_info)
-        
+
         if workflow_guidance_obj.get("guidance"):
-            guidance_parts.append(f"**Detailed Guidance:** {workflow_guidance_obj['guidance']}")
-        
+            guidance_parts.append(
+                f"**Detailed Guidance:** {workflow_guidance_obj['guidance']}"
+            )
+
         formatted_text = "\n".join(guidance_parts)
-        
+
         # Verify the formatted text contains all expected elements
         assert "**Next Tool:** judge_coding_plan" in formatted_text
         assert "**Reasoning:** Plan validation required" in formatted_text
@@ -170,23 +174,28 @@ class TestWorkflowGuidanceFormatting:
         assert "- Define library map" in formatted_text
         assert "**Required Plan Fields:**" in formatted_text
         assert "- **plan** (string) [REQUIRED]: Implementation plan" in formatted_text
-        assert "- **design_patterns** (list[dict]) [REQUIRED] [Conditional on: design_patterns_enforcement]: Design patterns to apply" in formatted_text
+        assert (
+            "- **design_patterns** (list[dict]) [REQUIRED] [Conditional on: design_patterns_enforcement]: Design patterns to apply"
+            in formatted_text
+        )
         assert "**Detailed Guidance:** Create comprehensive plan" in formatted_text
 
     def test_format_minimal_guidance(self):
         """Test formatting when only basic guidance is provided."""
         workflow_guidance_obj = {
             "next_tool": "judge_coding_plan",
-            "guidance": "Basic guidance only"
+            "guidance": "Basic guidance only",
         }
 
         # Simulate minimal formatting
         guidance_parts = []
         guidance_parts.append(f"**Next Tool:** {workflow_guidance_obj['next_tool']}")
-        guidance_parts.append(f"**Detailed Guidance:** {workflow_guidance_obj['guidance']}")
-        
+        guidance_parts.append(
+            f"**Detailed Guidance:** {workflow_guidance_obj['guidance']}"
+        )
+
         formatted_text = "\n".join(guidance_parts)
-        
+
         assert "**Next Tool:** judge_coding_plan" in formatted_text
         assert "**Detailed Guidance:** Basic guidance only" in formatted_text
         assert "**Preparation Required:**" not in formatted_text
@@ -199,52 +208,50 @@ class TestWorkflowGuidanceIntegration:
     @pytest.mark.asyncio
     async def test_plan_evaluation_uses_structured_guidance(self):
         """Test that plan evaluation properly uses structured workflow guidance."""
-        # Create a mock task metadata
-        task_metadata = TaskMetadata(
-            title="Test Task",
-            description="Test task description",
-            user_requirements="Test requirements",
-            state=TaskState.PLANNING,
-            task_size=TaskSize.M,
-            design_patterns_enforcement=True
-        )
+        # This test validates that structured guidance is properly extracted
+        # The actual plan evaluation logic is tested in other test files
 
         # Create conversation history with structured guidance
         conversation_history = [
             {
-                "output": json.dumps({
-                    "workflow_guidance": {
-                        "next_tool": "judge_coding_plan",
-                        "reasoning": "Plan needs validation",
-                        "plan_required_fields": [
-                            {
-                                "name": "plan",
-                                "type": "string",
-                                "required": True,
-                                "description": "Implementation plan"
-                            },
-                            {
-                                "name": "design_patterns",
-                                "type": "list[dict]",
-                                "required": True,
-                                "conditional_on": "design_patterns_enforcement",
-                                "description": "Design patterns to apply"
-                            }
-                        ]
+                "output": json.dumps(
+                    {
+                        "workflow_guidance": {
+                            "next_tool": "judge_coding_plan",
+                            "reasoning": "Plan needs validation",
+                            "plan_required_fields": [
+                                {
+                                    "name": "plan",
+                                    "type": "string",
+                                    "required": True,
+                                    "description": "Implementation plan",
+                                },
+                                {
+                                    "name": "design_patterns",
+                                    "type": "list[dict]",
+                                    "required": True,
+                                    "conditional_on": "design_patterns_enforcement",
+                                    "description": "Design patterns to apply",
+                                },
+                            ],
+                        }
                     }
-                })
+                )
             }
         ]
 
         # Test that the guidance extraction works
-        extracted_guidance = await _extract_latest_workflow_guidance(conversation_history)
+        extracted_guidance = await _extract_latest_workflow_guidance(
+            conversation_history
+        )
         assert extracted_guidance is not None
         assert "plan_required_fields" in extracted_guidance
         assert len(extracted_guidance["plan_required_fields"]) == 2
-        
+
         # Verify the conditional field is properly structured
         design_patterns_field = next(
-            field for field in extracted_guidance["plan_required_fields"]
+            field
+            for field in extracted_guidance["plan_required_fields"]
             if field["name"] == "design_patterns"
         )
         assert design_patterns_field["conditional_on"] == "design_patterns_enforcement"

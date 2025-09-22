@@ -19,8 +19,12 @@ if TYPE_CHECKING:  # Avoid import cycle at runtime
 class DesignPattern(BaseModel):
     """Design pattern specification for plan validation."""
 
-    name: str = Field(description="Name of known design pattern required to be selected")
-    area: str = Field(description="Which part of the code will be solved using the pattern")
+    name: str = Field(
+        description="Name of known design pattern required to be selected"
+    )
+    area: str = Field(
+        description="Which part of the code will be solved using the pattern"
+    )
 
 
 class JudgeResponse(BaseModel):
@@ -345,7 +349,7 @@ class JudgeCodingPlanUserVars(BaseModel):
     # Design patterns enforcement fields
     design_patterns: list[DesignPattern] = Field(
         default_factory=list,
-        description="List of design patterns to be used with their coverage areas"
+        description="List of design patterns to be used with their coverage areas",
     )
 
 
@@ -406,7 +410,7 @@ class WorkflowGuidanceUserVars(BaseModel):
     )
     plan_required_fields_json: str = Field(
         default="[]",
-        description="JSON array of required fields for judge_coding_plan (when next_tool is judge_coding_plan)"
+        description="JSON array of required fields for judge_coding_plan (when next_tool is judge_coding_plan)",
     )
 
 
