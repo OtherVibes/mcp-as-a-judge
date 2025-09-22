@@ -77,9 +77,6 @@ logger = get_logger(__name__)
 context_logger = get_context_aware_logger(__name__)
 
 
-
-
-
 @mcp.tool(description=tool_description_provider.get_description("set_coding_task"))  # type: ignore[misc,unused-ignore]
 async def set_coding_task(
     user_request: str,
@@ -1495,9 +1492,7 @@ async def judge_coding_plan(
             identified_risks or task_metadata.identified_risks or []
         )
         effective_risk_mitigations = list(
-            risk_mitigation_strategies
-            or task_metadata.risk_mitigation_strategies
-            or []
+            risk_mitigation_strategies or task_metadata.risk_mitigation_strategies or []
         )
 
         # Clean up risk assessment data if required
