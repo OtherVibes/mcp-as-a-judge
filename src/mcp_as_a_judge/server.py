@@ -89,7 +89,7 @@ async def set_coding_task(
     user_requirements: str = "",  # Updates current requirements
     state: TaskState = TaskState.CREATED,  # Optional: update task state with validation when updating existing task
     # OPTIONAL
-    tags: list[str] = [],
+    tags: list[str] = [],  # noqa: B006
 ) -> TaskAnalysisResult:
     """Create or update coding task metadata with enhanced workflow management."""
     task_id_for_logging = task_id if task_id else "new_task"
@@ -377,7 +377,7 @@ async def raise_obstacle(
     task_id: str = "",  # OPTIONAL: Task ID for context and memory
     # Optional HITL assistance inputs
     decision_area: str = "",
-    constraints: list[str] = [],
+    constraints: list[str] = [],  # noqa: B006
 ) -> str:
     """Obstacle handling tool - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -573,9 +573,9 @@ async def raise_missing_requirements(
     task_id: str,  # REQUIRED: Task ID for context and memory
     ctx: Context,
     # Optional HITL assistance inputs
-    decision_areas: list[str] = [],
-    options: list[str] = [],
-    constraints: list[str] = [],
+    decision_areas: list[str] = [],  # noqa: B006
+    options: list[str] = [],  # noqa: B006
+    constraints: list[str] = [],  # noqa: B006
 ) -> str:
     """Requirements clarification tool - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -773,7 +773,7 @@ async def judge_coding_task_completion(
     implementation_details: str,
     ctx: Context,
     # OPTIONAL
-    remaining_work: list[str] = [],
+    remaining_work: list[str] = [],  # noqa: B006
     quality_notes: str = "",
     testing_status: str = "",
 ) -> TaskCompletionResult:
@@ -1224,12 +1224,12 @@ async def _evaluate_coding_plan(
     task_metadata: TaskMetadata,
     ctx: Context,
     problem_domain: str = "",
-    problem_non_goals: list[str] = [],
-    library_plan: list[dict] = [],
-    internal_reuse_components: list[dict] = [],
-    design_patterns: list[dict] = [],
-    identified_risks_override: list[str] = [],
-    risk_mitigation_override: list[str] = [],
+    problem_non_goals: list[str] = [],  # noqa: B006
+    library_plan: list[dict] = [],  # noqa: B006
+    internal_reuse_components: list[dict] = [],  # noqa: B006
+    design_patterns: list[dict] = [],  # noqa: B006
+    identified_risks_override: list[str] = [],  # noqa: B006
+    risk_mitigation_override: list[str] = [],  # noqa: B006
 ) -> JudgeResponse:
     """Evaluate coding plan using AI judge.
 
@@ -1380,12 +1380,12 @@ async def judge_coding_plan(
     user_requirements: str = "",
     # OPTIONAL explicit inputs to avoid rejection on missing deliverables
     problem_domain: str = "",
-    problem_non_goals: list[str] = [],
-    library_plan: list[dict] = [],
-    internal_reuse_components: list[dict] = [],
-    design_patterns: list[dict] = [],
-    identified_risks: list[str] = [],
-    risk_mitigation_strategies: list[str] = [],
+    problem_non_goals: list[str] = [],  # noqa: B006
+    library_plan: list[dict] = [],  # noqa: B006
+    internal_reuse_components: list[dict] = [],  # noqa: B006
+    design_patterns: list[dict] = [],  # noqa: B006
+    identified_risks: list[str] = [],  # noqa: B006
+    risk_mitigation_strategies: list[str] = [],  # noqa: B006
 ) -> JudgeResponse:
     """Coding plan evaluation tool - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -2426,7 +2426,7 @@ async def judge_testing_implementation(
     test_execution_results: str,
     ctx: Context,
     test_coverage_report: str = "",
-    test_types_implemented: list[str] = [],
+    test_types_implemented: list[str] = [],  # noqa: B006
     testing_framework: str = "",
     performance_test_results: str = "",
     manual_test_notes: str = "",
