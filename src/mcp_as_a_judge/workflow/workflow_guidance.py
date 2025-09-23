@@ -943,7 +943,7 @@ def _generate_plan_required_fields(
                     description="Areas that could be harmed by the proposed changes",
                     required=True,
                     conditional_on="risk_assessment_required",
-                    example_value='["OAuth misconfiguration", "CSRF attacks", "Session fixation"]',
+                    example_value='["Authentication vulnerabilities", "Performance degradation from inefficient queries", "Breaking API changes"]',
                 ),
                 PlanRequiredField(
                     name="risk_mitigation_strategies",
@@ -951,7 +951,7 @@ def _generate_plan_required_fields(
                     description="Strategies to mitigate identified risks (same order as identified_risks)",
                     required=True,
                     conditional_on="risk_assessment_required",
-                    example_value='["Use Auth.js secure defaults", "Enable CSRF protection", "Rotate sessions on login"]',
+                    example_value='["Implement secure authentication patterns", "Add database indexing and query optimization", "Use versioned APIs with deprecation notices"]',
                 ),
             ]
         )
@@ -1105,7 +1105,7 @@ The judge validates plans against these comprehensive software engineering stand
 - Development tooling included (linting, formatting, type checking)
 
 ### 4. Security & Risk Management
-- Comprehensive risk enumeration: OAuth misconfiguration, secret leakage, insecure cookies, CSRF, session attacks
+- Comprehensive risk enumeration: security vulnerabilities, performance degradation, breaking changes, maintainability issues, system reliability, data integrity
 - One-to-one risk mitigation strategies
 - Security headers and protection mechanisms
 - Environment variable security and validation

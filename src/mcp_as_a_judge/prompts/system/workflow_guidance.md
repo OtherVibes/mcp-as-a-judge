@@ -103,7 +103,7 @@ When recommending judge_coding_plan, your preparation_needed MUST include compre
 **STRUCTURE REQUIREMENTS:**
 - "Ensure library_plan includes ALL dependencies: framework, auth, database, styling, testing, linting, validation"
 - "Ensure design_patterns specifies concrete patterns: Singleton, Factory, Adapter, Strategy, etc."
-- "Ensure identified_risks covers: security, configuration, data loss, authorization, secrets, dependencies"
+- "Ensure identified_risks covers: security vulnerabilities, performance degradation, breaking changes, maintainability issues, system reliability, data integrity, user experience, testing coverage, documentation drift"
 - "Ensure each risk has corresponding mitigation strategy in same order"
 - "Include comprehensive testing strategy with specific test files and mocking approach"
 - "Map SOLID principles explicitly to components and files"

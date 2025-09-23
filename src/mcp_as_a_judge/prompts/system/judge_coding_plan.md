@@ -166,7 +166,16 @@ Output mapping requirement: Populate these fields in current_task_metadata for d
 
 **⚠️ Risk Analysis:**
 - Validate that potential risks are properly identified and addressed
-- Required risk categories to consider: OAuth/authentication misconfiguration, insecure cookie/session settings, CSRF vulnerabilities, open redirect attacks, session fixation, secret leakage, database migration failures, XSS from external data, dependency vulnerabilities, rate limiting absence, environment mismatches
+- Required risk categories to consider:
+  - **Security risks**: Authentication/authorization vulnerabilities, data exposure, input validation gaps, session management issues, dependency vulnerabilities, configuration security
+  - **Performance degradation**: Memory leaks, inefficient algorithms, database query performance, resource exhaustion
+  - **Breaking changes**: API compatibility issues, backward compatibility problems, migration path failures
+  - **Code maintainability**: Technical debt accumulation, tight coupling, SOLID principle violations, architectural degradation
+  - **System reliability**: Error handling gaps, race conditions, concurrent access issues, failure recovery problems
+  - **Data integrity**: Inconsistent state management, validation gaps, data corruption risks
+  - **User experience**: Response time degradation, accessibility regressions, usability issues
+  - **Testing coverage**: Reduced test coverage, flaky tests, missing edge cases, test maintenance issues
+  - **Documentation drift**: Outdated documentation, missing API docs, unclear error messages
 - Are identified risks realistic and comprehensive?
 - Do mitigation strategies adequately address the risks (one-to-one mapping)?
 - Does the plan include appropriate safeguards and rollback mechanisms?
