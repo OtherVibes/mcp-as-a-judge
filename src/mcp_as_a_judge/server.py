@@ -2693,7 +2693,9 @@ Please provide clarified requirements and make technical decisions to proceed wi
         feedback_context = {
             "repository_analysis": repository_analysis,
             "task_description": task_metadata.description,
-            "task_size": task_metadata.task_size.value if task_metadata.task_size else "unknown",
+            "task_size": task_metadata.task_size.value
+            if task_metadata.task_size
+            else "unknown",
             "workflow_state": task_metadata.state.value,
             "elicitation_success": elicitation_result.success,
             "questions_asked": specific_questions[:5],  # Limit to avoid token bloat
@@ -3263,7 +3265,9 @@ async def get_user_approve_requirement(
         # Save plan approval interaction to database for better LLM context
         approval_context = {
             "task_description": task_metadata.description,
-            "task_size": task_metadata.task_size.value if task_metadata.task_size else "unknown",
+            "task_size": task_metadata.task_size.value
+            if task_metadata.task_size
+            else "unknown",
             "workflow_state": task_metadata.state.value,
             "plan_content": formatted_plan[:1000],  # Limit to avoid token bloat
             "user_approved": approved,

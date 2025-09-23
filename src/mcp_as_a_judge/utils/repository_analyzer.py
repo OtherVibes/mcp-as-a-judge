@@ -212,7 +212,11 @@ class RepositoryAnalyzer:
 
     def _analyze_structure(self) -> dict:
         """Analyze project structure and organization patterns."""
-        structure: dict[str, list[str]] = {"directories": [], "key_files": [], "patterns": []}
+        structure: dict[str, list[str]] = {
+            "directories": [],
+            "key_files": [],
+            "patterns": [],
+        }
 
         # Get top-level directories and files
         if self.repo_path.exists():

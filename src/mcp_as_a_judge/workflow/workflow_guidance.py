@@ -606,7 +606,10 @@ async def calculate_next_stage(
         )
 
         # Fallback: if next_tool missing/None and not completed, route to get_current_coding_task
-        if workflow_guidance.next_tool is None and task_metadata.state != TaskState.COMPLETED:
+        if (
+            workflow_guidance.next_tool is None
+            and task_metadata.state != TaskState.COMPLETED
+        ):
             if "get_current_coding_task" in available_name_set:
                 workflow_guidance.next_tool = "get_current_coding_task"
             else:
