@@ -54,6 +54,8 @@ __all__ = [
     "TaskCompletionResult",
     "TaskMetadata",
     "TaskState",
+    "TestOutputValidationResponse",
+    "TestOutputValidationUserVars",
     "URLValidationResult",
     "ValidationErrorUserVars",
     "WorkflowGuidance",
@@ -70,6 +72,7 @@ class SystemVars(BaseModel):
     plan_input_schema: str = Field(default="")
     plan_evaluation_criteria: str = Field(default="")
     workflow_guidance: str = Field(default="")
+    plan_required_fields_json: str = Field(default="[]")
 
 
 class DynamicSchemaUserVars(BaseModel):
@@ -80,6 +83,21 @@ class DynamicSchemaUserVars(BaseModel):
 
 class ValidationErrorUserVars(BaseModel):
     validation_issue: str
+    context: str
+
+
+class TestOutputValidationResponse(BaseModel):
+    looks_like_test_output: bool = Field(default=False)
+    test_framework_detected: str = Field(default="")
+    has_test_results: bool = Field(default=False)
+    has_execution_summary: bool = Field(default=False)
+    confidence_score: float = Field(default=0.0)
+    issues: list[str] = Field(default_factory=list)
+    feedback: str = Field(default="")
+
+
+class TestOutputValidationUserVars(BaseModel):
+    test_output: str
     context: str
 
 
