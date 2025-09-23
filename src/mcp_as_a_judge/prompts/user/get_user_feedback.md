@@ -31,6 +31,34 @@
 {% endfor %}
 {% endfor %}
 
+## Documentation and Reference Requests
+{% if documentation_requests %}
+{% for request in documentation_requests %}
+- {{ request }}
+{% endfor %}
+{% endif %}
+
+## Success Criteria Questions
+{% if success_criteria_questions %}
+{% for question in success_criteria_questions %}
+- {{ question }}
+{% endfor %}
+{% endif %}
+
+## Environment and Context Questions
+{% if environment_context_questions %}
+{% for question in environment_context_questions %}
+- {{ question }}
+{% endfor %}
+{% endif %}
+
+## Testing Requirements Questions
+{% if testing_requirements_questions %}
+{% for question in testing_requirements_questions %}
+- {{ question }}
+{% endfor %}
+{% endif %}
+
 ## Task Context
 - **Task ID**: {{ task_id }}
 - **Current State**: Requirements feedback gathering

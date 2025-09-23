@@ -2551,6 +2551,10 @@ async def get_user_feedback(
     decision_areas: list[str],
     suggested_options: list[dict],
     repository_analysis: str,
+    documentation_requests: list[str],
+    success_criteria_questions: list[str],
+    environment_context_questions: list[str],
+    testing_requirements_questions: list[str],
     task_id: str,
     ctx: Context,
 ) -> ElicitationResult:
@@ -2598,29 +2602,43 @@ async def get_user_feedback(
                 default="",
                 description="Preferences that affect implementation approach",
             )
+            documentation_responses: dict[str, str] = Field(
+                default_factory=dict,
+                description="Responses to documentation and reference requests",
+            )
+            success_criteria_responses: dict[str, str] = Field(
+                default_factory=dict,
+                description="Responses to success criteria questions",
+            )
+            environment_context_responses: dict[str, str] = Field(
+                default_factory=dict,
+                description="Responses to environment and context questions",
+            )
+            testing_requirements_responses: dict[str, str] = Field(
+                default_factory=dict,
+                description="Responses to testing requirements questions",
+            )
 
-        # Format elicitation message
-        elicitation_message = f"""
-## Requirement Clarification Needed
+        # Format elicitation message using template
+        from mcp_as_a_judge.prompts import prompt_loader
 
-**Current Understanding:** {current_request}
+        template_vars = {
+            "current_request": current_request,
+            "repository_analysis": repository_analysis,
+            "identified_gaps": identified_gaps,
+            "specific_questions": specific_questions,
+            "decision_areas": decision_areas,
+            "suggested_options": suggested_options,
+            "documentation_requests": documentation_requests,
+            "success_criteria_questions": success_criteria_questions,
+            "environment_context_questions": environment_context_questions,
+            "testing_requirements_questions": testing_requirements_questions,
+            "task_id": task_id,
+        }
 
-**Repository Analysis:** {repository_analysis}
-
-**Identified Gaps:**
-{chr(10).join(f"- {gap}" for gap in identified_gaps)}
-
-**Specific Questions:**
-{chr(10).join(f"- {question}" for question in specific_questions)}
-
-**Technical Decisions Needed:**
-{chr(10).join(f"- {area}" for area in decision_areas)}
-
-**Suggested Options:**
-{chr(10).join(f"- **{opt.get('area', 'Unknown')}**: {', '.join(o.get('name', 'Unknown') for o in opt.get('options', []))}" for opt in suggested_options)}
-
-Please provide clarified requirements and make technical decisions to proceed with implementation.
-"""
+        elicitation_message = prompt_loader.render_prompt(
+            "get_user_feedback", "user", template_vars
+        )
 
         # Get user input through elicitation
         elicitation_result = await elicitation_provider.elicit_user_input(
@@ -2648,6 +2666,10 @@ Please provide clarified requirements and make technical decisions to proceed wi
         technical_decisions = user_data.get("technical_decisions", {})
         additional_context = user_data.get("additional_context", "")
         workflow_preferences = user_data.get("workflow_preferences", "")
+        documentation_responses = user_data.get("documentation_responses", {})
+        success_criteria_responses = user_data.get("success_criteria_responses", {})
+        environment_context_responses = user_data.get("environment_context_responses", {})
+        testing_requirements_responses = user_data.get("testing_requirements_responses", {})
 
         # Update task metadata with new requirements
         combined_requirements = f"{task_metadata.user_requirements}\n\n## User Clarifications:\n{clarified_requirements}"
@@ -2657,6 +2679,14 @@ Please provide clarified requirements and make technical decisions to proceed wi
             combined_requirements += (
                 f"\n\n## Workflow Preferences:\n{workflow_preferences}"
             )
+        if documentation_responses:
+            combined_requirements += "\n\n## Documentation Responses:\n" + "\n".join(f"- {k}: {v}" for k, v in documentation_responses.items())
+        if success_criteria_responses:
+            combined_requirements += "\n\n## Success Criteria:\n" + "\n".join(f"- {k}: {v}" for k, v in success_criteria_responses.items())
+        if environment_context_responses:
+            combined_requirements += "\n\n## Environment Context:\n" + "\n".join(f"- {k}: {v}" for k, v in environment_context_responses.items())
+        if testing_requirements_responses:
+            combined_requirements += "\n\n## Testing Requirements:\n" + "\n".join(f"- {k}: {v}" for k, v in testing_requirements_responses.items())
 
         task_metadata.update_requirements(combined_requirements, source="user_feedback")
 
