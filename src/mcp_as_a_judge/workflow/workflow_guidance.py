@@ -565,33 +565,19 @@ async def calculate_next_stage(
         )
 
         # Fallback: if next_tool missing/None and not completed, route to get_current_coding_task
-        if (
-            workflow_guidance.next_tool is None
-            and task_metadata.state != TaskState.COMPLETED
-        ):
+        if workflow_guidance.next_tool is None and task_metadata.state != TaskState.COMPLETED:
             if "get_current_coding_task" in available_name_set:
                 workflow_guidance.next_tool = "get_current_coding_task"
             else:
                 # As a last resort, pick appropriate tool based on state
-                if (
-                    task_metadata.state == TaskState.CREATED
-                    or task_metadata.state == TaskState.REQUIREMENTS_FEEDBACK
-                ):
-                    workflow_guidance.next_tool = "get_user_feedback"
-                elif task_metadata.state == TaskState.USER_APPROVE_REQUIREMENTS:
-                    workflow_guidance.next_tool = (
-                        None  # Let AI assistant create plan first
-                    )
-                elif task_metadata.state == TaskState.PLANNING:
+                # Note: CREATED, REQUIREMENTS_FEEDBACK, USER_APPROVE_REQUIREMENTS, PLAN_APPROVED,
+                # IMPLEMENTING, REVIEW_READY, TESTING, and COMPLETED are handled by early returns
+                current_state = task_metadata.state
+                if current_state == TaskState.PLANNING:
                     workflow_guidance.next_tool = "judge_coding_plan"
-                elif task_metadata.state in (
-                    TaskState.PLAN_APPROVED,
-                    TaskState.IMPLEMENTING,
-                    TaskState.REVIEW_READY,
-                ):
-                    workflow_guidance.next_tool = "judge_code_change"
-                elif task_metadata.state == TaskState.TESTING:
-                    workflow_guidance.next_tool = "judge_testing_implementation"
+                elif current_state in (TaskState.BLOCKED, TaskState.CANCELLED):
+                    # For blocked/cancelled tasks, no specific tool recommendation
+                    workflow_guidance.next_tool = None
 
         logger.info(
             f"Calculated next stage: next_tool={workflow_guidance.next_tool}, "

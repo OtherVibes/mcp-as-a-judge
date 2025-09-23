@@ -121,8 +121,8 @@ class RepositoryAnalyzer:
 
     def _detect_languages(self) -> dict:
         """Detect programming languages used in the repository."""
-        language_scores = {}
-        file_counts = Counter()
+        language_scores: dict[str, float] = {}
+        file_counts: Counter[str] = Counter()
 
         # Walk through repository
         for root, dirs, files in os.walk(self.repo_path):
@@ -177,7 +177,7 @@ class RepositoryAnalyzer:
 
     def _detect_frameworks(self) -> dict:
         """Detect frameworks and libraries used."""
-        framework_scores = {}
+        framework_scores: dict[str, float] = {}
 
         for _root, dirs, files in os.walk(self.repo_path):
             dirs[:] = [
@@ -212,7 +212,7 @@ class RepositoryAnalyzer:
 
     def _analyze_structure(self) -> dict:
         """Analyze project structure and organization patterns."""
-        structure = {"directories": [], "key_files": [], "patterns": []}
+        structure: dict[str, list[str]] = {"directories": [], "key_files": [], "patterns": []}
 
         # Get top-level directories and files
         if self.repo_path.exists():
@@ -383,36 +383,37 @@ class RepositoryAnalyzer:
         languages = self._detect_languages()
         frameworks = self._detect_frameworks()
 
+        reasoning_list: list[str] = []
         recommendations = {
             "technology_stack": "unclear",
             "suggested_approach": "ask_user",
-            "reasoning": [],
+            "reasoning": reasoning_list,
         }
 
         if languages["confidence"] == "high" and languages["primary"]:
             recommendations["technology_stack"] = "detected"
             recommendations["suggested_approach"] = "confirm_or_choose_different"
-            recommendations["reasoning"].append(
+            reasoning_list.append(
                 f"Clear {languages['primary']} project detected - recommend continuing with {languages['primary']} for consistency"
             )
-            recommendations["reasoning"].append(
+            reasoning_list.append(
                 "However, user may choose different language for valid reasons (microservices, tooling, team expertise, etc.)"
             )
 
             if frameworks["likely"]:
-                recommendations["reasoning"].append(
+                reasoning_list.append(
                     f"Likely frameworks: {', '.join(frameworks['likely'])}"
                 )
         elif languages["confidence"] == "medium":
             recommendations["technology_stack"] = "mixed_or_unclear"
             recommendations["suggested_approach"] = "clarify_with_user"
-            recommendations["reasoning"].append(
+            reasoning_list.append(
                 "Multiple languages detected or unclear primary language"
             )
         else:
             recommendations["technology_stack"] = "empty_or_new"
             recommendations["suggested_approach"] = "ask_user_preferences"
-            recommendations["reasoning"].append("No clear technology stack detected")
+            reasoning_list.append("No clear technology stack detected")
 
         return recommendations
 
