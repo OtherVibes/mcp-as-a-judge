@@ -259,7 +259,12 @@ async def calculate_next_stage(
             )
 
         # For XS/S tasks that have completed user feedback, skip LLM plan validation
-        if should_skip_llm_plan_validation(task_metadata) and task_metadata.state not in [TaskState.CREATED, TaskState.REQUIREMENTS_FEEDBACK]:
+        if should_skip_llm_plan_validation(
+            task_metadata
+        ) and task_metadata.state not in [
+            TaskState.CREATED,
+            TaskState.REQUIREMENTS_FEEDBACK,
+        ]:
             logger.info(
                 f"Task size {task_metadata.task_size.value} - skipping LLM plan validation "
                 f"phase, proceeding to implementation"

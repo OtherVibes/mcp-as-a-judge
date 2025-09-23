@@ -39,7 +39,7 @@ class TestPromptLoader:
     def test_load_template_not_found(self) -> None:
         """Test loading a non-existent template raises error."""
         with pytest.raises(
-            FileNotFoundError, match="Template 'nonexistent.md' not found"
+            FileNotFoundError, match=r"Template 'nonexistent.md' not found"
         ):
             prompt_loader.load_template("nonexistent.md")
 
