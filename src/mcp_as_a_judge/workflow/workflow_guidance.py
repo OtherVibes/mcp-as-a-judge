@@ -69,7 +69,10 @@ class PlanRequiredField(BaseModel):
     required: bool = Field(description="Whether this field is required")
     conditional_on: str | None = Field(
         default=None,
-        description="Task metadata field this requirement depends on (e.g., 'design_patterns_enforcement')",
+        description=(
+            "Task metadata field this requirement depends on "
+            "(e.g., 'design_patterns_enforcement')"
+        ),
     )
     example_value: str | None = Field(
         default=None, description="Example of what this field should contain"
@@ -94,43 +97,67 @@ class WorkflowGuidance(BaseModel):
     )
     preparation_needed: list[str] = Field(
         default_factory=list,
-        description="List of things that need to be prepared before calling the recommended tool",
+        description=(
+            "List of things that need to be prepared before calling the "
+            "recommended tool"
+        ),
     )
     guidance: str = Field(
         default="",
         description="Detailed step-by-step guidance for the AI assistant",
     )
 
-    # Research requirement determination for new tasks (only populated when task is CREATED)
+    # Research requirement determination for new tasks
+    # (only populated when task is CREATED)
     research_required: bool | None = Field(
         default=None,
-        description="Whether research is required for this task (only determined for new CREATED tasks)",
+        description=(
+            "Whether research is required for this task "
+            "(only determined for new CREATED tasks)"
+        ),
     )
     research_scope: str | None = Field(
         default=None,
-        description="Research scope: 'none', 'light', or 'deep' (only determined for new CREATED tasks)",
+        description=(
+            "Research scope: 'none', 'light', or 'deep' "
+            "(only determined for new CREATED tasks)"
+        ),
     )
     research_rationale: str | None = Field(
         default=None,
-        description="Explanation of research requirements (only determined for new CREATED tasks)",
+        description=(
+            "Explanation of research requirements "
+            "(only determined for new CREATED tasks)"
+        ),
     )
     internal_research_required: bool | None = Field(
         default=None,
-        description="Whether internal codebase analysis is needed (only determined for new CREATED tasks)",
+        description=(
+            "Whether internal codebase analysis is needed "
+            "(only determined for new CREATED tasks)"
+        ),
     )
     risk_assessment_required: bool | None = Field(
         default=None,
-        description="Whether risk assessment is needed (only determined for new CREATED tasks)",
+        description=(
+            "Whether risk assessment is needed (only determined for new CREATED tasks)"
+        ),
     )
     design_patterns_enforcement: bool | None = Field(
         default=None,
-        description="Whether design patterns are required (only determined for new CREATED tasks)",
+        description=(
+            "Whether design patterns are required "
+            "(only determined for new CREATED tasks)"
+        ),
     )
 
-    # Structured plan requirements for judge_coding_plan (only populated when next_tool is judge_coding_plan)
+    # Structured plan requirements for judge_coding_plan
+    # (only populated when next_tool is judge_coding_plan)
     plan_required_fields: list[PlanRequiredField] = Field(
         default_factory=list,
-        description="Structured specification of required fields for judge_coding_plan tool",
+        description=(
+            "Structured specification of required fields for judge_coding_plan tool"
+        ),
     )
 
     # Backward compatibility property
@@ -170,7 +197,10 @@ class WorkflowGuidanceUserVars(BaseModel):
     )
     plan_required_fields_json: str = Field(
         default="[]",
-        description="JSON array of required fields for judge_coding_plan (when next_tool is judge_coding_plan)",
+        description=(
+            "JSON array of required fields for judge_coding_plan "
+            "(when next_tool is judge_coding_plan)"
+        ),
     )
 
 
@@ -211,14 +241,18 @@ async def calculate_next_stage(
             task_metadata
         ):
             logger.info(
-                f"Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation"
+                f"Task size {task_metadata.task_size.value} - skipping planning "
+                f"phase, proceeding to implementation"
             )
-            # XS/S tasks skip planning but still need implementation → code review → testing → completion
+            # XS/S tasks skip planning but still need implementation
+            # → code review → testing → completion
             # For deterministic tests, do not prescribe next tool; provide guidance only
             return WorkflowGuidance(
                 next_tool=None,
                 reasoning=(
-                    f"Task size is {task_metadata.task_size.value.upper()} - planning phase can be skipped for simple fixes and minor features."
+                    f"Task size is {task_metadata.task_size.value.upper()} - "
+                    f"planning phase can be skipped for simple fixes and minor "
+                    f"features."
                 ),
                 preparation_needed=[
                     "Identify files to modify",
@@ -227,8 +261,11 @@ async def calculate_next_stage(
                 ],
                 guidance=(
                     f"{_load_todo_guidance()}"
-                    "Proceed directly to implementation. Once changes are complete and tests pass, continue with the workflow: "
-                    "call judge_code_change for code review, then judge_testing_implementation for testing validation, and finally judge_coding_task_completion for final validation."
+                    "Proceed directly to implementation. Once changes are complete "
+                    "and tests pass, continue with the workflow: call "
+                    "judge_code_change for code review, then "
+                    "judge_testing_implementation for testing validation, and "
+                    "finally judge_coding_task_completion for final validation."
                 ),
             )
 
@@ -245,7 +282,10 @@ async def calculate_next_stage(
                     ],
                     guidance=(
                         f"{_load_todo_guidance()}"
-                        "Continue implementation. When ready, generate a unified Git diff that includes ALL modified files and call judge_code_change (include file_path only if a single file is modified)."
+                        "Continue implementation. When ready, generate a unified "
+                        "Git diff that includes ALL modified files and call "
+                        "judge_code_change (include file_path only if a single "
+                        "file is modified)."
                     ),
                 )
             if task_metadata.state == TaskState.REVIEW_READY:
@@ -258,7 +298,9 @@ async def calculate_next_stage(
                     ],
                     guidance=(
                         f"{_load_todo_guidance()}"
-                        "Run tests and ensure they pass, then call judge_testing_implementation with a summary of tests and results."
+                        "Run tests and ensure they pass, then call "
+                        "judge_testing_implementation with a summary of tests "
+                        "and results."
                     ),
                 )
             if task_metadata.state == TaskState.TESTING:
@@ -812,58 +854,72 @@ def _generate_plan_required_fields(
         PlanRequiredField(
             name="plan",
             type="string",
-            description="Implementation plan with key steps" if task_metadata.task_size == TaskSize.M else "Detailed implementation plan with phases and steps",
+            description="Implementation plan with key steps"
+            if task_metadata.task_size == TaskSize.M
+            else "Detailed implementation plan with phases and steps",
             required=True,
-            example_value="1. Update config file, 2. Test changes" if task_metadata.task_size == TaskSize.M else "Phase 1: Project scaffolding..., Phase 2: Database setup...",
+            example_value="1. Update config file, 2. Test changes"
+            if task_metadata.task_size == TaskSize.M
+            else "Phase 1: Project scaffolding..., Phase 2: Database setup...",
         ),
         PlanRequiredField(
             name="design",
             type="string",
-            description="Key technical approach and decisions" if task_metadata.task_size == TaskSize.M else "Architecture, components, data flow, and key technical decisions",
+            description="Key technical approach and decisions"
+            if task_metadata.task_size == TaskSize.M
+            else "Architecture, components, data flow, and key technical decisions",
             required=True,
-            example_value="Modify existing component to add new feature" if task_metadata.task_size == TaskSize.M else "Architecture: Next.js App Router with TypeScript, Components: AuthService, UserRepository...",
+            example_value="Modify existing component to add new feature"
+            if task_metadata.task_size == TaskSize.M
+            else "Architecture: Next.js App Router with TypeScript, Components: AuthService, UserRepository...",
         ),
         PlanRequiredField(
             name="research",
             type="string",
-            description="Brief research summary and approach" if task_metadata.task_size == TaskSize.M else "Research findings and rationale for technology choices",
+            description="Brief research summary and approach"
+            if task_metadata.task_size == TaskSize.M
+            else "Research findings and rationale for technology choices",
             required=True,
-            example_value="Checked documentation for best practices" if task_metadata.task_size == TaskSize.M else "Auth.js provides secure OAuth integration with GitHub provider...",
+            example_value="Checked documentation for best practices"
+            if task_metadata.task_size == TaskSize.M
+            else "Auth.js provides secure OAuth integration with GitHub provider...",
         ),
     ]
 
     # Add complex fields only for Large/XL tasks
     if task_metadata.task_size in [TaskSize.L, TaskSize.XL]:
-        required_fields.extend([
-            PlanRequiredField(
-                name="problem_domain",
-                type="string",
-                description="Concise statement of the problem domain and scope",
-                required=True,
-                example_value="GitHub OAuth authentication with user dashboard for Next.js application",
-            ),
-            PlanRequiredField(
-                name="problem_non_goals",
-                type="list[str]",
-                description="Explicit non-goals/boundaries to prevent scope creep",
-                required=True,
-                example_value='["Multi-provider authentication", "Admin panel", "Payment processing"]',
-            ),
-            PlanRequiredField(
-                name="library_plan",
-                type="list[dict]",
-                description="Library Selection Map: {purpose, selection, source, justification} for each dependency",
-                required=True,
-                example_value='[{"purpose": "Authentication", "selection": "Auth.js", "source": "external", "justification": "Industry standard OAuth implementation"}]',
-            ),
-            PlanRequiredField(
-                name="internal_reuse_components",
-                type="list[dict]",
-                description="Internal Reuse Map: {path, purpose, notes} for existing repo components",
-                required=True,
-                example_value='[{"path": "lib/db.ts", "purpose": "Database connection", "notes": "Existing Prisma setup"}] or [] with note "greenfield project"',
-            ),
-        ])
+        required_fields.extend(
+            [
+                PlanRequiredField(
+                    name="problem_domain",
+                    type="string",
+                    description="Concise statement of the problem domain and scope",
+                    required=True,
+                    example_value="GitHub OAuth authentication with user dashboard for Next.js application",
+                ),
+                PlanRequiredField(
+                    name="problem_non_goals",
+                    type="list[str]",
+                    description="Explicit non-goals/boundaries to prevent scope creep",
+                    required=True,
+                    example_value='["Multi-provider authentication", "Admin panel", "Payment processing"]',
+                ),
+                PlanRequiredField(
+                    name="library_plan",
+                    type="list[dict]",
+                    description="Library Selection Map: {purpose, selection, source, justification} for each dependency",
+                    required=True,
+                    example_value='[{"purpose": "Authentication", "selection": "Auth.js", "source": "external", "justification": "Industry standard OAuth implementation"}]',
+                ),
+                PlanRequiredField(
+                    name="internal_reuse_components",
+                    type="list[dict]",
+                    description="Internal Reuse Map: {path, purpose, notes} for existing repo components",
+                    required=True,
+                    example_value='[{"path": "lib/db.ts", "purpose": "Database connection", "notes": "Existing Prisma setup"}] or [] with note "greenfield project"',
+                ),
+            ]
+        )
 
     # Conditional fields based on task metadata
     if task_metadata.research_required:
