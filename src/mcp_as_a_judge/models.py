@@ -103,7 +103,7 @@ class ObstacleResolutionDecision(BaseModel):
 class ResearchValidationResponse(BaseModel):
     """Schema for research validation responses.
 
-    Used by the _validate_research_quality function to parse
+    Used by the validate_research_quality function to parse
     LLM responses about research quality and design alignment.
     """
 
@@ -119,6 +119,45 @@ class ResearchValidationResponse(BaseModel):
     feedback: str = Field(
         description="Detailed feedback on research quality and design alignment"
     )
+
+
+class TestOutputValidationResponse(BaseModel):
+    """Schema for test output validation responses.
+
+    Used by the validate_test_output function to parse
+    LLM responses about test execution output quality.
+    """
+
+    looks_like_test_output: bool = Field(
+        description="Whether the text appears to be genuine test execution output"
+    )
+    test_framework_detected: str = Field(
+        description="The test framework detected (e.g., pytest, jest, junit, go test, etc.)"
+    )
+    has_test_results: bool = Field(
+        description="Whether the output contains actual test results (pass/fail counts)"
+    )
+    has_execution_summary: bool = Field(
+        description="Whether the output contains a test execution summary"
+    )
+    confidence_score: float = Field(
+        description="Confidence score from 0.0 to 1.0 that this is genuine test output",
+        ge=0.0,
+        le=1.0,
+    )
+    issues: list[str] = Field(
+        default_factory=list, description="List of specific issues if any"
+    )
+    feedback: str = Field(
+        description="Detailed feedback on the test output quality and authenticity"
+    )
+
+
+class TestOutputValidationUserVars(BaseModel):
+    """Variables for test output validation user prompt."""
+
+    test_output: str = Field(description="The test execution output to validate")
+    context: str = Field(description="Additional context about the test validation")
 
 
 class ResearchAspect(BaseModel):

@@ -4,14 +4,14 @@ import json
 
 import pytest
 
-from mcp_as_a_judge.server import _extract_latest_workflow_guidance
+from mcp_as_a_judge.core.server_helpers import extract_latest_workflow_guidance
 
 
 class TestWorkflowGuidanceExtraction:
     """Test the extraction of workflow guidance from conversation history."""
 
     @pytest.mark.asyncio
-    async def test_extract_full_workflow_guidance_object(self):
+    async def test_extract_full_workflow_guidance_object(self) -> None:
         """Test that the full workflow guidance object is extracted."""
         # Sample conversation history with workflow guidance
         conversation_history = [
@@ -47,7 +47,7 @@ class TestWorkflowGuidanceExtraction:
             }
         ]
 
-        result = await _extract_latest_workflow_guidance(conversation_history)
+        result = await extract_latest_workflow_guidance(conversation_history)
 
         assert result is not None
         assert isinstance(result, dict)
@@ -66,7 +66,7 @@ class TestWorkflowGuidanceExtraction:
         assert patterns_field["conditional_on"] == "design_patterns_enforcement"
 
     @pytest.mark.asyncio
-    async def test_extract_guidance_returns_none_when_not_found(self):
+    async def test_extract_guidance_returns_none_when_not_found(self) -> None:
         """Test that None is returned when no workflow guidance is found."""
         conversation_history = [
             {"output": json.dumps({"some_other_field": "value"})},
@@ -74,11 +74,11 @@ class TestWorkflowGuidanceExtraction:
             {"output": json.dumps({})},
         ]
 
-        result = await _extract_latest_workflow_guidance(conversation_history)
+        result = await extract_latest_workflow_guidance(conversation_history)
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_extract_guidance_handles_malformed_data(self):
+    async def test_extract_guidance_handles_malformed_data(self) -> None:
         """Test that malformed data is handled gracefully."""
         conversation_history = [
             {"output": "not json"},
@@ -86,16 +86,16 @@ class TestWorkflowGuidanceExtraction:
             {"output": json.dumps({"workflow_guidance": {}})},  # Empty but valid
         ]
 
-        result = await _extract_latest_workflow_guidance(conversation_history)
+        result = await extract_latest_workflow_guidance(conversation_history)
         assert result == {}  # Empty dict is still valid
 
 
 class TestWorkflowGuidanceFormatting:
     """Test the formatting of workflow guidance for system prompts."""
 
-    def test_format_comprehensive_guidance(self):
+    def test_format_comprehensive_guidance(self) -> None:
         """Test formatting of comprehensive workflow guidance."""
-        # This tests the logic inside _evaluate_coding_plan that formats guidance
+        # This tests the logic inside evaluate_coding_plan that formats guidance
         workflow_guidance_obj = {
             "next_tool": "judge_coding_plan",
             "reasoning": "Plan validation required",
@@ -118,7 +118,7 @@ class TestWorkflowGuidanceFormatting:
             "guidance": "Create comprehensive plan",
         }
 
-        # Simulate the formatting logic from _evaluate_coding_plan
+        # Simulate the formatting logic from evaluate_coding_plan
         guidance_parts = []
 
         if workflow_guidance_obj.get("next_tool"):
@@ -180,7 +180,7 @@ class TestWorkflowGuidanceFormatting:
         )
         assert "**Detailed Guidance:** Create comprehensive plan" in formatted_text
 
-    def test_format_minimal_guidance(self):
+    def test_format_minimal_guidance(self) -> None:
         """Test formatting when only basic guidance is provided."""
         workflow_guidance_obj = {
             "next_tool": "judge_coding_plan",
@@ -206,7 +206,7 @@ class TestWorkflowGuidanceIntegration:
     """Test integration of workflow guidance with plan evaluation."""
 
     @pytest.mark.asyncio
-    async def test_plan_evaluation_uses_structured_guidance(self):
+    async def test_plan_evaluation_uses_structured_guidance(self) -> None:
         """Test that plan evaluation properly uses structured workflow guidance."""
         # This test validates that structured guidance is properly extracted
         # The actual plan evaluation logic is tested in other test files
@@ -241,7 +241,7 @@ class TestWorkflowGuidanceIntegration:
         ]
 
         # Test that the guidance extraction works
-        extracted_guidance = await _extract_latest_workflow_guidance(
+        extracted_guidance = await extract_latest_workflow_guidance(
             conversation_history
         )
         assert extracted_guidance is not None
