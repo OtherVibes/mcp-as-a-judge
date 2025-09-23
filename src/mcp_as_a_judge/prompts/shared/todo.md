@@ -1,4 +1,4 @@
-## AI Agent Todo List Integration Guidelines
+## AI Coding Assistant Todo List Integration Guidelines
 
 **CRITICAL FOR CONTEXT CONTINUITY**: After calling any MCP judge tool, save the following to your todo list/task management system:
 

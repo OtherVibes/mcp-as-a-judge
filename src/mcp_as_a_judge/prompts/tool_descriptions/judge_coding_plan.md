@@ -21,10 +21,13 @@ Validate a proposed plan and design against requirements, research needs, and ri
 - `research`: string — Findings and rationale (provide if available)
 - `research_urls`: list[string] — URLs for external research (if required)
 - `context`: string — Additional project context
- - `problem_domain`: string — Concise problem domain statement (optional but recommended)
- - `problem_non_goals`: list[string] — Non-goals/out-of-scope items (optional)
- - `library_plan`: list[object] — Library Selection Map entries: {purpose, selection, source: internal|external|custom, justification}
- - `internal_reuse_components`: list[object] — Internal Reuse Map entries: {path, purpose, notes}
+- `problem_domain`: string — Concise problem domain statement (optional but recommended)
+- `problem_non_goals`: list[string] — Non-goals/out-of-scope items (optional)
+- `library_plan`: list[object] — Library Selection Map entries: {purpose, selection, source: internal|external|custom, justification}
+- `internal_reuse_components`: list[object] — Internal Reuse Map entries: {path, purpose, notes}
+- `design_patterns`: list[object] — Design patterns to be applied: {name, area} (required when current_task_metadata.design_patterns_enforcement=true)
+- `identified_risks`: list[string] — Enumerated risks; required when current_task_metadata.risk_assessment_required=true (the server will auto-seed sensible defaults if omitted)
+- `risk_mitigation_strategies`: list[string] — Mitigations aligned one-to-one with `identified_risks`
 
 ## Returns
 - Response JSON schema (JudgeResponse):

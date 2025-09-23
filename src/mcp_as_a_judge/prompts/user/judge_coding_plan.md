@@ -1,12 +1,53 @@
+{% macro render_text_section(title, value, empty_message) -%}
+## {{ title }}
+
+{% if value is string and value.strip() %}
+{{ value }}
+{% elif value %}
+{{ value }}
+{% else %}
+⚠️ {{ empty_message }}
+{% endif %}
+{%- endmacro %}
+
+{% macro render_list_section(title, items, empty_message) -%}
+## {{ title }}
+
+{% if items and items | length > 0 %}
+{% for item in items %}- {{ item }}
+{% endfor %}
+{% else %}
+- {{ empty_message }}
+{% endif %}
+{%- endmacro %}
+
+{% macro render_json_section(title, obj, empty_message) -%}
+{% set data = obj if obj is not none else [] %}
+## {{ title }}
+
+```
+{{ data | tojson(indent=2) }}
+```
+
+{% if data | length == 0 %}
+_Note: {{ empty_message }}_
+{% endif %}
+{%- endmacro %}
+
+{% macro render_status_block(title, required, scope=None, rationale=None) -%}
+## {{ title }}
+
+**Status:** {{ "REQUIRED" if required else "Optional" }}{% if scope %} (Scope: {{ scope }}){% endif %}
+{% if rationale %}
+**Rationale:** {{ rationale }}
+{% endif %}
+{%- endmacro %}
+
 Please evaluate the following coding plan:
 
-## User Requirements
+{{ render_text_section("User Requirements", user_requirements, "User requirements not supplied") }}
 
-{{ user_requirements }}
-
-## Context
-
-{{ context }}
+{{ render_text_section("Context", context, "Context not provided") }}
 
 {% if technical_decisions %}
 ## Technology Stack Decisions
@@ -21,74 +62,50 @@ The following technology decisions were made during requirement gathering:
 {% endif %}
 
 ## Previous Conversation History as JSON array
-{{ conversation_history }}
-
-## Plan
-
-{{ plan }}
-
-## Design
-
-{{ design }}
-
-## Problem Domain Statement
-
-{{ problem_domain or "" }}
-
-{% if problem_non_goals %}
-### Non-Goals
-{% for item in problem_non_goals %}- {{ item }}
-{% endfor %}
-{% endif %}
-
-{% if library_plan %}
-## Library Selection Map (Purpose → Selection)
-
 ```
-{{ library_plan }}
+{{ conversation_history | tojson(indent=2) }}
 ```
-{% endif %}
 
-{% if internal_reuse_components %}
-## Internal Reuse Map (Repo Components)
+{{ render_text_section("Plan", plan, "Plan input was empty or whitespace only") }}
 
-```
-{{ internal_reuse_components }}
-```
-{% endif %}
+{{ render_text_section("Design", design, "Design input was empty or whitespace only") }}
 
-## Research
+{{ render_text_section("Problem Domain Statement", problem_domain or "", "Problem domain missing") }}
 
-{{ research|default("") }}
+{{ render_list_section("Non-Goals", problem_non_goals, "None provided; array submitted as []") }}
+
+{{ render_json_section("Library Selection Map (Purpose → Selection)", library_plan, "Provide a library selection map with purpose, selection, source, and justification") }}
+
+{{ render_json_section("Internal Reuse Map (Repo Components)", internal_reuse_components, "Provide [] with note 'greenfield project - no existing components to reuse' if nothing exists") }}
+
+{{ render_text_section("Research", research, "Research input was empty or whitespace only") }}
+
+{{ render_json_section("Research URLs", research_urls, "Supply research URLs when research_required=true") }}
 
 {% if research_required %}
-## 🔍 External Research Analysis
+{{ render_status_block("🔍 External Research Analysis", True, research_scope, research_rationale) }}
 
-**Status:** REQUIRED (Scope: {{ research_scope }})
-**Rationale:** {{ research_rationale }}
-
-{% if expected_url_count > 0 %}
+{% if expected_url_count and expected_url_count > 0 %}
 ### 🧠 Dynamic URL Requirements (LLM Analysis)
-**Expected URLs:** {{ expected_url_count }}
-**Minimum URLs:** {{ minimum_url_count }}
-**Reasoning:** {{ url_requirement_reasoning }}
+- **Expected URLs:** {{ expected_url_count }}
+- **Minimum URLs:** {{ minimum_url_count }}
+- **Reasoning:** {{ url_requirement_reasoning }}
 {% endif %}
 
-{% if research_urls %}
-**Research Sources Provided ({{ research_urls|length }} URLs):**
-{% for url in research_urls %}
-- {{ url }}
+{% if research_urls and research_urls | length > 0 %}
+**Research Sources Provided ({{ research_urls | length }} URLs):**
+{% for url in research_urls %}- {{ url }}
 {% endfor %}
 
-**Validation Focus:** 
+**Validation Focus:**
 - Ensure research demonstrates problem domain authority and established best practices
-{% if expected_url_count > 0 %}
-- Verify {{ research_urls|length }} URLs {% if research_urls|length >= expected_url_count %}meet{% else %}fall short of{% endif %} the expected {{ expected_url_count }} URLs for optimal coverage
+{% if expected_url_count and expected_url_count > 0 %}
+- Verify {{ research_urls | length }} URLs {% if research_urls | length >= expected_url_count %}meet{% else %}fall short of{% endif %} the expected {{ expected_url_count }} URLs for optimal coverage
 - Minimum {{ minimum_url_count }} URLs required for basic adequacy
 {% endif %}
 {% else %}
 ⚠️ **MISSING:** External research is required but no URLs provided.
-{% if expected_url_count > 0 %}
+{% if expected_url_count and expected_url_count > 0 %}
 **Required:** At least {{ minimum_url_count }} URLs ({{ expected_url_count }} recommended)
 **Reason:** {{ url_requirement_reasoning }}
 {% endif %}
@@ -96,14 +113,11 @@ The following technology decisions were made during requirement gathering:
 {% endif %}
 
 {% if internal_research_required %}
-## 🏗️ Internal Codebase Analysis
-
-**Status:** REQUIRED - Task should leverage existing patterns when available.
+{{ render_status_block("🏗️ Internal Codebase Analysis", True) }}
 
 {% if related_code_snippets %}
 **Related Components:**
-{% for snippet in related_code_snippets %}
-- `{{ snippet }}`
+{% for snippet in related_code_snippets %}- `{{ snippet }}`
 {% endfor %}
 
 **Validation Focus:** Ensure plan follows established patterns and reuses existing components.
@@ -113,25 +127,17 @@ Note: Internal analysis is marked required but no repository-local components we
 {% endif %}
 
 {% if risk_assessment_required %}
-## ⚠️ Risk Assessment
+{{ render_status_block("⚠️ Risk Assessment", True) }}
 
-**Status:** REQUIRED - Change has potential to impact existing functionality.
+{{ render_json_section("Identified Risks", identified_risks, "Populate risk array with domain-specific items") }}
 
-{% if identified_risks %}
-**Risk Areas:**
-{% for risk in identified_risks %}
-- {{ risk }}
-{% endfor %}
-{% endif %}
-
-{% if risk_mitigation_strategies %}
-**Mitigation Strategies:**
-{% for strategy in risk_mitigation_strategies %}
-- {{ strategy }}
-{% endfor %}
-{% endif %}
+{{ render_json_section("Risk Mitigation Strategies", risk_mitigation_strategies, "Provide mitigation entries aligned one-to-one with identified risks") }}
 
 **Validation Focus:** Ensure plan addresses risks with safeguards and rollback mechanisms.
+{% endif %}
+
+{% if design_patterns %}
+{{ render_json_section("Design Patterns Inventory", design_patterns, "List design pattern objects with name and area") }}
 {% endif %}
 
 ## Analysis Instructions

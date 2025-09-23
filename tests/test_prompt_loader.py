@@ -57,6 +57,27 @@ class TestPromptLoader:
                 "https://scipy.org/",
             ],
             context="Educational project",
+            conversation_history=[],
+            problem_domain="Calculator application",
+            problem_non_goals=["Advanced scientific functions"],
+            library_plan=[
+                {
+                    "purpose": "Math operations",
+                    "selection": "Python math",
+                    "source": "external",
+                    "justification": "Built-in library",
+                }
+            ],
+            internal_reuse_components=[],
+            research_required=False,
+            research_scope="none",
+            research_rationale="Simple calculator doesn't need research",
+            internal_research_required=False,
+            related_code_snippets=[],
+            risk_assessment_required=False,
+            identified_risks=[],
+            risk_mitigation_strategies=[],
+            design_patterns=[],
         )
 
         assert "Build a calculator" in prompt
@@ -118,6 +139,21 @@ class TestPromptLoader:
             design="Test design",
             research="Test research",
             context="Test context",
+            conversation_history=[],
+            research_urls=[],
+            problem_domain="Test domain",
+            problem_non_goals=[],
+            library_plan=[],
+            internal_reuse_components=[],
+            research_required=False,
+            research_scope="none",
+            research_rationale="",
+            internal_research_required=False,
+            related_code_snippets=[],
+            risk_assessment_required=False,
+            identified_risks=[],
+            risk_mitigation_strategies=[],
+            design_patterns=[],
         )
 
         assert "Test requirement" in prompt
@@ -136,6 +172,21 @@ class TestPromptLoader:
             design="Test",
             research="Test",
             context="",  # Empty context
+            conversation_history=[],
+            research_urls=[],
+            problem_domain="Test domain",
+            problem_non_goals=[],
+            library_plan=[],
+            internal_reuse_components=[],
+            research_required=False,
+            research_scope="none",
+            research_rationale="",
+            internal_research_required=False,
+            related_code_snippets=[],
+            risk_assessment_required=False,
+            identified_risks=[],
+            risk_mitigation_strategies=[],
+            design_patterns=[],
         )
 
         # Should not have broken formatting and should contain all test values
@@ -155,6 +206,21 @@ class TestPromptLoader:
             plan="Global plan",
             design="Global design",
             research="Global research",
+            conversation_history=[],
+            research_urls=[],
+            problem_domain="Global domain",
+            problem_non_goals=[],
+            library_plan=[],
+            internal_reuse_components=[],
+            research_required=False,
+            research_scope="none",
+            research_rationale="",
+            internal_research_required=False,
+            related_code_snippets=[],
+            risk_assessment_required=False,
+            identified_risks=[],
+            risk_mitigation_strategies=[],
+            design_patterns=[],
         )
         assert "Global test" in prompt
 

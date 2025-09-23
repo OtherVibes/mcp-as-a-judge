@@ -16,6 +16,17 @@ if TYPE_CHECKING:  # Avoid import cycle at runtime
     from mcp_as_a_judge.workflow import WorkflowGuidance
 
 
+class DesignPattern(BaseModel):
+    """Design pattern specification for plan validation."""
+
+    name: str = Field(
+        description="Name of known design pattern required to be selected"
+    )
+    area: str = Field(
+        description="Which part of the code will be solved using the pattern"
+    )
+
+
 class JudgeResponse(BaseModel):
     """Enhanced response model for all judge tool evaluations.
 
@@ -47,7 +58,8 @@ class JudgeResponse(BaseModel):
     )
 
     # Use a lazy default factory to avoid importing workflow at module import time
-    def _default_workflow_guidance():  # type: ignore[no-redef]
+    @staticmethod
+    def _default_workflow_guidance() -> "WorkflowGuidance":
         from mcp_as_a_judge.workflow import WorkflowGuidance
 
         return WorkflowGuidance(
@@ -91,7 +103,7 @@ class ObstacleResolutionDecision(BaseModel):
 class ResearchValidationResponse(BaseModel):
     """Schema for research validation responses.
 
-    Used by the _validate_research_quality function to parse
+    Used by the validate_research_quality function to parse
     LLM responses about research quality and design alignment.
     """
 
@@ -107,6 +119,45 @@ class ResearchValidationResponse(BaseModel):
     feedback: str = Field(
         description="Detailed feedback on research quality and design alignment"
     )
+
+
+class TestOutputValidationResponse(BaseModel):
+    """Schema for test output validation responses.
+
+    Used by the validate_test_output function to parse
+    LLM responses about test execution output quality.
+    """
+
+    looks_like_test_output: bool = Field(
+        description="Whether the text appears to be genuine test execution output"
+    )
+    test_framework_detected: str = Field(
+        description="The test framework detected (e.g., pytest, jest, junit, go test, etc.)"
+    )
+    has_test_results: bool = Field(
+        description="Whether the output contains actual test results (pass/fail counts)"
+    )
+    has_execution_summary: bool = Field(
+        description="Whether the output contains a test execution summary"
+    )
+    confidence_score: float = Field(
+        description="Confidence score from 0.0 to 1.0 that this is genuine test output",
+        ge=0.0,
+        le=1.0,
+    )
+    issues: list[str] = Field(
+        default_factory=list, description="List of specific issues if any"
+    )
+    feedback: str = Field(
+        description="Detailed feedback on the test output quality and authenticity"
+    )
+
+
+class TestOutputValidationUserVars(BaseModel):
+    """Variables for test output validation user prompt."""
+
+    test_output: str = Field(description="The test execution output to validate")
+    context: str = Field(description="Additional context about the test validation")
 
 
 class ResearchAspect(BaseModel):
@@ -238,6 +289,22 @@ class SystemVars(BaseModel):
         default="",
         description="Task size classifications and workflow routing rules (optional)",
     )
+    plan_input_schema: str = Field(
+        default="",
+        description="JSON schema for judge_coding_plan input requirements (optional)",
+    )
+    plan_evaluation_criteria: str = Field(
+        default="",
+        description="Complete plan evaluation criteria and expectations (optional)",
+    )
+    workflow_guidance: str = Field(
+        default="",
+        description="Workflow guidance from task state to use as evaluation criteria (optional)",
+    )
+    plan_required_fields_json: str = Field(
+        default="[]",
+        description="JSON array of required fields for judge_coding_plan dynamic validation (optional)",
+    )
 
 
 class JudgeCodingPlanUserVars(BaseModel):
@@ -323,6 +390,12 @@ class JudgeCodingPlanUserVars(BaseModel):
         default="", description="LLM explanation of why specific URL count is needed"
     )
 
+    # Design patterns enforcement fields
+    design_patterns: list[DesignPattern] = Field(
+        default_factory=list,
+        description="List of design patterns to be used with their coverage areas",
+    )
+
 
 class JudgeCodeChangeUserVars(BaseModel):
     """Variables for judge_code_change user prompt."""
@@ -378,6 +451,10 @@ class WorkflowGuidanceUserVars(BaseModel):
     operation_context: str = Field(description="Current operation context")
     response_schema: str = Field(
         description="JSON schema for the expected response format"
+    )
+    plan_required_fields_json: str = Field(
+        default="[]",
+        description="JSON array of required fields for judge_coding_plan (when next_tool is judge_coding_plan)",
     )
 
 
