@@ -80,35 +80,76 @@ Before proceeding with planning, code review, or testing, check for fundamental 
 
 ### CRITICAL: judge_coding_plan Preparation Requirements
 
-When recommending judge_coding_plan, the preparation_needed MUST include ALL elements that will be validated:
+When recommending judge_coding_plan, you MUST provide comprehensive preparation that covers ALL input schema fields and evaluation criteria.
 
-**ALWAYS Required:**
-- Detailed implementation plan with code examples
-- System design with architecture and data flow
-- List of files to be modified or created
- - Research coverage plan that maps to ALL major aspects in the user requirements (each referenced system, framework, protocol, integration). Avoid focusing on a single subset; ensure multi-aspect coverage.
+## Required Input Schema
 
-**Conditionally Required (check task metadata):**
-- **If research_required = true**: Gather research URLs (minimum based on research_scope)
-  - Light scope: 2-3 authoritative URLs
-  - Deep scope: 5+ comprehensive research URLs
-- **If internal_research_required = true AND the repository contains relevant components**: Identify related code snippets and existing patterns
-- **If risk_assessment_required = true**: Document potential risks and mitigation strategies
+The AI assistant must prepare ALL these fields for judge_coding_plan:
 
-**Preparation Template for judge_coding_plan:**
+{{ plan_input_schema }}
+
+## Complete Evaluation Criteria
+
+{{ plan_evaluation_criteria }}
+
+## Preparation Instructions
+
+When recommending judge_coding_plan, your preparation_needed MUST include:
+
+**CRITICAL: You MUST populate judge_coding_plan tool parameters with EXACT schema compliance**
+
+When recommending judge_coding_plan, your preparation_needed MUST include comprehensive schema preparation based on the complete input requirements and evaluation criteria below.
+
+**STRUCTURE REQUIREMENTS:**
+- "Ensure library_plan includes ALL dependencies: framework, auth, database, styling, testing, linting, validation"
+- "Ensure design_patterns specifies concrete patterns: Singleton, Factory, Adapter, Strategy, etc."
+- "Ensure identified_risks covers: security vulnerabilities, performance degradation, breaking changes, maintainability issues, system reliability, data integrity, user experience, testing coverage, documentation drift"
+- "Ensure each risk has corresponding mitigation strategy in same order"
+- "Include comprehensive testing strategy with specific test files and mocking approach"
+- "Map SOLID principles explicitly to components and files"
+
+**DYNAMIC SCHEMA-DRIVEN PREPARATION:**
+
+When recommending judge_coding_plan, generate preparation based on:
+
+1. **Task Context Analysis:**
+   - Analyze user requirements to determine technology stack
+   - Identify all non-domain concerns that need library solutions
+   - Determine appropriate design patterns for the architecture
+   - Assess security and operational risks for the specific domain
+
+2. **Schema Completeness Check:**
+   - Ensure every required schema field will be populated
+   - Generate comprehensive library_plan covering the full technology stack
+   - Create design_patterns array appropriate for the task complexity
+   - Build risk assessment arrays when risk_assessment_required=true
+
+3. **Preparation Instructions Format:**
 ```
 preparation_needed: [
-  "Create detailed implementation plan with specific code examples",
-  "Design system architecture and component interactions",
-  "List all files that will be modified or created",
-  // CONDITIONAL: Add if research_required = true
-  "Research best practices and gather [X] authoritative URLs for [domain/technology]",
-  // CONDITIONAL: Add if internal_research_required = true
-  "Analyze existing codebase patterns and identify related components",
-  // CONDITIONAL: Add if risk_assessment_required = true
-  "Assess potential risks and document mitigation strategies"
+  "Analyze task requirements and technology stack needs",
+  "Generate comprehensive library_plan covering all non-domain concerns for [specific domain]",
+  "Create design_patterns array with patterns appropriate for [architecture type]",
+  "Build risk assessment arrays covering [domain-specific risks] when required",
+  "Populate all schema fields with task-appropriate content",
+  "Call judge_coding_plan with all parameters populated - do NOT prepare separately"
 ]
 ```
+
+**🚨 CRITICAL: USE STRUCTURED PLAN REQUIREMENTS 🚨**
+
+When recommending judge_coding_plan, you MUST:
+
+1. **Use the plan_required_fields in your response** to specify exactly what the AI assistant needs to prepare
+2. **Include ALL required fields** (both always-required and conditional based on task metadata)
+3. **Provide clear examples** for complex field types like library_plan and design_patterns
+
+The plan_required_fields array will be automatically populated based on task metadata. The dynamic validation system will:
+- Include always-required fields (plan, design, research, problem_domain, problem_non_goals, library_plan, internal_reuse_components)
+- Add conditional fields based on task metadata flags (research_urls, identified_risks, risk_mitigation_strategies, design_patterns)
+- Provide detailed field specifications with types, descriptions, and examples
+
+**FAILURE TO POPULATE REQUIRED OR APPLICABLE CONDITIONAL FIELDS WILL RESULT IN REJECTION**
 
 ### CRITICAL: judge_code_change Usage Rules
 
@@ -182,6 +223,7 @@ When analyzing a **NEW task in CREATED state**, you MUST also determine research
 - **research_rationale**: String - explanation of why research is needed and the scope chosen
 - **internal_research_required**: Boolean - whether codebase analysis is needed
 - **risk_assessment_required**: Boolean - whether risk assessment is needed
+- **design_patterns_enforcement**: Boolean - whether design patterns are required for this task
 
 ### Research Requirement Guidelines
 
@@ -213,6 +255,18 @@ Important: Only set this to true if you can identify concrete, repository-local 
 - API modifications
 - Authentication/authorization changes
 - Performance-critical components
+
+**design_patterns_enforcement: true** for:
+- Large (L) or Extra Large (XL) tasks
+- Complex system architectures
+- Multi-component integrations
+- Tasks requiring extensible design
+
+**design_patterns_enforcement: false** for:
+- Extra Small (XS) or Small (S) tasks
+- Simple bug fixes
+- Minor configuration changes
+- Single-purpose utilities
 
 ## Response Schema
 

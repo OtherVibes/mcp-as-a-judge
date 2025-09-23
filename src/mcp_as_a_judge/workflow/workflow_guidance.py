@@ -58,6 +58,27 @@ def should_skip_planning(task_metadata: TaskMetadata) -> bool:
     return task_metadata.task_size in [TaskSize.XS, TaskSize.S]
 
 
+class PlanRequiredField(BaseModel):
+    """Specification for a required field in judge_coding_plan."""
+
+    name: str = Field(description="Field name in the judge_coding_plan tool")
+    type: str = Field(
+        description="Expected data type (string, list[str], list[dict], etc.)"
+    )
+    description: str = Field(description="What this field should contain")
+    required: bool = Field(description="Whether this field is required")
+    conditional_on: str | None = Field(
+        default=None,
+        description=(
+            "Task metadata field this requirement depends on "
+            "(e.g., 'design_patterns_enforcement')"
+        ),
+    )
+    example_value: str | None = Field(
+        default=None, description="Example of what this field should contain"
+    )
+
+
 class WorkflowGuidance(BaseModel):
     """
     Canonical workflow guidance model used across the system.
@@ -76,33 +97,67 @@ class WorkflowGuidance(BaseModel):
     )
     preparation_needed: list[str] = Field(
         default_factory=list,
-        description="List of things that need to be prepared before calling the recommended tool",
+        description=(
+            "List of things that need to be prepared before calling the "
+            "recommended tool"
+        ),
     )
     guidance: str = Field(
         default="",
         description="Detailed step-by-step guidance for the AI assistant",
     )
 
-    # Research requirement determination for new tasks (only populated when task is CREATED)
+    # Research requirement determination for new tasks
+    # (only populated when task is CREATED)
     research_required: bool | None = Field(
         default=None,
-        description="Whether research is required for this task (only determined for new CREATED tasks)",
+        description=(
+            "Whether research is required for this task "
+            "(only determined for new CREATED tasks)"
+        ),
     )
     research_scope: str | None = Field(
         default=None,
-        description="Research scope: 'none', 'light', or 'deep' (only determined for new CREATED tasks)",
+        description=(
+            "Research scope: 'none', 'light', or 'deep' "
+            "(only determined for new CREATED tasks)"
+        ),
     )
     research_rationale: str | None = Field(
         default=None,
-        description="Explanation of research requirements (only determined for new CREATED tasks)",
+        description=(
+            "Explanation of research requirements "
+            "(only determined for new CREATED tasks)"
+        ),
     )
     internal_research_required: bool | None = Field(
         default=None,
-        description="Whether internal codebase analysis is needed (only determined for new CREATED tasks)",
+        description=(
+            "Whether internal codebase analysis is needed "
+            "(only determined for new CREATED tasks)"
+        ),
     )
     risk_assessment_required: bool | None = Field(
         default=None,
-        description="Whether risk assessment is needed (only determined for new CREATED tasks)",
+        description=(
+            "Whether risk assessment is needed (only determined for new CREATED tasks)"
+        ),
+    )
+    design_patterns_enforcement: bool | None = Field(
+        default=None,
+        description=(
+            "Whether design patterns are required "
+            "(only determined for new CREATED tasks)"
+        ),
+    )
+
+    # Structured plan requirements for judge_coding_plan
+    # (only populated when next_tool is judge_coding_plan)
+    plan_required_fields: list[PlanRequiredField] = Field(
+        default_factory=list,
+        description=(
+            "Structured specification of required fields for judge_coding_plan tool"
+        ),
     )
 
     # Backward compatibility property
@@ -139,6 +194,13 @@ class WorkflowGuidanceUserVars(BaseModel):
     operation_context: str = Field(description="Current operation context")
     response_schema: str = Field(
         description="JSON schema for the expected response format"
+    )
+    plan_required_fields_json: str = Field(
+        default="[]",
+        description=(
+            "JSON array of required fields for judge_coding_plan "
+            "(when next_tool is judge_coding_plan)"
+        ),
     )
 
 
@@ -179,14 +241,18 @@ async def calculate_next_stage(
             task_metadata
         ):
             logger.info(
-                f"Task size {task_metadata.task_size.value} - skipping planning phase, proceeding to implementation"
+                f"Task size {task_metadata.task_size.value} - skipping planning "
+                f"phase, proceeding to implementation"
             )
-            # XS/S tasks skip planning but still need implementation → code review → testing → completion
+            # XS/S tasks skip planning but still need implementation
+            # → code review → testing → completion
             # For deterministic tests, do not prescribe next tool; provide guidance only
             return WorkflowGuidance(
                 next_tool=None,
                 reasoning=(
-                    f"Task size is {task_metadata.task_size.value.upper()} - planning phase can be skipped for simple fixes and minor features."
+                    f"Task size is {task_metadata.task_size.value.upper()} - "
+                    f"planning phase can be skipped for simple fixes and minor "
+                    f"features."
                 ),
                 preparation_needed=[
                     "Identify files to modify",
@@ -195,8 +261,11 @@ async def calculate_next_stage(
                 ],
                 guidance=(
                     f"{_load_todo_guidance()}"
-                    "Proceed directly to implementation. Once changes are complete and tests pass, continue with the workflow: "
-                    "call judge_code_change for code review, then judge_testing_implementation for testing validation, and finally judge_coding_task_completion for final validation."
+                    "Proceed directly to implementation. Once changes are complete "
+                    "and tests pass, continue with the workflow: call "
+                    "judge_code_change for code review, then "
+                    "judge_testing_implementation for testing validation, and "
+                    "finally judge_coding_task_completion for final validation."
                 ),
             )
 
@@ -213,7 +282,10 @@ async def calculate_next_stage(
                     ],
                     guidance=(
                         f"{_load_todo_guidance()}"
-                        "Continue implementation. When ready, generate a unified Git diff that includes ALL modified files and call judge_code_change (include file_path only if a single file is modified)."
+                        "Continue implementation. When ready, generate a unified "
+                        "Git diff that includes ALL modified files and call "
+                        "judge_code_change (include file_path only if a single "
+                        "file is modified)."
                     ),
                 )
             if task_metadata.state == TaskState.REVIEW_READY:
@@ -226,7 +298,9 @@ async def calculate_next_stage(
                     ],
                     guidance=(
                         f"{_load_todo_guidance()}"
-                        "Run tests and ensure they pass, then call judge_testing_implementation with a summary of tests and results."
+                        "Run tests and ensure they pass, then call "
+                        "judge_testing_implementation with a summary of tests "
+                        "and results."
                     ),
                 )
             if task_metadata.state == TaskState.TESTING:
@@ -385,11 +459,29 @@ async def calculate_next_stage(
             # Fall back silently to base schema if anything goes wrong
             dynamic_schema = base_schema
 
+        # Get plan input schema and evaluation criteria for comprehensive guidance
+        from mcp_as_a_judge.models import JudgeCodingPlanUserVars
+
+        plan_input_schema = json.dumps(
+            JudgeCodingPlanUserVars.model_json_schema(), indent=2
+        )
+
+        # Load plan evaluation criteria from the judge prompt
+        plan_evaluation_criteria = _load_plan_evaluation_criteria()
+
+        # Generate plan required fields for judge_coding_plan guidance
+        plan_required_fields = _generate_plan_required_fields(task_metadata)
+        plan_required_fields_json = json.dumps(
+            [field.model_dump() for field in plan_required_fields], indent=2
+        )
+
         # Create system and user variables for the workflow guidance
         system_vars = SystemVars(
             response_schema=json.dumps(dynamic_schema),
             task_size_definitions=task_size_definitions,
             max_tokens=MAX_TOKENS,
+            plan_input_schema=plan_input_schema,
+            plan_evaluation_criteria=plan_evaluation_criteria,
         )
         user_vars = WorkflowGuidanceUserVars(
             task_id=task_metadata.task_id,
@@ -408,6 +500,7 @@ async def calculate_next_stage(
             conversation_context=conversation_context,
             operation_context=operation_context_str,
             response_schema=json.dumps(dynamic_schema, indent=2),
+            plan_required_fields_json=plan_required_fields_json,
         )
 
         # Create messages using the established pattern with dedicated workflow guidance prompts
@@ -462,6 +555,33 @@ async def calculate_next_stage(
             navigation_data.get("next_tool"), task_metadata, set(available_tool_names)
         )
 
+        # Generate plan required fields if next tool is judge_coding_plan
+        dynamic_plan_required_fields: list[PlanRequiredField] = []
+        if normalized_next_tool == "judge_coding_plan":
+            # Combine persisted metadata with any freshly-determined requirements
+            metadata_for_requirements = task_metadata.model_copy(deep=True)
+            overrides: dict[str, Any] = {}
+
+            if navigation_data.get("risk_assessment_required") is not None:
+                overrides["risk_assessment_required"] = navigation_data[
+                    "risk_assessment_required"
+                ]
+            if navigation_data.get("design_patterns_enforcement") is not None:
+                overrides["design_patterns_enforcement"] = navigation_data[
+                    "design_patterns_enforcement"
+                ]
+            if navigation_data.get("research_required") is not None:
+                overrides["research_required"] = navigation_data["research_required"]
+
+            if overrides:
+                metadata_for_requirements = metadata_for_requirements.model_copy(
+                    update=overrides
+                )
+
+            dynamic_plan_required_fields = _generate_plan_required_fields(
+                metadata_for_requirements
+            )
+
         workflow_guidance = WorkflowGuidance(
             next_tool=normalized_next_tool,
             reasoning=navigation_data.get("reasoning", ""),
@@ -475,6 +595,11 @@ async def calculate_next_stage(
                 "internal_research_required"
             ),
             risk_assessment_required=navigation_data.get("risk_assessment_required"),
+            design_patterns_enforcement=navigation_data.get(
+                "design_patterns_enforcement"
+            ),
+            # Plan requirements for judge_coding_plan
+            plan_required_fields=dynamic_plan_required_fields,
         )
 
         # Fallback: if next_tool missing/None and not completed, route to get_current_coding_task
@@ -717,3 +842,314 @@ def _normalize_next_tool_name(
 
     # Default conservative fallback: let the system recover the active task id/state
     return "get_current_coding_task"
+
+
+def _generate_plan_required_fields(
+    task_metadata: "TaskMetadata",
+) -> list[PlanRequiredField]:
+    """Generate structured plan required fields based on task metadata and task size."""
+
+    # Basic required fields for all tasks that go through planning
+    required_fields = [
+        PlanRequiredField(
+            name="plan",
+            type="string",
+            description="Implementation plan with key steps"
+            if task_metadata.task_size == TaskSize.M
+            else "Detailed implementation plan with phases and steps",
+            required=True,
+            example_value="1. Update config file, 2. Test changes"
+            if task_metadata.task_size == TaskSize.M
+            else "Phase 1: Project scaffolding..., Phase 2: Database setup...",
+        ),
+        PlanRequiredField(
+            name="design",
+            type="string",
+            description="Key technical approach and decisions"
+            if task_metadata.task_size == TaskSize.M
+            else "Architecture, components, data flow, and key technical decisions",
+            required=True,
+            example_value="Modify existing component to add new feature"
+            if task_metadata.task_size == TaskSize.M
+            else "Architecture: Next.js App Router with TypeScript, Components: AuthService, UserRepository...",
+        ),
+        PlanRequiredField(
+            name="research",
+            type="string",
+            description="Brief research summary and approach"
+            if task_metadata.task_size == TaskSize.M
+            else "Research findings and rationale for technology choices",
+            required=True,
+            example_value="Checked documentation for best practices"
+            if task_metadata.task_size == TaskSize.M
+            else "Auth.js provides secure OAuth integration with GitHub provider...",
+        ),
+    ]
+
+    # Add complex fields only for Large/XL tasks
+    if task_metadata.task_size in [TaskSize.L, TaskSize.XL]:
+        required_fields.extend(
+            [
+                PlanRequiredField(
+                    name="problem_domain",
+                    type="string",
+                    description="Concise statement of the problem domain and scope",
+                    required=True,
+                    example_value="GitHub OAuth authentication with user dashboard for Next.js application",
+                ),
+                PlanRequiredField(
+                    name="problem_non_goals",
+                    type="list[str]",
+                    description="Explicit non-goals/boundaries to prevent scope creep",
+                    required=True,
+                    example_value='["Multi-provider authentication", "Admin panel", "Payment processing"]',
+                ),
+                PlanRequiredField(
+                    name="library_plan",
+                    type="list[dict]",
+                    description="Library Selection Map: {purpose, selection, source, justification} for each dependency",
+                    required=True,
+                    example_value='[{"purpose": "Authentication", "selection": "Auth.js", "source": "external", "justification": "Industry standard OAuth implementation"}]',
+                ),
+                PlanRequiredField(
+                    name="internal_reuse_components",
+                    type="list[dict]",
+                    description="Internal Reuse Map: {path, purpose, notes} for existing repo components",
+                    required=True,
+                    example_value='[{"path": "lib/db.ts", "purpose": "Database connection", "notes": "Existing Prisma setup"}] or [] with note "greenfield project"',
+                ),
+            ]
+        )
+
+    # Conditional fields based on task metadata
+    if task_metadata.research_required:
+        required_fields.append(
+            PlanRequiredField(
+                name="research_urls",
+                type="list[str]",
+                description="URLs from external research sources",
+                required=True,
+                conditional_on="research_required",
+                example_value='["https://authjs.dev/getting-started/providers/github", "https://nextjs.org/docs/app"]',
+            )
+        )
+
+    if task_metadata.risk_assessment_required:
+        required_fields.extend(
+            [
+                PlanRequiredField(
+                    name="identified_risks",
+                    type="list[str]",
+                    description="Areas that could be harmed by the proposed changes",
+                    required=True,
+                    conditional_on="risk_assessment_required",
+                    example_value='["Authentication vulnerabilities", "Performance degradation from inefficient queries", "Breaking API changes"]',
+                ),
+                PlanRequiredField(
+                    name="risk_mitigation_strategies",
+                    type="list[str]",
+                    description="Strategies to mitigate identified risks (same order as identified_risks)",
+                    required=True,
+                    conditional_on="risk_assessment_required",
+                    example_value='["Implement secure authentication patterns", "Add database indexing and query optimization", "Use versioned APIs with deprecation notices"]',
+                ),
+            ]
+        )
+
+    if task_metadata.design_patterns_enforcement:
+        required_fields.append(
+            PlanRequiredField(
+                name="design_patterns",
+                type="list[dict]",
+                description="Design patterns to be applied: {name, area}",
+                required=True,
+                conditional_on="design_patterns_enforcement",
+                example_value='[{"name": "Singleton", "area": "Database connection"}, {"name": "Repository", "area": "Data access"}]',
+            )
+        )
+
+    return required_fields
+
+
+def _load_plan_evaluation_criteria() -> str:
+    """Load comprehensive plan evaluation criteria from judge prompt.
+
+    Returns a formatted string containing all the evaluation criteria
+    that the judge will use to validate plans.
+    """
+    try:
+        from mcp_as_a_judge.models import JudgeCodingPlanUserVars
+
+        # Generate schema-driven preparation instructions
+        schema = JudgeCodingPlanUserVars.model_json_schema()
+        properties = schema.get("properties", {})
+        required_fields = schema.get("required", [])
+
+        criteria_sections = []
+
+        # Generate field-by-field preparation instructions
+        criteria_sections.append("## Schema-Driven Preparation Requirements\n")
+        criteria_sections.append(
+            "You MUST populate judge_coding_plan tool parameters with exact data types:\n"
+        )
+
+        for field_name, field_info in properties.items():
+            field_type = field_info.get("type", "unknown")
+            description = field_info.get("description", "")
+            is_required = field_name in required_fields
+
+            if field_type == "array":
+                items_info = field_info.get("items", {})
+                if "$ref" in items_info:
+                    # Handle array of objects (like design_patterns, library_plan)
+                    criteria_sections.append(
+                        f"- **{field_name}** (array of objects, {'required' if is_required else 'optional'}): {description}"
+                    )
+                    criteria_sections.append(
+                        "  Format: JSON array with double-quoted keys/values, no markdown fences"
+                    )
+                else:
+                    # Handle array of strings
+                    criteria_sections.append(
+                        f"- **{field_name}** (array of strings, {'required' if is_required else 'optional'}): {description}"
+                    )
+            elif field_type == "string":
+                criteria_sections.append(
+                    f"- **{field_name}** (string, {'required' if is_required else 'optional'}): {description}"
+                )
+            else:
+                criteria_sections.append(
+                    f"- **{field_name}** ({field_type}, {'required' if is_required else 'optional'}): {description}"
+                )
+
+        criteria_sections.append("\n## Critical JSON Format Rules:")
+        criteria_sections.append(
+            "- Use double quotes for all JSON keys and string values"
+        )
+        criteria_sections.append("- Do NOT wrap JSON in markdown code fences")
+        criteria_sections.append("- Embed JSON directly into tool parameter values")
+        criteria_sections.append(
+            "- Ensure valid JSON syntax (no trailing commas, proper escaping)"
+        )
+        criteria_sections.append(
+            "- Arrays must contain proper object structures as defined in schema"
+        )
+
+        criteria_sections.append("\n## Empty Repository Handling:")
+        criteria_sections.append(
+            "- **internal_reuse_components**: For empty/greenfield repositories, provide empty array [] with note 'greenfield project - no existing components to reuse'"
+        )
+        criteria_sections.append(
+            "- **library_plan**: Focus on establishing new patterns rather than reusing existing ones"
+        )
+        criteria_sections.append(
+            "- **design_patterns**: Choose patterns appropriate for new project architecture"
+        )
+
+        criteria_sections.append("\n## Dynamic Schema-Driven Requirements:")
+        criteria_sections.append(
+            "- **Complete Library Coverage**: Analyze task domain and ensure library_plan covers ALL non-domain concerns"
+        )
+        criteria_sections.append(
+            "- **Context-Appropriate Patterns**: Select design patterns based on actual architecture needs, not predetermined lists"
+        )
+        criteria_sections.append(
+            "- **Domain-Specific Risk Assessment**: Generate risks and mitigations relevant to the specific technology stack and use case"
+        )
+        criteria_sections.append(
+            "- **Repository State Awareness**: Handle internal_reuse_components based on actual repository contents (empty for greenfield)"
+        )
+        criteria_sections.append(
+            "- **Technology Stack Completeness**: Ensure all layers covered (framework, auth, data, UI, testing, deployment, security)"
+        )
+        criteria_sections.append(
+            "- **Architecture Pattern Alignment**: Choose patterns that solve actual problems in the proposed design"
+        )
+        criteria_sections.append(
+            "- **Security Posture Matching**: Risk assessment should reflect the specific attack surface of the chosen technologies"
+        )
+        criteria_sections.append(
+            "- **Operational Readiness**: Include deployment, monitoring, logging, and maintenance considerations"
+        )
+        criteria_sections.append(
+            "- **Quality Assurance Coverage**: Testing strategy appropriate for the application type and complexity"
+        )
+        criteria_sections.append(
+            "- **Development Workflow Integration**: Tooling choices that support the development and deployment pipeline"
+        )
+
+        # Add comprehensive evaluation criteria
+        criteria_sections.append("""
+## Complete Plan Evaluation Criteria
+
+The judge validates plans against these comprehensive software engineering standards:
+
+### 1. Schema Compliance (MANDATORY)
+- All required fields populated with correct data types
+- JSON arrays properly formatted with double quotes
+- Object structures match schema definitions exactly
+- No markdown code fences around JSON data
+
+### 2. Design Quality & Architecture
+- **SOLID Principles**: Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
+- **Design Patterns**: Appropriate patterns identified (Singleton, Factory, Adapter, Strategy, Repository, Facade)
+- **DRY & Orthogonality**: Avoid duplication, ensure loose coupling
+- Comprehensive system design with clear component boundaries
+- Technical decisions justified with trade-offs analysis
+
+### 3. Library Selection & Dependencies
+- Complete dependency coverage: framework, auth, database, styling, testing, linting, validation
+- Preference order: internal utilities > well-known libraries > custom code
+- Each library justified with purpose and source classification
+- Testing frameworks specified (unit/integration + e2e)
+- Development tooling included (linting, formatting, type checking)
+
+### 4. Security & Risk Management
+- Comprehensive risk enumeration: security vulnerabilities, performance degradation, breaking changes, maintainability issues, system reliability, data integrity
+- One-to-one risk mitigation strategies
+- Security headers and protection mechanisms
+- Environment variable security and validation
+- Authentication and authorization safeguards
+
+### 5. Testing Strategy
+- Specific test frameworks chosen (Jest/Vitest, Playwright)
+- Test database setup and teardown procedures
+- Mocking strategies for external dependencies
+- Coverage targets and enforcement
+- Unit, integration, and e2e test examples
+
+### 6. Implementation Planning
+- Incremental development phases with milestones
+- Code examples for critical components
+- File structure and organization
+- Error handling and logging strategy
+- Performance considerations and optimizations
+
+### 7. Research & Documentation
+- Authoritative sources for technical decisions
+- Research findings mapped to implementation choices
+- Environment setup documentation (.env.example)
+- Deployment and migration procedures
+
+### 8. Quality Assurance
+- Code quality standards and enforcement
+- Continuous integration considerations
+- Documentation and maintenance practices
+- Scalability and performance planning
+""")
+
+        return "\n".join(criteria_sections)
+
+    except Exception:
+        # Fallback to basic criteria if prompt loading fails
+        return """
+## Plan Evaluation Criteria
+
+Your plan will be evaluated against comprehensive software engineering best practices including:
+- SOLID principles and design patterns (when required)
+- Security, performance, and maintainability considerations
+- Proper research and existing solution analysis
+- Complete problem domain statement and library selection
+- Risk assessment and mitigation strategies (when required)
+- Comprehensive testing and quality assurance approach
+"""

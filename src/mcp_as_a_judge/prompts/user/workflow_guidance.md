@@ -79,33 +79,21 @@ Based on the current state ({{ current_state }}) and conversation history, analy
 
 ### CRITICAL: judge_coding_plan Preparation Requirements
 
-When recommending judge_coding_plan, you MUST check the task metadata and include ALL required elements in preparation_needed:
+When recommending judge_coding_plan, you MUST use the structured plan_required_fields specification below.
 
-**Always Required:**
-- Detailed implementation plan with code examples
-- System design with architecture and data flow
-- List of files to be modified or created
- - Research coverage plan that maps to ALL major aspects in the user requirements (each referenced system, framework, protocol, integration). Avoid focusing on a single subset; ensure multi-aspect coverage.
- - Problem Domain Statement (goals and non-goals) to keep focus on the domain and avoid re-solving commodity problems
- - Library Selection Map: well-known libraries by purpose with brief justifications; show preference order (repo utilities > well-known libs > custom)
- - Internal Reuse Map: list existing repository utilities/components to reuse with file paths
+## Plan Required Fields Specification
 
-**Check Task Metadata for Conditional Requirements:**
-- **research_required = true**: Include "Research [domain] and gather [X] authoritative URLs"
-- **internal_research_required = true AND repository contains relevant components**: Include "Analyze existing codebase patterns and identify related components"; otherwise omit this step and note that no relevant components exist.
-- **risk_assessment_required = true**: Include "Assess potential risks and document mitigation strategies"
+The following fields are required for judge_coding_plan based on the current task metadata:
 
-**Example Conditional Logic:**
-```
-If task has research_required=true with research_scope="deep":
-  Add: "Research authentication security patterns and gather 5+ authoritative URLs from OWASP, NIST, and framework documentation"
+{{ plan_required_fields_json }}
 
-If task has internal_research_required=true:
-  Add: "Analyze existing authentication components in the codebase and identify reusable patterns"
+**CRITICAL: Use this specification to populate plan_required_fields in your response**
 
-If task has risk_assessment_required=true:
-  Add: "Assess security risks of authentication changes and document mitigation strategies"
-```
+When recommending judge_coding_plan:
+1. **Include plan_required_fields array** in your response with the exact specification above
+2. **Reference specific field requirements** in your preparation_needed and guidance
+3. **Provide examples** for complex fields like library_plan and design_patterns
+4. **Ensure conditional fields** are included based on task metadata flags
 
 ### Decision Logic
 
