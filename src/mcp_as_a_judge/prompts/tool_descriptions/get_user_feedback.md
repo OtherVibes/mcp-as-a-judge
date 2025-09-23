@@ -15,6 +15,7 @@
 - `environment_context_questions`: list[string] — Questions about development environment, deployment constraints, performance requirements
 - `testing_requirements_questions`: list[string] — Questions about testing approach, coverage expectations, test types needed
 - `task_id`: string — Task ID for context tracking
+- `sequential_mode`: boolean (optional, default: true) — Whether to ask questions one by one (true) or all at once (false)
 
 ## Returns
 - `ElicitationResult`: Structured result containing user responses, clarified requirements, and technical decisions

@@ -48,13 +48,18 @@ class ElicitationProviderFactory:
             ElicitationResult with success status and data/message
         """
 
-        # Check if MCP elicitation is available and preferred
-        if self.prefer_elicitation and self._mcp_provider.check_capability(ctx):
-            result = await self._mcp_provider.elicit(message, schema, ctx)
+        # Always try MCP elicitation first if preferred (capability checks can be unreliable)
+        if self.prefer_elicitation:
+            try:
+                result = await self._mcp_provider.elicit(message, schema, ctx)
 
-            # If MCP elicitation succeeds, return the result
-            if result.success:
-                return result
+                # If MCP elicitation succeeds, return the result
+                if result.success:
+                    return result
+
+            except Exception:
+                # If MCP elicitation fails completely, continue to fallback
+                pass
 
         # Use fallback provider
         return await self._fallback_provider.elicit(message, schema, ctx)

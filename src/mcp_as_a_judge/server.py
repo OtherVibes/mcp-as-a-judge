@@ -2543,6 +2543,138 @@ async def judge_testing_implementation(
         return error_result
 
 
+async def _handle_sequential_elicitation(
+    identified_gaps: list[str],
+    specific_questions: list[str],
+    decision_areas: list[str],
+    suggested_options: list[dict],
+    documentation_requests: list[str],
+    success_criteria_questions: list[str],
+    environment_context_questions: list[str],
+    testing_requirements_questions: list[str],
+    current_request: str,
+    repository_analysis: str,
+    task_metadata: "TaskMetadata",
+    task_id: str,
+    ctx: Context,
+) -> ElicitationResult:
+    """Handle sequential elicitation of user feedback, one question at a time."""
+    from pydantic import BaseModel, Field
+
+    from mcp_as_a_judge.elicitation import elicitation_provider
+
+    # Collect all questions into categories
+    all_questions = []
+
+    # Add identified gaps
+    for gap in identified_gaps:
+        all_questions.append(("gap", gap, f"Please clarify: {gap}"))
+
+    # Add specific questions
+    for question in specific_questions:
+        all_questions.append(("question", question, question))
+
+    # Add decision areas with options
+    for area in decision_areas:
+        options_for_area = [opt for opt in suggested_options if opt.get("area") == area]
+        if options_for_area:
+            options_text = "\n".join([
+                f"- **{choice.get('name', 'Unknown')}**: {', '.join(choice.get('pros', []))} (Cons: {', '.join(choice.get('cons', []))})"
+                for choice in options_for_area[0].get("options", [])
+            ])
+            question_text = f"**{area}**: Please choose from these options:\n{options_text}"
+        else:
+            question_text = f"**{area}**: Please specify your preference"
+        all_questions.append(("decision", area, question_text))
+
+    # Add other question types
+    for request in documentation_requests:
+        all_questions.append(("documentation", request, f"Documentation needed: {request}"))
+
+    for question in success_criteria_questions:
+        all_questions.append(("success_criteria", question, question))
+
+    for question in environment_context_questions:
+        all_questions.append(("environment", question, question))
+
+    for question in testing_requirements_questions:
+        all_questions.append(("testing", question, question))
+
+    # Collect responses
+    all_responses = {}
+    technical_decisions = {}
+
+    # Process questions one by one
+    for i, (category, key, question_text) in enumerate(all_questions):
+        # Create simple schema for single question
+        class SingleQuestionSchema(BaseModel):
+            answer: str = Field(description="Your answer to this question")
+            additional_notes: str = Field(default="", description="Any additional notes or context")
+
+        # Format the question with context
+        context_message = f"""
+## Question {i + 1} of {len(all_questions)}
+
+**Context**: {current_request}
+
+**Repository**: {repository_analysis}
+
+**Question**: {question_text}
+
+Please provide your answer:
+"""
+
+        # Elicit single response
+        result = await elicitation_provider.elicit_user_input(
+            message=context_message,
+            schema=SingleQuestionSchema,
+            ctx=ctx,
+        )
+
+        if result.success and result.data:
+            answer = result.data.get("answer", "")
+            notes = result.data.get("additional_notes", "")
+
+            # Store response by category
+            if category == "decision":
+                technical_decisions[key] = answer
+
+            all_responses[f"{category}_{key}"] = {
+                "question": question_text,
+                "answer": answer,
+                "notes": notes
+            }
+        else:
+            # If elicitation fails, fall back to guidance
+            return ElicitationResult(
+                success=True,
+                clarified_requirements="Sequential elicitation not available. Please answer questions directly.",
+                technical_decisions={},
+                user_responses={},
+                repository_context=repository_analysis,
+                workflow_impact="AI assistant should ask the user the questions directly and collect responses.",
+                error_message="",
+            )
+
+    # Compile all responses into requirements
+    combined_requirements = f"{task_metadata.user_requirements}\n\n## Sequential User Feedback:\n"
+
+    for response_data in all_responses.values():
+        combined_requirements += f"\n**{response_data['question']}**\n"
+        combined_requirements += f"Answer: {response_data['answer']}\n"
+        if response_data['notes']:
+            combined_requirements += f"Notes: {response_data['notes']}\n"
+
+    return ElicitationResult(
+        success=True,
+        clarified_requirements=combined_requirements,
+        technical_decisions=technical_decisions,
+        user_responses=all_responses,
+        repository_context=repository_analysis,
+        workflow_impact="Sequential user feedback completed. AI assistant should now create detailed implementation plan.",
+    )
+
+
 @mcp.tool(description=tool_description_provider.get_description("get_user_feedback"))  # type: ignore[misc,unused-ignore]
 async def get_user_feedback(
     current_request: str,
@@ -2557,6 +2689,7 @@ async def get_user_feedback(
     testing_requirements_questions: list[str],
     task_id: str,
     ctx: Context,
+    sequential_mode: bool = True,
 ) -> ElicitationResult:
     """Get user feedback for requirement clarification - description loaded from tool_description_provider."""
     # Log tool execution start
@@ -2636,16 +2769,36 @@ async def get_user_feedback(
             "task_id": task_id,
         }
 
-        elicitation_message = prompt_loader.render_prompt(
-            "get_user_feedback", "user", template_vars
-        )
+        # Handle sequential vs batch elicitation
+        if sequential_mode:
+            # Sequential elicitation: ask questions one by one
+            return await _handle_sequential_elicitation(
+                identified_gaps=identified_gaps,
+                specific_questions=specific_questions,
+                decision_areas=decision_areas,
+                suggested_options=suggested_options,
+                documentation_requests=documentation_requests,
+                success_criteria_questions=success_criteria_questions,
+                environment_context_questions=environment_context_questions,
+                testing_requirements_questions=testing_requirements_questions,
+                current_request=current_request,
+                repository_analysis=repository_analysis,
+                task_metadata=task_metadata,
+                task_id=task_id,
+                ctx=ctx,
+            )
+        else:
+            # Original batch elicitation
+            elicitation_message = prompt_loader.render_prompt(
+                "get_user_feedback", "user", template_vars
+            )
 
-        # Get user input through elicitation
-        elicitation_result = await elicitation_provider.elicit_user_input(
-            message=elicitation_message,
-            schema=UserFeedbackSchema,
-            ctx=ctx,
-        )
+            # Get user input through elicitation
+            elicitation_result = await elicitation_provider.elicit_user_input(
+                message=elicitation_message,
+                schema=UserFeedbackSchema,
+                ctx=ctx,
+            )
 
         if not elicitation_result.success:
             # Instead of failing, provide a structured fallback that guides the AI assistant
