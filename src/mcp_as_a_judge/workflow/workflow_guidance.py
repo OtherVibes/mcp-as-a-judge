@@ -239,28 +239,43 @@ async def calculate_next_stage(
     logger.info(f"Calculating next stage for task {task_metadata.task_id}")
 
     try:
-        # For XS/S tasks, skip planning and provide direct implementation guidance
-        if should_skip_llm_plan_validation(task_metadata):
-            logger.info(
-                f"Task size {task_metadata.task_size.value} - skipping planning "
-                f"phase, proceeding to implementation"
-            )
-            # XS/S tasks skip planning but still need implementation
-            # → code review → testing → completion
-            # For deterministic tests, do not prescribe next tool; provide guidance only
+        # Check task state first - ALL tasks need user feedback when in CREATED state
+        if task_metadata.state == TaskState.CREATED:
             return WorkflowGuidance(
-                next_tool=None,
-                reasoning=(
-                    f"Task size is {task_metadata.task_size.value.upper()} - "
-                    f"planning phase can be skipped for simple fixes and minor "
-                    f"features."
-                ),
+                next_tool="get_user_feedback",
+                reasoning="Task is in CREATED state - user feedback is required to clarify requirements and technical decisions.",
                 preparation_needed=[
                     "Analyze the repository to detect programming language, frameworks, and existing patterns",
                     "Analyze current request for requirement gaps and ambiguities",
                     "Identify technical decisions needed (language, framework, database, API style, etc.)",
                     "Prepare specific clarifying questions based on repository context",
                     "Generate suggested options with pros/cons for each decision area",
+                ],
+                guidance=(
+                    f"{_load_todo_guidance()}"
+                    "Call get_user_feedback to gather requirement clarifications and technical decisions. "
+                    "After user feedback, proceed to plan creation and approval workflow."
+                ),
+            )
+
+        # For XS/S tasks that have completed user feedback, skip LLM plan validation
+        if should_skip_llm_plan_validation(task_metadata) and task_metadata.state not in [TaskState.CREATED, TaskState.REQUIREMENTS_FEEDBACK]:
+            logger.info(
+                f"Task size {task_metadata.task_size.value} - skipping LLM plan validation "
+                f"phase, proceeding to implementation"
+            )
+            # XS/S tasks skip LLM validation but still need user feedback and approval
+            # → code review → testing → completion
+            return WorkflowGuidance(
+                next_tool=None,
+                reasoning=(
+                    f"Task size is {task_metadata.task_size.value.upper()} - "
+                    f"LLM plan validation can be skipped for simple fixes and minor "
+                    f"features."
+                ),
+                preparation_needed=[
+                    "Implement according to user requirements and feedback",
+                    "Follow established patterns from repository analysis",
                 ],
                 guidance=(
                     f"{_load_todo_guidance()}"
