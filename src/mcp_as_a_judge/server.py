@@ -75,13 +75,14 @@ mcp = FastMCP(name="MCP-as-a-Judge")
 
 # Rebuild Pydantic models early to resolve forward references before tool registration
 try:
-    from mcp_as_a_judge.models.enhanced_responses import rebuild_models
     from mcp_as_a_judge.models import rebuild_plan_approval_model
+    from mcp_as_a_judge.models.enhanced_responses import rebuild_models
     rebuild_models()
     rebuild_plan_approval_model()
-except Exception:
+except Exception as e:
     # Non-critical - server can still function without rebuilt models
-    pass
+    import logging
+    logging.debug(f"Server model rebuild failed (non-critical): {e}")
 initialize_llm_configuration()
 
 config = load_config()
@@ -427,10 +428,26 @@ async def request_plan_approval(
         )
 
         if not task_metadata:
+            # Create a minimal task metadata for error response
+            from mcp_as_a_judge.models.task_metadata import TaskSize
+            from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
+            error_task_metadata = TaskMetadata(
+                title="Error Task",
+                description="Task not found",
+                task_size=TaskSize.M
+            )
+            error_guidance = WorkflowGuidance(
+                next_tool="set_coding_task",
+                reasoning="Task not found, need to create a new task",
+                preparation_needed=["Create a new task"],
+                guidance="Call set_coding_task to create a new task"
+            )
             return PlanApprovalResult(
                 approved=False,
                 user_feedback="Task not found. Please call set_coding_task first.",
-                next_action="Call set_coding_task to create a new task"
+                next_action="Call set_coding_task to create a new task",
+                current_task_metadata=error_task_metadata,
+                workflow_guidance=error_guidance
             )
 
         # Update task state to PLAN_PENDING_APPROVAL
@@ -454,7 +471,7 @@ async def request_plan_approval(
 """
 
         if research_urls:
-            plan_presentation += f"\n## Research Sources\n"
+            plan_presentation += "\n## Research Sources\n"
             for url in research_urls:
                 plan_presentation += f"- {url}\n"
 
@@ -462,17 +479,17 @@ async def request_plan_approval(
             plan_presentation += f"\n## Problem Domain\n{problem_domain}\n"
 
         if problem_non_goals:
-            plan_presentation += f"\n## Non-Goals\n"
+            plan_presentation += "\n## Non-Goals\n"
             for goal in problem_non_goals:
                 plan_presentation += f"- {goal}\n"
 
         if library_plan:
-            plan_presentation += f"\n## Library Plan\n"
+            plan_presentation += "\n## Library Plan\n"
             for lib in library_plan:
                 plan_presentation += f"- **{lib.get('purpose', 'Unknown')}**: {lib.get('selection', 'Unknown')} ({lib.get('source', 'Unknown')})\n"
 
         if internal_reuse_components:
-            plan_presentation += f"\n## Internal Components to Reuse\n"
+            plan_presentation += "\n## Internal Components to Reuse\n"
             for comp in internal_reuse_components:
                 plan_presentation += f"- **{comp.get('path', 'Unknown')}**: {comp.get('purpose', 'Unknown')}\n"
 
@@ -494,10 +511,18 @@ Please review the plan above and choose one of the following:
         )
 
         if not elicitation_result.success:
+            error_guidance = WorkflowGuidance(
+                next_tool="request_plan_approval",
+                reasoning="Failed to get user input for plan approval",
+                preparation_needed=["Check elicitation system", "Retry plan approval"],
+                guidance="Retry plan approval or proceed without user input"
+            )
             return PlanApprovalResult(
                 approved=False,
                 user_feedback="Failed to get user input: " + elicitation_result.message,
-                next_action="Retry plan approval or proceed without user input"
+                next_action="Retry plan approval or proceed without user input",
+                current_task_metadata=task_metadata,
+                workflow_guidance=error_guidance
             )
 
         # Process user response
@@ -665,15 +690,17 @@ Please review the plan above and choose one of the following:
 
         # Try to get task metadata for error response
         try:
-            from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
             from mcp_as_a_judge.models.task_metadata import TaskSize
-            error_task_metadata = await load_task_metadata_from_history(task_id, conversation_service)
-            if not error_task_metadata:
+            from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
+            error_task_metadata_maybe = await load_task_metadata_from_history(task_id, conversation_service)
+            if not error_task_metadata_maybe:
                 error_task_metadata = TaskMetadata(
                     title="Error Task",
                     description="Error occurred during plan approval",
                     task_size=TaskSize.M
                 )
+            else:
+                error_task_metadata = error_task_metadata_maybe
         except Exception:
             from mcp_as_a_judge.models.task_metadata import TaskSize
             error_task_metadata = TaskMetadata(

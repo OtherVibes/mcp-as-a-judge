@@ -66,8 +66,8 @@ class JudgeResponse(TrimmedBaseModel):
         ),
         description="ALWAYS current state of task metadata after operation",
     )
-    workflow_guidance: "WorkflowGuidance" = Field(
-        default_factory=lambda: None,  # Will be set dynamically
+    workflow_guidance: "WorkflowGuidance | None" = Field(
+        default=None,  # Will be set dynamically
         description="LLM-generated next steps and instructions from shared method",
     )
 
@@ -196,13 +196,16 @@ def rebuild_models() -> None:
     WorkflowGuidance is available for forward reference resolution.
     """
     try:
-        from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance  # noqa: F401
+        from mcp_as_a_judge.workflow.workflow_guidance import (  # noqa: F401
+            WorkflowGuidance,
+        )
 
         TaskAnalysisResult.model_rebuild()
         JudgeResponse.model_rebuild()
         TaskCompletionResult.model_rebuild()
         ObstacleResult.model_rebuild()
         MissingRequirementsResult.model_rebuild()
-    except Exception:
+    except Exception as e:
         # Ignore rebuild errors - they're not critical for functionality
-        pass
+        import logging
+        logging.debug(f"Enhanced model rebuild failed (non-critical): {e}")

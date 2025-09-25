@@ -18,7 +18,7 @@ if "litellm" not in sys.modules:
     )
 
 if "tenacity" not in sys.modules:
-    def _retry_stub(*args, **kwargs):  # noqa: ANN001
+    def _retry_stub(*args, **kwargs):
         def decorator(func):
             return func
 
@@ -51,10 +51,10 @@ if "mcp_as_a_judge.workflow" not in sys.modules:
         design_patterns_enforcement: bool | None = None
         plan_required_fields: list[dict] = Field(default_factory=list)
 
-    def _generate_plan_required_fields(*_, **__):  # noqa: ANN002,ANN003
+    def _generate_plan_required_fields(*_, **__):
         return []
 
-    def calculate_next_stage(*_, **__):  # noqa: ANN002,ANN003
+    def calculate_next_stage(*_, **__):
         return WorkflowGuidance()
 
     workflow_guidance_module.WorkflowGuidance = WorkflowGuidance
@@ -76,8 +76,10 @@ from mcp_as_a_judge.core.server_helpers import (
     extract_json_from_response,
 )
 from mcp_as_a_judge.models import JudgeResponse, ResearchValidationResponse
+from mcp_as_a_judge.models.enhanced_responses import (
+    rebuild_models as rebuild_enhanced_models,
+)
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize
-from mcp_as_a_judge.models.enhanced_responses import rebuild_models as rebuild_enhanced_models
 
 rebuild_enhanced_models()
 

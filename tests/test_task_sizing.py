@@ -213,7 +213,7 @@ class TestWorkflowGuidanceWithSizing:
     @pytest.mark.asyncio
     async def test_small_task_follows_unified_workflow(self):
         """Test that XS/S tasks follow unified workflow with planning."""
-        from unittest.mock import AsyncMock, MagicMock
+        from unittest.mock import AsyncMock, MagicMock, patch
 
         # Create a small task in CREATED state
         task = TaskMetadata(
@@ -229,22 +229,36 @@ class TestWorkflowGuidanceWithSizing:
         mock_conversation_service.load_filtered_context_for_enrichment = AsyncMock(return_value=[])
         mock_conversation_service.format_conversation_history_as_json_array = MagicMock(return_value=[])
 
-        # Calculate next stage
-        guidance = await calculate_next_stage(
-            task_metadata=task,
-            current_operation="set_coding_task",
-            conversation_service=mock_conversation_service,
-            ctx=None,
-        )
+        # Mock the LLM provider to return a proper workflow guidance response
+        mock_llm_response = """
+        {
+            "next_tool": "judge_coding_plan",
+            "reasoning": "Small task requires planning phase as part of unified workflow",
+            "preparation_needed": ["Create implementation plan", "Review requirements"],
+            "guidance": "Proceed with planning phase for this small task"
+        }
+        """
 
-        # Verify that small tasks now follow unified workflow with planning
-        # The guidance should provide a clear next_tool (not None)
-        assert guidance.next_tool is not None
-        # Should mention planning or judge_coding_plan for unified workflow
-        assert (
-            "plan" in guidance.reasoning.lower()
-            or "judge_coding_plan" in str(guidance.next_tool).lower()
-        )
+        with patch('mcp_as_a_judge.messaging.llm_provider.llm_provider.send_message_with_fallback',
+                   new_callable=AsyncMock) as mock_send:
+            mock_send.return_value = mock_llm_response
+
+            # Calculate next stage
+            guidance = await calculate_next_stage(
+                task_metadata=task,
+                current_operation="set_coding_task",
+                conversation_service=mock_conversation_service,
+                ctx=None,
+            )
+
+            # Verify that small tasks now follow unified workflow with planning
+            # The guidance should provide a clear next_tool (not None)
+            assert guidance.next_tool is not None
+            # Should mention planning or judge_coding_plan for unified workflow
+            assert (
+                "plan" in guidance.reasoning.lower()
+                or "judge_coding_plan" in str(guidance.next_tool).lower()
+            )
 
     @pytest.mark.asyncio
     async def test_large_task_requires_planning(self):

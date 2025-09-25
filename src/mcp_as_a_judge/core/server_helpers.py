@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, ValidationError
 from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.llm.llm_integration import load_llm_config_from_env
+from mcp_as_a_judge.models import JudgeResponse
 
 logger = get_logger(__name__)
 
@@ -85,7 +86,7 @@ def extract_json_from_response(response_text: str) -> str:
 def _coerce_markdown_judge_response(
     raw_response: str,
     task_metadata: Any,
-) -> "JudgeResponse" | None:
+) -> JudgeResponse | None:
     """Attempt to coerce a markdown-style judge response into a JudgeResponse."""
 
     from mcp_as_a_judge.models.enhanced_responses import JudgeResponse
@@ -225,10 +226,17 @@ async def repair_judge_response_from_text(
 ) -> JudgeResponse | None:
     """Attempt to coerce a non-JSON judge response into the expected schema."""
 
-    from mcp_as_a_judge.models import JudgeResponseRepairUserVars, SystemVars
-    from mcp_as_a_judge.models.enhanced_responses import JudgeResponse
+    import mcp_as_a_judge.models as models_module
     from mcp_as_a_judge.messaging.llm_provider import llm_provider
+    from mcp_as_a_judge.models import SystemVars
+    from mcp_as_a_judge.models.enhanced_responses import JudgeResponse
     from mcp_as_a_judge.prompting.loader import create_separate_messages
+
+    # Import directly from models.py to avoid mypy issues with dynamic imports
+    judge_response_repair_user_vars_class = getattr(models_module, 'JudgeResponseRepairUserVars', None)
+    if judge_response_repair_user_vars_class is None:
+        logger.error("JudgeResponseRepairUserVars not available")
+        return None
 
     try:
         if hasattr(task_metadata, "model_dump"):
@@ -239,7 +247,7 @@ async def repair_judge_response_from_text(
             metadata_payload = task_metadata
         else:
             metadata_payload = json.loads(json.dumps(task_metadata, default=str))
-    except Exception as serialization_error:  # noqa: BLE001
+    except Exception as serialization_error:
         logger.warning(
             "Falling back to empty task metadata during judge response repair: %s",
             serialization_error,
@@ -252,7 +260,7 @@ async def repair_judge_response_from_text(
         response_schema=response_schema,
         max_tokens=MAX_TOKENS,
     )
-    user_vars = JudgeResponseRepairUserVars(
+    user_vars = judge_response_repair_user_vars_class(
         raw_response=raw_response,
         task_metadata_json=task_metadata_json,
     )
@@ -271,7 +279,7 @@ async def repair_judge_response_from_text(
             max_tokens=MAX_TOKENS,
             prefer_sampling=True,
         )
-    except Exception as send_error:  # noqa: BLE001
+    except Exception as send_error:
         logger.error("Repair request for judge response failed: %s", send_error)
         return None
 
@@ -418,12 +426,12 @@ async def validate_research_quality(
     Returns:
         dict with basic judge fields if research is insufficient, None if research is adequate
     """
+    from mcp_as_a_judge.messaging.llm_provider import llm_provider
     from mcp_as_a_judge.models import (
         ResearchValidationResponse,
         ResearchValidationUserVars,
         SystemVars,
     )
-    from mcp_as_a_judge.messaging.llm_provider import llm_provider
     from mcp_as_a_judge.prompting.loader import create_separate_messages
 
     # Create system and user messages for research validation
@@ -540,13 +548,13 @@ async def evaluate_coding_plan(
     Returns:
         JudgeResponse with evaluation results
     """
+    from mcp_as_a_judge.messaging.llm_provider import llm_provider
     from mcp_as_a_judge.models import (
         DesignPattern,
         JudgeCodingPlanUserVars,
         SystemVars,
     )
     from mcp_as_a_judge.models.enhanced_responses import JudgeResponse
-    from mcp_as_a_judge.messaging.llm_provider import llm_provider
     from mcp_as_a_judge.prompting.loader import create_separate_messages
 
     # Extract the latest workflow guidance from conversation history
@@ -874,12 +882,12 @@ async def validate_test_output(
         return False
 
     try:
+        from mcp_as_a_judge.messaging.llm_provider import llm_provider
         from mcp_as_a_judge.models import (
             SystemVars,
             TestOutputValidationResponse,
             TestOutputValidationUserVars,
         )
-        from mcp_as_a_judge.messaging.llm_provider import llm_provider
         from mcp_as_a_judge.prompting.loader import create_separate_messages
 
         # Create system and user messages for test output validation

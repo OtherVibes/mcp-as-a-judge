@@ -18,16 +18,6 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
 
-
-def rebuild_plan_approval_model() -> None:
-    """Rebuild PlanApprovalResult model to resolve forward references."""
-    try:
-        from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance  # noqa: F401
-        PlanApprovalResult.model_rebuild()
-    except Exception:
-        # Ignore rebuild errors - they're not critical for functionality
-        pass
-
 # Enhanced response models for workflow v3
 from .enhanced_responses import (
     EnhancedResponseFactory,
@@ -39,7 +29,23 @@ from .enhanced_responses import (
     TaskAnalysisResult,
     TaskCompletionResult,
 )
+
+# Import models
 from .task_metadata import RequirementsVersion, TaskMetadata, TaskState
+
+
+def rebuild_plan_approval_model() -> None:
+    """Rebuild PlanApprovalResult model to resolve forward references."""
+    try:
+        from mcp_as_a_judge.workflow.workflow_guidance import (
+            WorkflowGuidance,  # noqa: F401
+        )
+        PlanApprovalResult.model_rebuild()
+    except Exception as e:
+        # Ignore rebuild errors - they're not critical for functionality
+        import logging
+        logging.debug(f"Model rebuild failed (non-critical): {e}")
+
 
 __all__ = [
     "DynamicSchemaUserVars",
