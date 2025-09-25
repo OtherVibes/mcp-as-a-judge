@@ -14,8 +14,19 @@ from typing import Any as _Any
 from pydantic import BaseModel, Field
 
 # Task metadata models
-# Workflow guidance models
-from mcp_as_a_judge.workflow import WorkflowGuidance
+# Note: WorkflowGuidance is imported directly from workflow.workflow_guidance to avoid circular imports
+if TYPE_CHECKING:
+    from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
+
+
+def rebuild_plan_approval_model() -> None:
+    """Rebuild PlanApprovalResult model to resolve forward references."""
+    try:
+        from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance  # noqa: F401
+        PlanApprovalResult.model_rebuild()
+    except Exception:
+        # Ignore rebuild errors - they're not critical for functionality
+        pass
 
 # Enhanced response models for workflow v3
 from .enhanced_responses import (
@@ -37,9 +48,12 @@ __all__ = [
     "JudgeCodeChangeUserVars",
     "JudgeCodingPlanUserVars",
     "JudgeResponse",
+    "JudgeResponseRepairUserVars",
     "JudgeResponseWithTask",
     "MissingRequirementsResult",
     "ObstacleResult",
+    "PlanApprovalResponse",
+    "PlanApprovalResult",
     "RequirementsVersion",
     "ResearchAspect",
     "ResearchAspectsExtraction",
@@ -247,6 +261,27 @@ class URLValidationResult(BaseModel):
     meets_quality_standards: bool = Field(default=False)
 
 
+class PlanApprovalResponse(BaseModel):
+    """Response model for plan approval elicitation."""
+    action: str = Field(description="User's decision: 'approve', 'modify', or 'reject'")
+    feedback: str = Field(default="", description="User's feedback or modification requests")
+
+
+class PlanApprovalResult(BaseModel):
+    """Result model for plan approval tool."""
+    approved: bool = Field(description="Whether the plan was approved")
+    user_feedback: str = Field(default="", description="User's feedback or modification requests")
+    next_action: str = Field(description="Next action to take based on user decision")
+
+    # Enhanced workflow fields (consistent with other tools)
+    current_task_metadata: "TaskMetadata" = Field(
+        description="ALWAYS current state of task metadata after operation"
+    )
+    workflow_guidance: "WorkflowGuidance" = Field(
+        description="LLM-generated next steps and instructions from shared method"
+    )
+
+
 def _load_models_py() -> _Any | None:
     current_dir = os.path.dirname(__file__)
     models_py_path = os.path.join(os.path.dirname(current_dir), "models.py")
@@ -268,6 +303,7 @@ _NAMES = [
     "ElicitationFallbackUserVars",
     "JudgeCodeChangeUserVars",
     "JudgeCodingPlanUserVars",
+    "JudgeResponseRepairUserVars",
     "ResearchValidationResponse",
     "ResearchValidationUserVars",
     "ResearchAspect",

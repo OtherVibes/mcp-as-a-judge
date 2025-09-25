@@ -5,6 +5,8 @@ import json
 import pytest
 
 from mcp_as_a_judge.core.server_helpers import extract_latest_workflow_guidance
+from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
+from mcp_as_a_judge.workflow.workflow_guidance import _load_plan_evaluation_criteria
 
 
 class TestWorkflowGuidanceExtraction:
@@ -256,3 +258,61 @@ class TestWorkflowGuidanceIntegration:
         )
         assert design_patterns_field["conditional_on"] == "design_patterns_enforcement"
         assert design_patterns_field["required"] is True
+
+
+class TestTaskSizeCriteria:
+    """Test that task size affects plan evaluation criteria appropriately."""
+
+    def test_medium_task_has_simplified_criteria(self) -> None:
+        """Test that Medium tasks get simplified criteria without comprehensive requirements."""
+        medium_task = TaskMetadata(
+            task_id="test-medium-task",
+            title="Test Medium Task",
+            description="A test medium task",
+            task_size=TaskSize.M,
+            state=TaskState.PLANNING,
+            research_required=False,
+            internal_research_required=True,
+            risk_assessment_required=False,
+            design_patterns_enforcement=False
+        )
+
+        criteria = _load_plan_evaluation_criteria(medium_task)
+
+        # Medium tasks should NOT have comprehensive software engineering requirements
+        assert "SOLID Principles" not in criteria
+        assert "Design Patterns" not in criteria
+        assert "Security & Risk Management" not in criteria
+        assert "Technology Stack Completeness" not in criteria
+        assert "Operational Readiness" not in criteria
+
+        # But should have basic requirements
+        assert "Schema Compliance" in criteria
+        assert "Basic Planning Requirements" in criteria
+        assert "Optional Fields (Not Required for Medium Tasks)" in criteria
+
+    def test_large_task_has_comprehensive_criteria(self) -> None:
+        """Test that Large tasks get comprehensive criteria with all requirements."""
+        large_task = TaskMetadata(
+            task_id="test-large-task",
+            title="Test Large Task",
+            description="A test large task",
+            task_size=TaskSize.L,
+            state=TaskState.PLANNING,
+            research_required=True,
+            internal_research_required=True,
+            risk_assessment_required=True,
+            design_patterns_enforcement=True
+        )
+
+        criteria = _load_plan_evaluation_criteria(large_task)
+
+        # Large tasks should have comprehensive software engineering requirements
+        assert "SOLID Principles" in criteria
+        assert "Design Patterns" in criteria
+        assert "Security & Risk Management" in criteria
+        assert "Technology Stack Completeness" in criteria
+        assert "Operational Readiness" in criteria
+
+        # And basic requirements
+        assert "Schema Compliance" in criteria

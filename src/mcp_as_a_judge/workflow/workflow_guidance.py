@@ -49,13 +49,17 @@ def should_skip_planning(task_metadata: TaskMetadata) -> bool:
     """
     Determine if planning should be skipped based on task size.
 
+    NOTE: As of the unified workflow implementation, ALL tasks require planning.
+    This function now always returns False to ensure consistent workflow progression.
+    Task size affects planning complexity, not whether planning occurs.
+
     Args:
         task_metadata: Task metadata containing size information
 
     Returns:
-        True if planning should be skipped (XS/S tasks), False otherwise
+        False - all tasks require planning (unified workflow)
     """
-    return task_metadata.task_size in [TaskSize.XS, TaskSize.S]
+    return False
 
 
 class PlanRequiredField(BaseModel):
@@ -236,38 +240,7 @@ async def calculate_next_stage(
     logger.info(f"Calculating next stage for task {task_metadata.task_id}")
 
     try:
-        # Check for deterministic task size routing for CREATED state
-        if task_metadata.state == TaskState.CREATED and should_skip_planning(
-            task_metadata
-        ):
-            logger.info(
-                f"Task size {task_metadata.task_size.value} - skipping planning "
-                f"phase, proceeding to implementation"
-            )
-            # XS/S tasks skip planning but still need implementation
-            # → code review → testing → completion
-            # For deterministic tests, do not prescribe next tool; provide guidance only
-            return WorkflowGuidance(
-                next_tool=None,
-                reasoning=(
-                    f"Task size is {task_metadata.task_size.value.upper()} - "
-                    f"planning phase can be skipped for simple fixes and minor "
-                    f"features."
-                ),
-                preparation_needed=[
-                    "Identify files to modify",
-                    "Implement minimal changes",
-                    "Write and run tests",
-                ],
-                guidance=(
-                    f"{_load_todo_guidance()}"
-                    "Proceed directly to implementation. Once changes are complete "
-                    "and tests pass, continue with the workflow: call "
-                    "judge_code_change for code review, then "
-                    "judge_testing_implementation for testing validation, and "
-                    "finally judge_coding_task_completion for final validation."
-                ),
-            )
+        # All tasks now follow unified workflow - no skip-planning logic
 
         # Deterministic routing for set_coding_task updates: do not send the agent
         # back to planning if the task is already beyond planning states.
@@ -466,8 +439,8 @@ async def calculate_next_stage(
             JudgeCodingPlanUserVars.model_json_schema(), indent=2
         )
 
-        # Load plan evaluation criteria from the judge prompt
-        plan_evaluation_criteria = _load_plan_evaluation_criteria()
+        # Load plan evaluation criteria from the judge prompt (task-size aware)
+        plan_evaluation_criteria = _load_plan_evaluation_criteria(task_metadata)
 
         # Generate plan required fields for judge_coding_plan guidance
         plan_required_fields = _generate_plan_required_fields(task_metadata)
@@ -493,7 +466,7 @@ async def calculate_next_stage(
             current_operation=current_operation,
             task_size=task_metadata.task_size.value,
             task_size_definitions=task_size_definitions,
-            state_transitions="CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED",
+            state_transitions="CREATED → PLANNING → PLAN_PENDING_APPROVAL → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED",
             tool_descriptions=tool_descriptions,
             allowed_tool_names=available_tool_names,
             allowed_tool_names_json=json.dumps(available_tool_names),
@@ -610,9 +583,15 @@ async def calculate_next_stage(
             if "get_current_coding_task" in available_name_set:
                 workflow_guidance.next_tool = "get_current_coding_task"
             else:
-                # As a last resort, pick judge_coding_plan for created/planning; judge_code_change otherwise
-                if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
-                    workflow_guidance.next_tool = "judge_coding_plan"
+                # As a last resort, pick appropriate tool based on state
+                if task_metadata.state == TaskState.CREATED:
+                    # All tasks need to transition to planning first (unified workflow)
+                    workflow_guidance.next_tool = "set_coding_task"  # Update state to PLANNING
+                elif task_metadata.state == TaskState.PLANNING:
+                    # PLANNING state means planning is in progress - provide guidance to create plan materials
+                    workflow_guidance.next_tool = None  # Let LLM determine appropriate planning action
+                elif task_metadata.state == TaskState.PLAN_PENDING_APPROVAL:
+                    workflow_guidance.next_tool = "request_plan_approval"
                 elif task_metadata.state in (
                     TaskState.PLAN_APPROVED,
                     TaskState.IMPLEMENTING,
@@ -655,8 +634,15 @@ async def calculate_next_stage(
                 logger.error(f"JSON extraction also failed: {extract_error}")
 
         # Return fallback navigation with appropriate next tool based on state
-        fallback_next_tool: str | None = "judge_coding_plan"  # Default fallback
-        if (
+        fallback_next_tool: str | None = None  # Default to None, will be determined by state
+        if task_metadata.state == TaskState.CREATED:
+            # All tasks need to transition to planning (unified workflow)
+            fallback_next_tool = "set_coding_task"  # Transition to PLANNING state
+        if task_metadata.state == TaskState.PLANNING:
+            fallback_next_tool = None  # Let LLM determine appropriate planning action
+        elif task_metadata.state == TaskState.PLAN_PENDING_APPROVAL:
+            fallback_next_tool = "request_plan_approval"
+        elif (
             task_metadata.state == TaskState.PLAN_APPROVED
             or task_metadata.state == TaskState.IMPLEMENTING
             or task_metadata.state == TaskState.REVIEW_READY
@@ -757,6 +743,7 @@ async def _get_available_tool_names() -> set[str]:
         return {
             "set_coding_task",
             "get_current_coding_task",
+            "request_plan_approval",
             "judge_coding_plan",
             "judge_code_change",
             "judge_testing_implementation",
@@ -793,11 +780,25 @@ def _normalize_next_tool_name(
 
     mapped = synonyms.get(key, key)
 
+    # Guardrail: route PLANNING state appropriately
+    if mapped == "judge_coding_plan":
+        if task_metadata.state == TaskState.PLANNING:
+            # PLANNING state means planning is in progress - allow judge_coding_plan if plan is ready
+            return "judge_coding_plan"
+        if task_metadata.state == TaskState.PLAN_PENDING_APPROVAL:
+            return "request_plan_approval"
+
     # Guardrail: avoid spurious routing back to set_coding_task
     if mapped == "set_coding_task":
-        # During planning/created, keep planning loop unless the user explicitly updates requirements
-        if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
-            return "judge_coding_plan"
+        # During planning/created, allow state transition to PLANNING for M/L/XL tasks
+        if task_metadata.state == TaskState.CREATED:
+            # Allow set_coding_task for state transition to PLANNING (unified workflow)
+            return "set_coding_task"  # Allow transition to PLANNING state
+        if task_metadata.state == TaskState.PLANNING:
+            # PLANNING state means planning is in progress - don't force to request_plan_approval yet
+            return mapped  # Allow the original tool choice
+        if task_metadata.state == TaskState.PLAN_PENDING_APPROVAL:
+            return "request_plan_approval"
         if task_metadata.state in (
             TaskState.PLAN_APPROVED,
             TaskState.IMPLEMENTING,
@@ -811,8 +812,13 @@ def _normalize_next_tool_name(
 
     # Guardrail: avoid premature completion calls — route to the correct gate
     if mapped == "judge_coding_task_completion":
-        if task_metadata.state in (TaskState.CREATED, TaskState.PLANNING):
+        if task_metadata.state == TaskState.CREATED:
             return "judge_coding_plan"
+        if task_metadata.state == TaskState.PLANNING:
+            # PLANNING state means planning is in progress - don't force to request_plan_approval yet
+            return "request_plan_approval"  # For completion calls, still route to plan approval
+        if task_metadata.state == TaskState.PLAN_PENDING_APPROVAL:
+            return "request_plan_approval"
         if task_metadata.state in (
             TaskState.PLAN_APPROVED,
             TaskState.IMPLEMENTING,
@@ -829,6 +835,10 @@ def _normalize_next_tool_name(
 
     # If still invalid, choose a fallback consistent with current state
     # Mirror the fallback used in exception handling for consistency
+    if task_metadata.state == TaskState.CREATED:
+        return "judge_coding_plan"
+    if task_metadata.state in (TaskState.PLANNING, TaskState.PLAN_PENDING_APPROVAL):
+        return "request_plan_approval"
     if task_metadata.state in (
         TaskState.PLAN_APPROVED,
         TaskState.IMPLEMENTING,
@@ -971,32 +981,39 @@ def _generate_plan_required_fields(
     return required_fields
 
 
-def _load_plan_evaluation_criteria() -> str:
+def _load_plan_evaluation_criteria(task_metadata: "TaskMetadata") -> str:
     """Load comprehensive plan evaluation criteria from judge prompt.
 
-    Returns a formatted string containing all the evaluation criteria
+    Returns a formatted string containing task-size-appropriate evaluation criteria
     that the judge will use to validate plans.
     """
     try:
         from mcp_as_a_judge.models import JudgeCodingPlanUserVars
 
+        # Generate task-size-appropriate required fields
+        required_fields_for_task = _generate_plan_required_fields(task_metadata)
+        required_field_names = {field.name for field in required_fields_for_task}
+
         # Generate schema-driven preparation instructions
         schema = JudgeCodingPlanUserVars.model_json_schema()
         properties = schema.get("properties", {})
-        required_fields = schema.get("required", [])
 
         criteria_sections = []
 
-        # Generate field-by-field preparation instructions
-        criteria_sections.append("## Schema-Driven Preparation Requirements\n")
+        # Generate field-by-field preparation instructions (only for required fields)
+        criteria_sections.append("## Required Fields for This Task Size\n")
         criteria_sections.append(
-            "You MUST populate judge_coding_plan tool parameters with exact data types:\n"
+            f"For {task_metadata.task_size.value.upper()} tasks, you MUST populate these judge_coding_plan parameters:\n"
         )
 
         for field_name, field_info in properties.items():
+            # Only include fields that are required for this task size
+            if field_name not in required_field_names:
+                continue
+
             field_type = field_info.get("type", "unknown")
             description = field_info.get("description", "")
-            is_required = field_name in required_fields
+            is_required = True  # All fields we're iterating over are required for this task
 
             if field_type == "array":
                 items_info = field_info.get("items", {})
@@ -1022,6 +1039,19 @@ def _load_plan_evaluation_criteria() -> str:
                     f"- **{field_name}** ({field_type}, {'required' if is_required else 'optional'}): {description}"
                 )
 
+        # Add optional fields section for task sizes that don't require all fields
+        if task_metadata.task_size == TaskSize.M:
+            criteria_sections.append("\n## Optional Fields (Not Required for Medium Tasks):")
+            optional_fields = ["problem_domain", "problem_non_goals", "library_plan",
+                             "internal_reuse_components", "design_patterns", "identified_risks",
+                             "risk_mitigation_strategies"]
+            for field_name in optional_fields:
+                if field_name in properties:
+                    field_info = properties[field_name]
+                    description = field_info.get("description", "")
+                    criteria_sections.append(f"- **{field_name}** (optional): {description}")
+            criteria_sections.append("- You may provide these fields if relevant, but they are not required for validation")
+
         criteria_sections.append("\n## Critical JSON Format Rules:")
         criteria_sections.append(
             "- Use double quotes for all JSON keys and string values"
@@ -1031,55 +1061,57 @@ def _load_plan_evaluation_criteria() -> str:
         criteria_sections.append(
             "- Ensure valid JSON syntax (no trailing commas, proper escaping)"
         )
-        criteria_sections.append(
-            "- Arrays must contain proper object structures as defined in schema"
-        )
 
-        criteria_sections.append("\n## Empty Repository Handling:")
-        criteria_sections.append(
-            "- **internal_reuse_components**: For empty/greenfield repositories, provide empty array [] with note 'greenfield project - no existing components to reuse'"
-        )
-        criteria_sections.append(
-            "- **library_plan**: Focus on establishing new patterns rather than reusing existing ones"
-        )
-        criteria_sections.append(
-            "- **design_patterns**: Choose patterns appropriate for new project architecture"
-        )
+        # Only include complex guidance for L/XL tasks
+        if task_metadata.task_size in [TaskSize.L, TaskSize.XL]:
+            criteria_sections.append("\n## Empty Repository Handling:")
+            criteria_sections.append(
+                "- **internal_reuse_components**: For empty/greenfield repositories, provide empty array [] with note 'greenfield project - no existing components to reuse'"
+            )
+            criteria_sections.append(
+                "- **library_plan**: Focus on establishing new patterns rather than reusing existing ones"
+            )
+            criteria_sections.append(
+                "- **design_patterns**: Choose patterns appropriate for new project architecture"
+            )
 
-        criteria_sections.append("\n## Dynamic Schema-Driven Requirements:")
-        criteria_sections.append(
-            "- **Complete Library Coverage**: Analyze task domain and ensure library_plan covers ALL non-domain concerns"
-        )
-        criteria_sections.append(
-            "- **Context-Appropriate Patterns**: Select design patterns based on actual architecture needs, not predetermined lists"
-        )
-        criteria_sections.append(
-            "- **Domain-Specific Risk Assessment**: Generate risks and mitigations relevant to the specific technology stack and use case"
-        )
-        criteria_sections.append(
-            "- **Repository State Awareness**: Handle internal_reuse_components based on actual repository contents (empty for greenfield)"
-        )
-        criteria_sections.append(
-            "- **Technology Stack Completeness**: Ensure all layers covered (framework, auth, data, UI, testing, deployment, security)"
-        )
-        criteria_sections.append(
-            "- **Architecture Pattern Alignment**: Choose patterns that solve actual problems in the proposed design"
-        )
-        criteria_sections.append(
-            "- **Security Posture Matching**: Risk assessment should reflect the specific attack surface of the chosen technologies"
-        )
-        criteria_sections.append(
-            "- **Operational Readiness**: Include deployment, monitoring, logging, and maintenance considerations"
-        )
-        criteria_sections.append(
-            "- **Quality Assurance Coverage**: Testing strategy appropriate for the application type and complexity"
-        )
-        criteria_sections.append(
-            "- **Development Workflow Integration**: Tooling choices that support the development and deployment pipeline"
-        )
+            criteria_sections.append("\n## Dynamic Schema-Driven Requirements:")
+            criteria_sections.append(
+                "- **Complete Library Coverage**: Analyze task domain and ensure library_plan covers ALL non-domain concerns"
+            )
+            criteria_sections.append(
+                "- **Context-Appropriate Patterns**: Select design patterns based on actual architecture needs, not predetermined lists"
+            )
+            criteria_sections.append(
+                "- **Domain-Specific Risk Assessment**: Generate risks and mitigations relevant to the specific technology stack and use case"
+            )
+        # Only add comprehensive criteria for L/XL tasks
+        if task_metadata.task_size in [TaskSize.L, TaskSize.XL]:
+            criteria_sections.append(
+                "- **Repository State Awareness**: Handle internal_reuse_components based on actual repository contents (empty for greenfield)"
+            )
+            criteria_sections.append(
+                "- **Technology Stack Completeness**: Ensure all layers covered (framework, auth, data, UI, testing, deployment, security)"
+            )
+            criteria_sections.append(
+                "- **Architecture Pattern Alignment**: Choose patterns that solve actual problems in the proposed design"
+            )
+            criteria_sections.append(
+                "- **Security Posture Matching**: Risk assessment should reflect the specific attack surface of the chosen technologies"
+            )
+            criteria_sections.append(
+                "- **Operational Readiness**: Include deployment, monitoring, logging, and maintenance considerations"
+            )
+            criteria_sections.append(
+                "- **Quality Assurance Coverage**: Testing strategy appropriate for the application type and complexity"
+            )
+            criteria_sections.append(
+                "- **Development Workflow Integration**: Tooling choices that support the development and deployment pipeline"
+            )
 
-        # Add comprehensive evaluation criteria
-        criteria_sections.append("""
+        # Add comprehensive evaluation criteria only for L/XL tasks
+        if task_metadata.task_size in [TaskSize.L, TaskSize.XL]:
+            criteria_sections.append("""
 ## Complete Plan Evaluation Criteria
 
 The judge validates plans against these comprehensive software engineering standards:
@@ -1136,6 +1168,25 @@ The judge validates plans against these comprehensive software engineering stand
 - Continuous integration considerations
 - Documentation and maintenance practices
 - Scalability and performance planning
+""")
+        else:
+            # For XS/S/M tasks, only include basic schema compliance
+            criteria_sections.append("""
+## Basic Plan Evaluation Criteria
+
+For this task size, the judge validates plans against these simplified requirements:
+
+### Schema Compliance (MANDATORY)
+- All required fields populated with correct data types
+- JSON arrays properly formatted with double quotes
+- Object structures match schema definitions exactly
+- No markdown code fences around JSON data
+
+### Basic Planning Requirements
+- Implementation plan with clear steps
+- Design approach appropriate for task complexity
+- Research findings that inform the implementation
+- Consideration of existing codebase patterns where applicable
 """)
 
         return "\n".join(criteria_sections)

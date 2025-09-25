@@ -26,7 +26,8 @@ The coding task follows this state progression:
 Each state has specific requirements and valid next steps:
 
 - **CREATED**: Task just created, needs detailed planning with code analysis
-- **PLANNING**: Planning phase in progress, awaiting plan validation
+- **PLANNING**: Planning phase in progress, awaiting plan completion
+- **PLAN_PENDING_APPROVAL**: Plan created, awaiting user approval and potential iteration
 - **PLAN_APPROVED**: Plan validated and approved, ready for implementation
 - **IMPLEMENTING**: Implementation phase in progress, code and tests being written
 - **REVIEW_READY**: Implementation and tests complete and passing, ready for code review
@@ -98,23 +99,21 @@ When recommending judge_coding_plan:
 ### Decision Logic
 
 **Task Size Considerations:**
-{% if task_size in ['xs', 's'] %}
-- **{{ task_size.upper() }} Task**: Skip planning phase, proceed directly to implementation
-- **Workflow**: CREATED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED
-- **Critical**: Still requires code review, testing, and completion validation
-{% else %}
-- **{{ task_size.upper() }} Task**: Follow full planning workflow
+- **{{ task_size.upper() }} Task**: All tasks follow unified planning workflow
 - **Workflow**: CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED
+{% if task_size in ['xs', 's'] %}
+- **Planning Complexity**: Basic requirements (plan/design/research only)
+{% elif task_size == 'm' %}
+- **Planning Complexity**: Standard requirements with moderate detail
+{% else %}
+- **Planning Complexity**: Comprehensive requirements (library plans, risk assessment, design patterns)
 {% endif %}
 
 **State-Based Decisions:**
 - If state is **CREATED** →
-{% if task_size in ['xs', 's'] %}
-  - For {{ task_size.upper() }} tasks: Set next_tool to "judge_code_change" (skip planning, proceed to implementation then code review)
-{% else %}
-  - For {{ task_size.upper() }} tasks: Next tool should be planning-related (judge_coding_plan)
-{% endif %}
-- If state is **PLANNING** → Next tool should validate the plan (judge_coding_plan)
+  - For all task sizes: Next tool should be "set_coding_task" to transition to PLANNING state
+- If state is **PLANNING** → AI assistant should create detailed plan, design, and research materials, then call "request_plan_approval" to present to user
+- If state is **PLAN_PENDING_APPROVAL** → Next tool should be "request_plan_approval" (continue user approval process)
 - If state is **PLAN_APPROVED** → Next tool should be "judge_code_change" (implement code AND tests, then review)
 - If state is **IMPLEMENTING** → Next tool should be "judge_code_change" when ALL code AND tests are complete and passing
   - **CRITICAL**: If tests are failing, next_tool should be "judge_testing_implementation" with guidance to fix test failures first
@@ -157,19 +156,49 @@ You MUST respond with ONLY a valid JSON object that exactly matches the Workflow
 
 ### Dynamic Response Logic
 
-{% if current_state == "created" and task_size in ['xs', 's'] %}
-**Current Scenario: {{ task_size.upper() }} Task - Skip Planning**
-- **next_tool**: "judge_code_change" (proceed to implementation then code review)
-- **reasoning**: "Task size is {{ task_size.upper() }} - planning phase can be skipped for simple fixes and minor features. Implement the changes directly, then proceed to code review."
-- **preparation_needed**: Focus on minimal preparation for direct implementation
-- **guidance**: Emphasize direct implementation BUT explain that code review, testing, and completion are still required
+{% if current_state == "created" %}
+**Current Scenario: {{ task_size.upper() }} Task - Transition to Planning**
+- **next_tool**: "set_coding_task"
+- **reasoning**: "Task is in CREATED state and needs to transition to PLANNING state to begin detailed planning"
+- **preparation_needed**: Update task state to PLANNING to begin planning phase
+- **guidance**: Call set_coding_task with the same task_id and state=planning to transition to planning phase
 
-{% elif current_state == "created" %}
-**Current Scenario: {{ task_size.upper() }} Task - Requires Planning**
-- **next_tool**: "judge_coding_plan"
-- **reasoning**: "Task is in CREATED state and needs detailed planning with code analysis before implementation can begin"
-- **preparation_needed**: Include ALL judge_coding_plan validation requirements (plan, design, research URLs if needed, code analysis, risk assessment)
-- **guidance**: Comprehensive planning preparation
+{% elif current_state == "planning" %}
+**Current Scenario: {{ task_size.upper() }} Task - Create Planning Materials**
+- **next_tool**: "request_plan_approval" (after creating plan, design, and research)
+- **reasoning**: "Task is in PLANNING state; detailed plan, design, and research materials must be created and presented for user approval"
+- **preparation_needed**: Create comprehensive planning materials at the same level of detail that will be presented to judge_coding_plan
+- **guidance**: Create detailed planning materials following the structure below, then call request_plan_approval to present to user for approval
+
+### Detailed Planning Structure for {{ task_size.upper() }} Tasks
+
+**Plan (Implementation Steps):**
+Create a numbered, step-by-step implementation plan covering:
+1. Code analysis and file location identification
+2. Data gathering and context functions
+3. UI/display logic implementation
+4. Integration with existing systems
+5. Error handling and edge cases
+6. Testing approach (unit and integration tests)
+7. Documentation updates
+
+**Design (Technical Architecture):**
+Cover the technical design including:
+- Components/Functions to be created or modified
+- Data sources and flow
+- User interaction flow
+- Integration points with existing code
+- Security considerations (data masking, etc.)
+- Extensibility for future requirements
+
+**Research (Internal Analysis):**
+Provide analysis of:
+- Existing codebase patterns and conventions
+- Current implementation approaches in similar features
+- Justification for chosen approach
+- Risk assessment and mitigation strategies
+
+The materials should be at the same level of detail that will be required by judge_coding_plan validation.
 
 {% elif current_state == "implementing" %}
 **Current Scenario: Implementation Phase**
