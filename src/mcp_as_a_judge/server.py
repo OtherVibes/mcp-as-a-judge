@@ -77,11 +77,13 @@ mcp = FastMCP(name="MCP-as-a-Judge")
 try:
     from mcp_as_a_judge.models import rebuild_plan_approval_model
     from mcp_as_a_judge.models.enhanced_responses import rebuild_models
+
     rebuild_models()
     rebuild_plan_approval_model()
 except Exception as e:
     # Non-critical - server can still function without rebuilt models
     import logging
+
     logging.debug(f"Server model rebuild failed (non-critical): {e}")
 initialize_llm_configuration()
 
@@ -171,9 +173,7 @@ async def set_coding_task(
             from mcp_as_a_judge.models.task_metadata import ResearchScope
 
             task_metadata.research_required = initial_guidance.research_required
-            task_metadata.research_rationale = (
-                initial_guidance.research_rationale or ""
-            )
+            task_metadata.research_rationale = initial_guidance.research_rationale or ""
 
             # Map research scope string to enum
             if initial_guidance.research_scope:
@@ -212,9 +212,7 @@ async def set_coding_task(
         # after applying research flags so we preserve initial guidance data.
         if action == "created" and task_metadata.state == TaskState.CREATED:
             task_metadata.update_state(TaskState.PLANNING)
-            context_summary = (
-                f"{context_summary} Transitioned state to 'planning' for unified workflow."
-            )
+            context_summary = f"{context_summary} Transitioned state to 'planning' for unified workflow."
 
             workflow_guidance = await calculate_next_stage(
                 task_metadata=task_metadata,
@@ -402,7 +400,9 @@ async def get_current_coding_task(ctx: Context) -> dict:
         }
 
 
-@mcp.tool(description=tool_description_provider.get_description("request_plan_approval"))  # type: ignore[misc,unused-ignore]
+@mcp.tool(
+    description=tool_description_provider.get_description("request_plan_approval")
+)  # type: ignore[misc,unused-ignore]
 async def request_plan_approval(
     plan: str,
     design: str,
@@ -431,23 +431,22 @@ async def request_plan_approval(
             # Create a minimal task metadata for error response
             from mcp_as_a_judge.models.task_metadata import TaskSize
             from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
+
             error_task_metadata = TaskMetadata(
-                title="Error Task",
-                description="Task not found",
-                task_size=TaskSize.M
+                title="Error Task", description="Task not found", task_size=TaskSize.M
             )
             error_guidance = WorkflowGuidance(
                 next_tool="set_coding_task",
                 reasoning="Task not found, need to create a new task",
                 preparation_needed=["Create a new task"],
-                guidance="Call set_coding_task to create a new task"
+                guidance="Call set_coding_task to create a new task",
             )
             return PlanApprovalResult(
                 approved=False,
                 user_feedback="Task not found. Please call set_coding_task first.",
                 next_action="Call set_coding_task to create a new task",
                 current_task_metadata=error_task_metadata,
-                workflow_guidance=error_guidance
+                workflow_guidance=error_guidance,
             )
 
         # Update task state to PLAN_PENDING_APPROVAL
@@ -505,9 +504,7 @@ Please review the plan above and choose one of the following:
 
         # Use elicitation to get user approval
         elicitation_result = await elicitation_provider.elicit_user_input(
-            message=plan_presentation,
-            schema=PlanApprovalResponse,
-            ctx=ctx
+            message=plan_presentation, schema=PlanApprovalResponse, ctx=ctx
         )
 
         if not elicitation_result.success:
@@ -515,14 +512,14 @@ Please review the plan above and choose one of the following:
                 next_tool="request_plan_approval",
                 reasoning="Failed to get user input for plan approval",
                 preparation_needed=["Check elicitation system", "Retry plan approval"],
-                guidance="Retry plan approval or proceed without user input"
+                guidance="Retry plan approval or proceed without user input",
             )
             return PlanApprovalResult(
                 approved=False,
                 user_feedback="Failed to get user input: " + elicitation_result.message,
                 next_action="Retry plan approval or proceed without user input",
                 current_task_metadata=task_metadata,
-                workflow_guidance=error_guidance
+                workflow_guidance=error_guidance,
             )
 
         # Process user response
@@ -566,9 +563,9 @@ Please review the plan above and choose one of the following:
                 preparation_needed=[
                     "Ensure all plan components are complete (plan, design, research)",
                     "Include library_plan and internal_reuse_components if applicable",
-                    "Add identified_risks and risk_mitigation_strategies if required"
+                    "Add identified_risks and risk_mitigation_strategies if required",
                 ],
-                guidance="Call judge_coding_plan with the complete plan details for AI validation. After approval, proceed to implementation."
+                guidance="Call judge_coding_plan with the complete plan details for AI validation. After approval, proceed to implementation.",
             )
 
             return PlanApprovalResult(
@@ -576,7 +573,7 @@ Please review the plan above and choose one of the following:
                 user_feedback=feedback or "Plan approved by user",
                 next_action="Proceed to judge_coding_plan for validation",
                 current_task_metadata=task_metadata,
-                workflow_guidance=workflow_guidance
+                workflow_guidance=workflow_guidance,
             )
 
         elif action == "modify":
@@ -587,7 +584,7 @@ Please review the plan above and choose one of the following:
             if feedback:
                 task_metadata.update_requirements(
                     f"{task_metadata.user_requirements}\n\nUser feedback on plan: {feedback}",
-                    source="plan_approval_feedback"
+                    source="plan_approval_feedback",
                 )
 
             history_input = json.dumps(
@@ -619,9 +616,9 @@ Please review the plan above and choose one of the following:
                 preparation_needed=[
                     "Review user feedback carefully",
                     "Revise plan to address specific concerns",
-                    "Ensure all plan components remain complete"
+                    "Ensure all plan components remain complete",
                 ],
-                guidance=f"User feedback: {feedback}. Revise the implementation plan to address these concerns, then call request_plan_approval again with the updated plan."
+                guidance=f"User feedback: {feedback}. Revise the implementation plan to address these concerns, then call request_plan_approval again with the updated plan.",
             )
 
             return PlanApprovalResult(
@@ -629,7 +626,7 @@ Please review the plan above and choose one of the following:
                 user_feedback=feedback or "User requested plan modifications",
                 next_action="Revise plan based on user feedback and resubmit for approval",
                 current_task_metadata=task_metadata,
-                workflow_guidance=workflow_guidance
+                workflow_guidance=workflow_guidance,
             )
 
         else:  # reject or any other action
@@ -664,9 +661,9 @@ Please review the plan above and choose one of the following:
                 preparation_needed=[
                     "Review user feedback for rejection reasons",
                     "Consider alternative approaches and architectures",
-                    "Create a fundamentally different plan"
+                    "Create a fundamentally different plan",
                 ],
-                guidance=f"User rejected the plan. Feedback: {feedback}. Create a completely new implementation plan with a different approach, then call request_plan_approval with the new plan."
+                guidance=f"User rejected the plan. Feedback: {feedback}. Create a completely new implementation plan with a different approach, then call request_plan_approval with the new plan.",
             )
 
             return PlanApprovalResult(
@@ -674,7 +671,7 @@ Please review the plan above and choose one of the following:
                 user_feedback=feedback or "Plan rejected by user",
                 next_action="Create a new plan with a different approach",
                 current_task_metadata=task_metadata,
-                workflow_guidance=workflow_guidance
+                workflow_guidance=workflow_guidance,
             )
 
     except Exception as e:
@@ -684,29 +681,37 @@ Please review the plan above and choose one of the following:
         error_guidance = WorkflowGuidance(
             next_tool=None,
             reasoning="Error occurred during plan approval process",
-            preparation_needed=["Review error details", "Check task metadata", "Retry or proceed manually"],
-            guidance=f"Error in plan approval: {e!s}. Review the error and retry the plan approval process or proceed without user input if necessary."
+            preparation_needed=[
+                "Review error details",
+                "Check task metadata",
+                "Retry or proceed manually",
+            ],
+            guidance=f"Error in plan approval: {e!s}. Review the error and retry the plan approval process or proceed without user input if necessary.",
         )
 
         # Try to get task metadata for error response
         try:
             from mcp_as_a_judge.models.task_metadata import TaskSize
             from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
-            error_task_metadata_maybe = await load_task_metadata_from_history(task_id, conversation_service)
+
+            error_task_metadata_maybe = await load_task_metadata_from_history(
+                task_id, conversation_service
+            )
             if not error_task_metadata_maybe:
                 error_task_metadata = TaskMetadata(
                     title="Error Task",
                     description="Error occurred during plan approval",
-                    task_size=TaskSize.M
+                    task_size=TaskSize.M,
                 )
             else:
                 error_task_metadata = error_task_metadata_maybe
         except Exception:
             from mcp_as_a_judge.models.task_metadata import TaskSize
+
             error_task_metadata = TaskMetadata(
                 title="Error Task",
                 description="Error occurred during plan approval",
-                task_size=TaskSize.M
+                task_size=TaskSize.M,
             )
 
         return PlanApprovalResult(
@@ -714,7 +719,7 @@ Please review the plan above and choose one of the following:
             user_feedback=f"Error occurred: {e!s}",
             next_action="Retry plan approval or proceed without user input",
             current_task_metadata=error_task_metadata,
-            workflow_guidance=error_guidance
+            workflow_guidance=error_guidance,
         )
 
 

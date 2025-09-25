@@ -18,12 +18,12 @@ if "litellm" not in sys.modules:
     )
 
 if "tenacity" not in sys.modules:
+
     def _retry_stub(*args, **kwargs):
         def decorator(func):
             return func
 
         return decorator
-
 
     sys.modules["tenacity"] = SimpleNamespace(
         retry=_retry_stub,
@@ -34,9 +34,7 @@ if "tenacity" not in sys.modules:
 
 if "mcp_as_a_judge.workflow" not in sys.modules:
     workflow_module = ModuleType("mcp_as_a_judge.workflow")
-    workflow_guidance_module = ModuleType(
-        "mcp_as_a_judge.workflow.workflow_guidance"
-    )
+    workflow_guidance_module = ModuleType("mcp_as_a_judge.workflow.workflow_guidance")
 
     class WorkflowGuidance(BaseModel):
         next_tool: str | None = None
@@ -67,9 +65,7 @@ if "mcp_as_a_judge.workflow" not in sys.modules:
     workflow_module.workflow_guidance = workflow_guidance_module
 
     sys.modules["mcp_as_a_judge.workflow"] = workflow_module
-    sys.modules[
-        "mcp_as_a_judge.workflow.workflow_guidance"
-    ] = workflow_guidance_module
+    sys.modules["mcp_as_a_judge.workflow.workflow_guidance"] = workflow_guidance_module
 
 from mcp_as_a_judge.core.server_helpers import (
     _coerce_markdown_judge_response,
@@ -309,7 +305,9 @@ class TestMarkdownJudgeResponseCoercion:
         )
         assert len(result.required_improvements) >= 4
         assert result.feedback.startswith("**Decision:** ❌ Reject")
-        assert result.workflow_guidance.preparation_needed == result.required_improvements
+        assert (
+            result.workflow_guidance.preparation_needed == result.required_improvements
+        )
         assert "plan rejected" in result.workflow_guidance.reasoning.lower()
 
     def test_approval_response_returns_empty_improvements(self):

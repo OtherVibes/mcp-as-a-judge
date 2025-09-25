@@ -40,10 +40,12 @@ def rebuild_plan_approval_model() -> None:
         from mcp_as_a_judge.workflow.workflow_guidance import (
             WorkflowGuidance,  # noqa: F401
         )
+
         PlanApprovalResult.model_rebuild()
     except Exception as e:
         # Ignore rebuild errors - they're not critical for functionality
         import logging
+
         logging.debug(f"Model rebuild failed (non-critical): {e}")
 
 
@@ -269,14 +271,20 @@ class URLValidationResult(BaseModel):
 
 class PlanApprovalResponse(BaseModel):
     """Response model for plan approval elicitation."""
+
     action: str = Field(description="User's decision: 'approve', 'modify', or 'reject'")
-    feedback: str = Field(default="", description="User's feedback or modification requests")
+    feedback: str = Field(
+        default="", description="User's feedback or modification requests"
+    )
 
 
 class PlanApprovalResult(BaseModel):
     """Result model for plan approval tool."""
+
     approved: bool = Field(description="Whether the plan was approved")
-    user_feedback: str = Field(default="", description="User's feedback or modification requests")
+    user_feedback: str = Field(
+        default="", description="User's feedback or modification requests"
+    )
     next_action: str = Field(description="Next action to take based on user decision")
 
     # Enhanced workflow fields (consistent with other tools)

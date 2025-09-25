@@ -226,8 +226,12 @@ class TestWorkflowGuidanceWithSizing:
         # Mock conversation service with proper async return
         mock_conversation_service = MagicMock()
         mock_conversation_service.get_conversation_history = AsyncMock(return_value=[])
-        mock_conversation_service.load_filtered_context_for_enrichment = AsyncMock(return_value=[])
-        mock_conversation_service.format_conversation_history_as_json_array = MagicMock(return_value=[])
+        mock_conversation_service.load_filtered_context_for_enrichment = AsyncMock(
+            return_value=[]
+        )
+        mock_conversation_service.format_conversation_history_as_json_array = MagicMock(
+            return_value=[]
+        )
 
         # Mock the LLM provider to return a proper workflow guidance response
         mock_llm_response = """
@@ -239,9 +243,34 @@ class TestWorkflowGuidanceWithSizing:
         }
         """
 
-        with patch('mcp_as_a_judge.messaging.llm_provider.llm_provider.send_message_with_fallback',
-                   new_callable=AsyncMock) as mock_send:
+        with (
+            patch(
+                "mcp_as_a_judge.messaging.llm_provider.llm_provider.send_message_with_fallback",
+                new_callable=AsyncMock,
+            ) as mock_send,
+            patch(
+                "mcp_as_a_judge.messaging.factory.MessagingProviderFactory.create_provider"
+            ) as mock_factory,
+            patch(
+                "mcp_as_a_judge.messaging.factory.MessagingProviderFactory.check_llm_capability"
+            ) as mock_check_llm,
+            patch(
+                "mcp_as_a_judge.messaging.factory.MessagingProviderFactory.check_sampling_capability"
+            ) as mock_check_sampling,
+        ):
+            # Mock successful LLM response
             mock_send.return_value = mock_llm_response
+
+            # Mock the factory to return a working provider
+            mock_provider = AsyncMock()
+            mock_provider.is_available.return_value = True
+            mock_provider.send_message.return_value = mock_llm_response
+            mock_provider.provider_type = "llm_api"
+            mock_factory.return_value = mock_provider
+
+            # Mock capability checks to show LLM is available
+            mock_check_llm.return_value = True
+            mock_check_sampling.return_value = False
 
             # Calculate next stage
             guidance = await calculate_next_stage(

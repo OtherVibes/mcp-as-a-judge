@@ -1,0 +1,63 @@
+{
+  "ref": "refs/heads/main",
+  "before": "0000000000000000000000000000000000000000",
+  "after": "1234567890123456789012345678901234567890",
+  "repository": {
+    "id": 1,
+    "name": "mcp-as-a-judge",
+    "full_name": "OtherVibes/mcp-as-a-judge",
+    "owner": {
+      "name": "OtherVibes",
+      "login": "OtherVibes"
+    },
+    "private": false,
+    "html_url": "https://github.com/OtherVibes/mcp-as-a-judge",
+    "description": "MCP as a Judge - AI-powered code review and workflow guidance",
+    "fork": false,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z",
+    "pushed_at": "2024-01-01T00:00:00Z",
+    "clone_url": "https://github.com/OtherVibes/mcp-as-a-judge.git",
+    "default_branch": "main"
+  },
+  "pusher": {
+    "name": "developer",
+    "email": "developer@example.com"
+  },
+  "sender": {
+    "login": "developer",
+    "id": 1,
+    "type": "User"
+  },
+  "head_commit": {
+    "id": "1234567890123456789012345678901234567890",
+    "message": "Test commit for Act",
+    "timestamp": "2024-01-01T00:00:00Z",
+    "author": {
+      "name": "Developer",
+      "email": "developer@example.com"
+    },
+    "committer": {
+      "name": "Developer",
+      "email": "developer@example.com"
+    }
+  },
+  "commits": [
+    {
+      "id": "1234567890123456789012345678901234567890",
+      "message": "Test commit for Act",
+      "timestamp": "2024-01-01T00:00:00Z",
+      "author": {
+        "name": "Developer",
+        "email": "developer@example.com"
+      },
+      "committer": {
+        "name": "Developer",
+        "email": "developer@example.com"
+      },
+      "added": [],
+      "removed": [],
+      "modified": []
+    }
+  ]
+}

@@ -208,4 +208,5 @@ def rebuild_models() -> None:
     except Exception as e:
         # Ignore rebuild errors - they're not critical for functionality
         import logging
+
         logging.debug(f"Enhanced model rebuild failed (non-critical): {e}")

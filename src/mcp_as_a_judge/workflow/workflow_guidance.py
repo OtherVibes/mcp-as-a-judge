@@ -586,10 +586,14 @@ async def calculate_next_stage(
                 # As a last resort, pick appropriate tool based on state
                 if task_metadata.state == TaskState.CREATED:
                     # All tasks need to transition to planning first (unified workflow)
-                    workflow_guidance.next_tool = "set_coding_task"  # Update state to PLANNING
+                    workflow_guidance.next_tool = (
+                        "set_coding_task"  # Update state to PLANNING
+                    )
                 elif task_metadata.state == TaskState.PLANNING:
                     # PLANNING state means planning is in progress - provide guidance to create plan materials
-                    workflow_guidance.next_tool = None  # Let LLM determine appropriate planning action
+                    workflow_guidance.next_tool = (
+                        None  # Let LLM determine appropriate planning action
+                    )
                 elif task_metadata.state == TaskState.PLAN_PENDING_APPROVAL:
                     workflow_guidance.next_tool = "request_plan_approval"
                 elif task_metadata.state in (
@@ -634,7 +638,9 @@ async def calculate_next_stage(
                 logger.error(f"JSON extraction also failed: {extract_error}")
 
         # Return fallback navigation with appropriate next tool based on state
-        fallback_next_tool: str | None = None  # Default to None, will be determined by state
+        fallback_next_tool: str | None = (
+            None  # Default to None, will be determined by state
+        )
         if task_metadata.state == TaskState.CREATED:
             # All tasks need to transition to planning (unified workflow)
             fallback_next_tool = "set_coding_task"  # Transition to PLANNING state
@@ -1013,7 +1019,9 @@ def _load_plan_evaluation_criteria(task_metadata: "TaskMetadata") -> str:
 
             field_type = field_info.get("type", "unknown")
             description = field_info.get("description", "")
-            is_required = True  # All fields we're iterating over are required for this task
+            is_required = (
+                True  # All fields we're iterating over are required for this task
+            )
 
             if field_type == "array":
                 items_info = field_info.get("items", {})
@@ -1041,16 +1049,28 @@ def _load_plan_evaluation_criteria(task_metadata: "TaskMetadata") -> str:
 
         # Add optional fields section for task sizes that don't require all fields
         if task_metadata.task_size == TaskSize.M:
-            criteria_sections.append("\n## Optional Fields (Not Required for Medium Tasks):")
-            optional_fields = ["problem_domain", "problem_non_goals", "library_plan",
-                             "internal_reuse_components", "design_patterns", "identified_risks",
-                             "risk_mitigation_strategies"]
+            criteria_sections.append(
+                "\n## Optional Fields (Not Required for Medium Tasks):"
+            )
+            optional_fields = [
+                "problem_domain",
+                "problem_non_goals",
+                "library_plan",
+                "internal_reuse_components",
+                "design_patterns",
+                "identified_risks",
+                "risk_mitigation_strategies",
+            ]
             for field_name in optional_fields:
                 if field_name in properties:
                     field_info = properties[field_name]
                     description = field_info.get("description", "")
-                    criteria_sections.append(f"- **{field_name}** (optional): {description}")
-            criteria_sections.append("- You may provide these fields if relevant, but they are not required for validation")
+                    criteria_sections.append(
+                        f"- **{field_name}** (optional): {description}"
+                    )
+            criteria_sections.append(
+                "- You may provide these fields if relevant, but they are not required for validation"
+            )
 
         criteria_sections.append("\n## Critical JSON Format Rules:")
         criteria_sections.append(

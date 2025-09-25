@@ -73,7 +73,9 @@ class TaskState(str, Enum):
 
     CREATED = "created"  # Task just created, needs planning
     PLANNING = "planning"  # Planning phase in progress
-    PLAN_PENDING_APPROVAL = "plan_pending_approval"  # Plan created, awaiting user approval
+    PLAN_PENDING_APPROVAL = (
+        "plan_pending_approval"  # Plan created, awaiting user approval
+    )
     PLAN_APPROVED = "plan_approved"  # Plan validated and approved
     IMPLEMENTING = "implementing"  # Implementation phase in progress
     TESTING = "testing"  # Testing phase in progress

@@ -98,9 +98,13 @@ def _coerce_markdown_judge_response(
         decision_match = re.search(r"Decision:\s*(.+)", raw_response, re.IGNORECASE)
     if decision_match is None:
         # Look for "Plan Evaluation: REJECTED/APPROVED" pattern
-        decision_match = re.search(r"\*\*Plan Evaluation:\s*(.+?)\*\*", raw_response, re.IGNORECASE)
+        decision_match = re.search(
+            r"\*\*Plan Evaluation:\s*(.+?)\*\*", raw_response, re.IGNORECASE
+        )
     if decision_match is None:
-        decision_match = re.search(r"Plan Evaluation:\s*(.+)", raw_response, re.IGNORECASE)
+        decision_match = re.search(
+            r"Plan Evaluation:\s*(.+)", raw_response, re.IGNORECASE
+        )
 
     if decision_match is None:
         return None
@@ -150,7 +154,9 @@ def _coerce_markdown_judge_response(
         return cleaned.strip()
 
     # Try multiple section patterns for required improvements
-    required_section = _extract_section(("Required Corrections", "Required Improvements"))
+    required_section = _extract_section(
+        ("Required Corrections", "Required Improvements")
+    )
     if not required_section:
         required_section = _extract_section(("Missing or insufficient", "Missing"))
     if not required_section:
@@ -165,7 +171,7 @@ def _coerce_markdown_judge_response(
     # If still no improvements found, extract numbered items from the response
     if not required_improvements and not approved:
         # Look for numbered lists in the response
-        numbered_items = re.findall(r'^\d+\.\s*(.+)', raw_response, re.MULTILINE)
+        numbered_items = re.findall(r"^\d+\.\s*(.+)", raw_response, re.MULTILINE)
         for item in numbered_items:
             if item.strip():
                 required_improvements.append(item.strip())
@@ -199,7 +205,9 @@ def _coerce_markdown_judge_response(
         reasoning = "Plan approved via markdown fallback parsing."
     else:
         # Plan was rejected by AI judge - need to revise plan and get user approval again
-        next_tool = "request_plan_approval"  # Return to user for plan revision and re-approval
+        next_tool = (
+            "request_plan_approval"  # Return to user for plan revision and re-approval
+        )
         reasoning = "Plan rejected by AI judge; corrections provided. User should revise plan based on feedback and resubmit for approval."
 
     workflow_guidance = WorkflowGuidance(
@@ -233,7 +241,9 @@ async def repair_judge_response_from_text(
     from mcp_as_a_judge.prompting.loader import create_separate_messages
 
     # Import directly from models.py to avoid mypy issues with dynamic imports
-    judge_response_repair_user_vars_class = getattr(models_module, 'JudgeResponseRepairUserVars', None)
+    judge_response_repair_user_vars_class = getattr(
+        models_module, "JudgeResponseRepairUserVars", None
+    )
     if judge_response_repair_user_vars_class is None:
         logger.error("JudgeResponseRepairUserVars not available")
         return None
@@ -615,29 +625,38 @@ async def evaluate_coding_plan(
         research_rationale = workflow_guidance_obj.get("research_rationale")
 
         if research_required is not None:
-            guidance_parts.append(
-                f"**Research Required:** {research_required}"
-            )
+            guidance_parts.append(f"**Research Required:** {research_required}")
             if research_scope:
-                guidance_parts.append(
-                    f"**Research Scope:** {research_scope}"
-                )
+                guidance_parts.append(f"**Research Scope:** {research_scope}")
             if research_rationale:
-                guidance_parts.append(
-                    f"**Research Rationale:** {research_rationale}"
-                )
+                guidance_parts.append(f"**Research Rationale:** {research_rationale}")
 
         workflow_guidance_text = "\n".join(guidance_parts)
 
     # If no workflow guidance found, add research requirements from task metadata as fallback
     if not workflow_guidance_text and task_metadata:
         guidance_parts = []
-        if hasattr(task_metadata, 'research_required') and task_metadata.research_required is not None:
-            guidance_parts.append(f"**Research Required:** {task_metadata.research_required}")
-            if hasattr(task_metadata, 'research_scope') and task_metadata.research_scope:
-                guidance_parts.append(f"**Research Scope:** {task_metadata.research_scope}")
-            if hasattr(task_metadata, 'research_rationale') and task_metadata.research_rationale:
-                guidance_parts.append(f"**Research Rationale:** {task_metadata.research_rationale}")
+        if (
+            hasattr(task_metadata, "research_required")
+            and task_metadata.research_required is not None
+        ):
+            guidance_parts.append(
+                f"**Research Required:** {task_metadata.research_required}"
+            )
+            if (
+                hasattr(task_metadata, "research_scope")
+                and task_metadata.research_scope
+            ):
+                guidance_parts.append(
+                    f"**Research Scope:** {task_metadata.research_scope}"
+                )
+            if (
+                hasattr(task_metadata, "research_rationale")
+                and task_metadata.research_rationale
+            ):
+                guidance_parts.append(
+                    f"**Research Rationale:** {task_metadata.research_rationale}"
+                )
 
         if guidance_parts:
             workflow_guidance_text = "\n".join(guidance_parts)

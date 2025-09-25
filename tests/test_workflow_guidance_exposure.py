@@ -274,7 +274,7 @@ class TestTaskSizeCriteria:
             research_required=False,
             internal_research_required=True,
             risk_assessment_required=False,
-            design_patterns_enforcement=False
+            design_patterns_enforcement=False,
         )
 
         criteria = _load_plan_evaluation_criteria(medium_task)
@@ -302,7 +302,7 @@ class TestTaskSizeCriteria:
             research_required=True,
             internal_research_required=True,
             risk_assessment_required=True,
-            design_patterns_enforcement=True
+            design_patterns_enforcement=True,
         )
 
         criteria = _load_plan_evaluation_criteria(large_task)
