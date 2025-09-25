@@ -187,10 +187,11 @@ For [AI assistants without full MCP sampling support](#supported-ai-assistants) 
 | **4** | **Azure OpenAI** | `[a-f0-9]{32}` | `gpt-4.1` | Same as OpenAI but via Azure |
 | **5** | **AWS Bedrock** | AWS credentials | `anthropic.claude-sonnet-4-20250514-v1:0` | Aligned with Anthropic |
 | **6** | **Vertex AI** | Service Account JSON | `gemini-2.5-pro` | Enterprise Gemini via Google Cloud |
-| **7** | **Groq** | `gsk_...` | `deepseek-r1` | Best reasoning model with speed advantage |
-| **8** | **OpenRouter** | `sk-or-...` | `deepseek/deepseek-r1` | Best reasoning model available |
-| **9** | **xAI** | `xai-...` | `grok-code-fast-1` | Latest coding-focused model (Aug 2025) |
+| **7** | **DeepSeek** | `sk-...-deeplearning-ai` | `deepseek-chat` | Advanced reasoning model with code specialization |
+| **8** | **Groq** | `gsk_...` | `deepseek-r1` | Best reasoning model with speed advantage |
+| **9** | **OpenRouter** | `sk-or-...` | `deepseek/deepseek-r1` | Best reasoning model available |
 | **10** | **Mistral** | `[a-f0-9]{64}` | `pixtral-large` | Most advanced model (124B params) |
+| **11** | **xAI** | `xai-...` | `grok-code-fast-1` | Latest coding-focused model (Aug 2025) |
 
 
 

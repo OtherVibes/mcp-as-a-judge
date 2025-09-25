@@ -28,6 +28,7 @@ class LLMVendor(str, Enum):
     MISTRAL = "mistral"
     XAI = "xai"
     OPENROUTER = "openrouter"
+    DEEPSEEK = "deepseek"
     UNKNOWN = "unknown"
 
 
@@ -66,6 +67,7 @@ API_KEY_PATTERNS = {
     LLMVendor.GROQ: re.compile(r"^gsk_[a-zA-Z0-9]{50,}"),
     LLMVendor.XAI: re.compile(r"^xai-[a-zA-Z0-9]{40,}"),
     LLMVendor.OPENROUTER: re.compile(r"^sk-or-[a-zA-Z0-9_-]{48}"),
+    LLMVendor.DEEPSEEK: re.compile(r"^sk-[a-zA-Z0-9]{20,}-deeplearning-ai$"),  # DeepSeek API keys end with -deeplearning-ai
     LLMVendor.OPENAI: re.compile(r"^sk-[a-zA-Z0-9]{20,}"),
     # Azure uses various patterns, often similar to OpenAI
     LLMVendor.AZURE: re.compile(r"^[a-f0-9]{32}$"),
@@ -89,6 +91,7 @@ DEFAULT_MODELS = {
     LLMVendor.OPENROUTER: "deepseek/deepseek-r1",  # Best reasoning model available
     LLMVendor.MISTRAL: "pixtral-large",  # Most advanced model (124B params) built on Mistral Large 2
     LLMVendor.XAI: "grok-code-fast-1",  # Latest coding-focused model with reasoning (Aug 2025)
+    LLMVendor.DEEPSEEK: "deepseek-chat",  # Default DeepSeek model
     LLMVendor.UNKNOWN: "gpt-4.1",  # Fallback to fast and reliable model
 }
 

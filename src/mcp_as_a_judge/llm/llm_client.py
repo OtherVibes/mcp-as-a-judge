@@ -88,6 +88,11 @@ class LLMClient:
         elif vendor == LLMVendor.VERTEX_AI:
             # Vertex AI uses service account JSON
             self._litellm.vertex_ai_key = api_key
+        elif vendor == LLMVendor.DEEPSEEK:
+            # DeepSeek is OpenAI-compatible, so we configure it as such
+            # We need to set the base URL for DeepSeek API
+            self._litellm.openai_key = api_key
+            # Note: DeepSeek base URL would need to be set separately if using custom endpoints
         else:
             # Fallback to generic API key
             self._litellm.api_key = api_key
@@ -123,6 +128,8 @@ class LLMClient:
             return f"bedrock/{model_name}"
         elif vendor == LLMVendor.VERTEX_AI and not model_name.startswith("vertex_ai/"):
             return f"vertex_ai/{model_name}"
+        elif vendor == LLMVendor.DEEPSEEK and not model_name.startswith("deepseek/"):
+            return f"deepseek/{model_name}"
 
         return model_name
 
@@ -204,6 +211,10 @@ class LLMClient:
                 "reasoning_effort": DEFAULT_REASONING_EFFORT,  # Set reasoning to lowest level
                 **kwargs,
             }
+
+            # For DeepSeek, we may need to set the base API URL
+            if self.config.vendor == LLMVendor.DEEPSEEK:
+                completion_params["base_url"] = "https://api.deepseek.com"
 
             # Add JSON response format if requested
             if kwargs.get("response_format") == "json":
