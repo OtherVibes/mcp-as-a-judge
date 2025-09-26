@@ -397,6 +397,20 @@ class JudgeCodingPlanUserVars(BaseModel):
     )
 
 
+class JudgeResponseRepairUserVars(BaseModel):
+    """Variables for repairing a non-JSON judge_coding_plan response."""
+
+    raw_response: str = Field(
+        description="Original text returned by the LLM that needs to be coerced into JSON"
+    )
+    task_metadata_json: str = Field(
+        description=(
+            "Current task metadata serialized as JSON; use this when updated metadata is"
+            " not explicitly provided in the raw response"
+        )
+    )
+
+
 class JudgeCodeChangeUserVars(BaseModel):
     """Variables for judge_code_change user prompt."""
 

@@ -24,10 +24,12 @@ class TaskSize(str, Enum):
     - L: Large - Complex features, multiple components (1-3 days)
     - XL: Extra Large - Major system changes, architectural updates (3+ days)
 
-    This classification determines workflow routing:
-    - XS/S: Skip planning phase, minimal validation
-    - M: Standard workflow (current behavior)
-    - L/XL: Enhanced validation, mandatory risk assessment
+    This classification determines planning complexity and validation depth:
+    - XS/S: Basic planning requirements, streamlined validation
+    - M: Standard planning and validation
+    - L/XL: Comprehensive planning with enhanced validation (library plans, risk assessment, design patterns)
+
+    All tasks follow the unified workflow: CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED
     """
 
     XS = "xs"  # Extra Small: Simple fixes, typos (< 30 min)
@@ -43,7 +45,9 @@ class TaskState(str, Enum):
 
     State Transitions:
     - CREATED → PLANNING: Task created, ready for planning phase (XS/S may skip to IMPLEMENTING)
-    - PLANNING → PLAN_APPROVED: Plan validated and approved
+    - PLANNING → PLAN_PENDING_APPROVAL: Plan created, awaiting user approval
+    - PLAN_PENDING_APPROVAL → PLANNING: User requests plan changes
+    - PLAN_PENDING_APPROVAL → PLAN_APPROVED: User approves plan
     - PLAN_APPROVED → IMPLEMENTING: Implementation phase started
     - IMPLEMENTING → IMPLEMENTING: Multiple code changes during implementation
     - IMPLEMENTING → REVIEW_READY: Implementation complete, ready for code review
@@ -55,8 +59,9 @@ class TaskState(str, Enum):
     - BLOCKED → Previous state: Unblocked, return to previous state
 
     Usage:
-    - CREATED: Default state for new tasks, needs planning (XS/S may proceed directly to IMPLEMENTING)
+    - CREATED: Default state for new tasks, all tasks proceed to planning (unified workflow)
     - PLANNING: Planning phase in progress (set when planning starts)
+    - PLAN_PENDING_APPROVAL: Plan created, awaiting user approval and potential iteration
     - PLAN_APPROVED: Plan validated and approved (set by judge_coding_plan)
     - IMPLEMENTING: Implementation phase in progress (set when coding starts)
     - REVIEW_READY: Implementation complete and ready for code review
@@ -68,6 +73,9 @@ class TaskState(str, Enum):
 
     CREATED = "created"  # Task just created, needs planning
     PLANNING = "planning"  # Planning phase in progress
+    PLAN_PENDING_APPROVAL = (
+        "plan_pending_approval"  # Plan created, awaiting user approval
+    )
     PLAN_APPROVED = "plan_approved"  # Plan validated and approved
     IMPLEMENTING = "implementing"  # Implementation phase in progress
     TESTING = "testing"  # Testing phase in progress
@@ -419,6 +427,10 @@ class TaskMetadata(BaseModel):
             TaskState.PLANNING: {
                 "description": "Planning phase in progress",
                 "next_action": "Complete and validate implementation plan",
+            },
+            TaskState.PLAN_PENDING_APPROVAL: {
+                "description": "Plan created, awaiting user approval",
+                "next_action": "Present plan to user for approval or modification",
             },
             TaskState.PLAN_APPROVED: {
                 "description": "Plan approved, ready for implementation",

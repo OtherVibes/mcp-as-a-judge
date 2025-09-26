@@ -5,6 +5,8 @@ This module contains utility functions used by the server for JSON processing,
 dynamic model generation, validation, and LLM configuration.
 """
 
+from __future__ import annotations
+
 import json
 import re
 from typing import Any
@@ -15,8 +17,9 @@ from pydantic import BaseModel, Field, ValidationError
 from mcp_as_a_judge.core.constants import MAX_TOKENS
 from mcp_as_a_judge.core.logging_config import get_logger
 from mcp_as_a_judge.llm.llm_integration import load_llm_config_from_env
-from mcp_as_a_judge.messaging.llm_provider import llm_provider
-from mcp_as_a_judge.prompting.loader import create_separate_messages
+from mcp_as_a_judge.models import JudgeResponse
+
+logger = get_logger(__name__)
 
 
 def get_session_id(ctx: Context) -> str:
@@ -31,7 +34,6 @@ def initialize_llm_configuration() -> None:
     configures the LLM manager if a valid configuration is found.
     Logs status messages to inform users about the configuration state.
     """
-    logger = get_logger(__name__)
     # Do not auto-configure LLM from environment during server startup to keep
     # tests deterministic and avoid unintended provider availability.
     # Callers can configure llm_manager explicitly if needed.
@@ -81,6 +83,228 @@ def extract_json_from_response(response_text: str) -> str:
     return json_content
 
 
+def _coerce_markdown_judge_response(
+    raw_response: str,
+    task_metadata: Any,
+) -> JudgeResponse | None:
+    """Attempt to coerce a markdown-style judge response into a JudgeResponse."""
+
+    from mcp_as_a_judge.models.enhanced_responses import JudgeResponse
+    from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
+
+    # Look for various decision patterns
+    decision_match = re.search(r"\*\*Decision:\*\*\s*(.+)", raw_response, re.IGNORECASE)
+    if decision_match is None:
+        decision_match = re.search(r"Decision:\s*(.+)", raw_response, re.IGNORECASE)
+    if decision_match is None:
+        # Look for "Plan Evaluation: REJECTED/APPROVED" pattern
+        decision_match = re.search(
+            r"\*\*Plan Evaluation:\s*(.+?)\*\*", raw_response, re.IGNORECASE
+        )
+    if decision_match is None:
+        decision_match = re.search(
+            r"Plan Evaluation:\s*(.+)", raw_response, re.IGNORECASE
+        )
+
+    if decision_match is None:
+        return None
+
+    decision_text = decision_match.group(1).strip()
+    decision_lower = decision_text.lower()
+
+    approved: bool | None
+    if "approve" in decision_lower or "✅" in decision_text:
+        approved = True
+    elif "reject" in decision_lower or "❌" in decision_text:
+        approved = False
+    else:
+        return None
+
+    lines = raw_response.splitlines()
+
+    def _extract_section(section_keywords: tuple[str, ...]) -> list[str]:
+        collected: list[str] = []
+        capture = False
+        lowered_keywords = tuple(keyword.lower() for keyword in section_keywords)
+
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                if capture:
+                    continue
+                continue
+
+            if stripped.startswith("**"):
+                header_lower = stripped.lower()
+                if any(keyword in header_lower for keyword in lowered_keywords):
+                    capture = True
+                    continue
+                if capture:
+                    break
+
+            if capture:
+                collected.append(stripped)
+
+        return collected
+
+    def _normalize_bullet(text: str) -> str:
+        cleaned = re.sub(r"^[-*]\s*", "", text)
+        cleaned = re.sub(r"^\d+[\.)]\s*", "", cleaned)
+        cleaned = re.sub(r"^[a-zA-Z][\.)]\s*", "", cleaned)
+        return cleaned.strip()
+
+    # Try multiple section patterns for required improvements
+    required_section = _extract_section(
+        ("Required Corrections", "Required Improvements")
+    )
+    if not required_section:
+        required_section = _extract_section(("Missing or insufficient", "Missing"))
+    if not required_section:
+        required_section = _extract_section(("Reasons",))
+
+    required_improvements: list[str] = []
+    for item in required_section:
+        normalized = _normalize_bullet(item)
+        if normalized:
+            required_improvements.append(normalized)
+
+    # If still no improvements found, extract numbered items from the response
+    if not required_improvements and not approved:
+        # Look for numbered lists in the response
+        numbered_items = re.findall(r"^\d+\.\s*(.+)", raw_response, re.MULTILINE)
+        for item in numbered_items:
+            if item.strip():
+                required_improvements.append(item.strip())
+
+    if approved:
+        required_improvements = []
+
+    guidance_lines: list[str] = []
+    preparation_needed = []
+
+    if approved:
+        guidance_lines.append(
+            "Plan approved via markdown fallback parsing. Proceed to the next workflow step."
+        )
+    else:
+        if required_improvements:
+            guidance_lines.append(
+                "Revise the coding plan by addressing each required correction below:"
+            )
+            for item in required_improvements:
+                guidance_lines.append(f"- {item}")
+            preparation_needed = required_improvements
+        else:
+            guidance_lines.append(
+                "Revise the coding plan according to the feedback and resubmit for evaluation."
+            )
+
+    # Determine appropriate next tool based on approval status
+    if approved:
+        next_tool = "judge_code_change"  # Proceed to implementation
+        reasoning = "Plan approved via markdown fallback parsing."
+    else:
+        # Plan was rejected by AI judge - need to revise plan and get user approval again
+        next_tool = (
+            "request_plan_approval"  # Return to user for plan revision and re-approval
+        )
+        reasoning = "Plan rejected by AI judge; corrections provided. User should revise plan based on feedback and resubmit for approval."
+
+    workflow_guidance = WorkflowGuidance(
+        next_tool=next_tool,
+        reasoning=reasoning,
+        preparation_needed=preparation_needed,
+        guidance="\n".join(guidance_lines),
+    )
+
+    return JudgeResponse(
+        approved=approved,
+        required_improvements=required_improvements,
+        feedback=raw_response.strip(),
+        current_task_metadata=task_metadata,
+        workflow_guidance=workflow_guidance,
+    )
+
+
+async def repair_judge_response_from_text(
+    raw_response: str,
+    task_metadata: Any,
+    ctx: Context,
+    response_schema: str,
+) -> JudgeResponse | None:
+    """Attempt to coerce a non-JSON judge response into the expected schema."""
+
+    import mcp_as_a_judge.models as models_module
+    from mcp_as_a_judge.messaging.llm_provider import llm_provider
+    from mcp_as_a_judge.models import SystemVars
+    from mcp_as_a_judge.models.enhanced_responses import JudgeResponse
+    from mcp_as_a_judge.prompting.loader import create_separate_messages
+
+    # Import directly from models.py to avoid mypy issues with dynamic imports
+    judge_response_repair_user_vars_class = getattr(
+        models_module, "JudgeResponseRepairUserVars", None
+    )
+    if judge_response_repair_user_vars_class is None:
+        logger.error("JudgeResponseRepairUserVars not available")
+        return None
+
+    try:
+        if hasattr(task_metadata, "model_dump"):
+            metadata_payload = task_metadata.model_dump(
+                mode="json", exclude_unset=True, exclude_none=True
+            )
+        elif isinstance(task_metadata, dict):
+            metadata_payload = task_metadata
+        else:
+            metadata_payload = json.loads(json.dumps(task_metadata, default=str))
+    except Exception as serialization_error:
+        logger.warning(
+            "Falling back to empty task metadata during judge response repair: %s",
+            serialization_error,
+        )
+        metadata_payload = {}
+
+    task_metadata_json = json.dumps(metadata_payload, indent=2)
+
+    system_vars = SystemVars(
+        response_schema=response_schema,
+        max_tokens=MAX_TOKENS,
+    )
+    user_vars = judge_response_repair_user_vars_class(
+        raw_response=raw_response,
+        task_metadata_json=task_metadata_json,
+    )
+
+    messages = create_separate_messages(
+        "system/judge_response_repair.md",
+        "user/judge_response_repair.md",
+        system_vars,
+        user_vars,
+    )
+
+    try:
+        repaired_text = await llm_provider.send_message(
+            messages=messages,
+            ctx=ctx,
+            max_tokens=MAX_TOKENS,
+            prefer_sampling=True,
+        )
+    except Exception as send_error:
+        logger.error("Repair request for judge response failed: %s", send_error)
+        return None
+
+    try:
+        json_content = extract_json_from_response(repaired_text)
+        return JudgeResponse.model_validate_json(json_content)
+    except (ValidationError, ValueError) as repair_error:
+        logger.error(
+            "Repaired judge response still invalid: %s. Raw repair output: %s",
+            repair_error,
+            repaired_text,
+        )
+        return None
+
+
 async def generate_validation_error_message(
     validation_issue: str,
     context: str,
@@ -88,10 +312,9 @@ async def generate_validation_error_message(
 ) -> str:
     """Generate a descriptive error message using AI sampling for validation failures."""
     try:
-        from mcp_as_a_judge.models import (
-            SystemVars,
-            ValidationErrorUserVars,
-        )
+        from mcp_as_a_judge.messaging.llm_provider import llm_provider
+        from mcp_as_a_judge.models import SystemVars, ValidationErrorUserVars
+        from mcp_as_a_judge.prompting.loader import create_separate_messages
 
         system_vars = SystemVars(max_tokens=MAX_TOKENS)
         user_vars = ValidationErrorUserVars(
@@ -138,7 +361,9 @@ async def generate_dynamic_elicitation_model(
         Dynamically created Pydantic BaseModel class
     """
     try:
+        from mcp_as_a_judge.messaging.llm_provider import llm_provider
         from mcp_as_a_judge.models import DynamicSchemaUserVars, SystemVars
+        from mcp_as_a_judge.prompting.loader import create_separate_messages
 
         system_vars = SystemVars(max_tokens=MAX_TOKENS)
         user_vars = DynamicSchemaUserVars(
@@ -211,11 +436,13 @@ async def validate_research_quality(
     Returns:
         dict with basic judge fields if research is insufficient, None if research is adequate
     """
+    from mcp_as_a_judge.messaging.llm_provider import llm_provider
     from mcp_as_a_judge.models import (
         ResearchValidationResponse,
         ResearchValidationUserVars,
         SystemVars,
     )
+    from mcp_as_a_judge.prompting.loader import create_separate_messages
 
     # Create system and user messages for research validation
     system_vars = SystemVars(
@@ -331,12 +558,14 @@ async def evaluate_coding_plan(
     Returns:
         JudgeResponse with evaluation results
     """
+    from mcp_as_a_judge.messaging.llm_provider import llm_provider
     from mcp_as_a_judge.models import (
         DesignPattern,
         JudgeCodingPlanUserVars,
         SystemVars,
     )
     from mcp_as_a_judge.models.enhanced_responses import JudgeResponse
+    from mcp_as_a_judge.prompting.loader import create_separate_messages
 
     # Extract the latest workflow guidance from conversation history
     workflow_guidance_obj = await extract_latest_workflow_guidance(conversation_history)
@@ -390,7 +619,47 @@ async def evaluate_coding_plan(
                 f"**Detailed Guidance:** {workflow_guidance_obj['guidance']}"
             )
 
+        # Add research requirements from workflow guidance if present
+        research_required = workflow_guidance_obj.get("research_required")
+        research_scope = workflow_guidance_obj.get("research_scope")
+        research_rationale = workflow_guidance_obj.get("research_rationale")
+
+        if research_required is not None:
+            guidance_parts.append(f"**Research Required:** {research_required}")
+            if research_scope:
+                guidance_parts.append(f"**Research Scope:** {research_scope}")
+            if research_rationale:
+                guidance_parts.append(f"**Research Rationale:** {research_rationale}")
+
         workflow_guidance_text = "\n".join(guidance_parts)
+
+    # If no workflow guidance found, add research requirements from task metadata as fallback
+    if not workflow_guidance_text and task_metadata:
+        guidance_parts = []
+        if (
+            hasattr(task_metadata, "research_required")
+            and task_metadata.research_required is not None
+        ):
+            guidance_parts.append(
+                f"**Research Required:** {task_metadata.research_required}"
+            )
+            if (
+                hasattr(task_metadata, "research_scope")
+                and task_metadata.research_scope
+            ):
+                guidance_parts.append(
+                    f"**Research Scope:** {task_metadata.research_scope}"
+                )
+            if (
+                hasattr(task_metadata, "research_rationale")
+                and task_metadata.research_rationale
+            ):
+                guidance_parts.append(
+                    f"**Research Rationale:** {task_metadata.research_rationale}"
+                )
+
+        if guidance_parts:
+            workflow_guidance_text = "\n".join(guidance_parts)
 
     # Generate plan required fields for dynamic validation
     from mcp_as_a_judge.workflow.workflow_guidance import _generate_plan_required_fields
@@ -401,8 +670,10 @@ async def evaluate_coding_plan(
     )
 
     # Create system and user messages from templates
+    judge_response_schema = json.dumps(JudgeResponse.model_json_schema())
+
     system_vars = SystemVars(
-        response_schema=json.dumps(JudgeResponse.model_json_schema()),
+        response_schema=judge_response_schema,
         max_tokens=MAX_TOKENS,
         workflow_guidance=workflow_guidance_text,
         plan_required_fields_json=plan_required_fields_json,
@@ -471,6 +742,28 @@ async def evaluate_coding_plan(
         json_content = extract_json_from_response(response_text)
         return JudgeResponse.model_validate_json(json_content)
     except (ValidationError, ValueError) as e:
+        logger.warning(
+            "Primary judge_coding_plan response parsing failed: %s. Attempting repair.",
+            e,
+        )
+
+        coerced_response = _coerce_markdown_judge_response(
+            raw_response=response_text,
+            task_metadata=task_metadata,
+        )
+        if coerced_response is not None:
+            logger.info("Coerced markdown judge response into structured output.")
+            return coerced_response
+
+        repaired_response = await repair_judge_response_from_text(
+            raw_response=response_text,
+            task_metadata=task_metadata,
+            ctx=ctx,
+            response_schema=judge_response_schema,
+        )
+        if repaired_response is not None:
+            return repaired_response
+
         raise ValueError(
             f"Failed to parse coding plan evaluation response: {e}. Raw response: {response_text}"
         ) from e
@@ -608,11 +901,13 @@ async def validate_test_output(
         return False
 
     try:
+        from mcp_as_a_judge.messaging.llm_provider import llm_provider
         from mcp_as_a_judge.models import (
             SystemVars,
             TestOutputValidationResponse,
             TestOutputValidationUserVars,
         )
+        from mcp_as_a_judge.prompting.loader import create_separate_messages
 
         # Create system and user messages for test output validation
         system_vars = SystemVars(

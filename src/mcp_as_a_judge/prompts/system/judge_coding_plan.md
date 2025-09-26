@@ -24,6 +24,9 @@ You are DISALLOWED to fail plan on any criteria, requirements, or standards NOT 
 - ✅ **APPROVE** if all guidance requirements are met, even if other best practices are missing
 - ❌ **REJECT** only if specific guidance requirements are not satisfied
 - 🚫 **DO NOT** add requirements not present in the workflow guidance
+- 🚫 **DO NOT** override research requirements already determined by workflow guidance
+
+**CRITICAL: If workflow guidance specifies research requirements (research_required, research_scope), you MUST respect those settings and NOT override them. Only evaluate based on the research requirements already established.**
 
 **STOP HERE - DO NOT READ FURTHER EVALUATION CRITERIA BELOW**
 
@@ -283,9 +286,10 @@ Output mapping requirement: Populate these fields in current_task_metadata for d
 As part of your evaluation, analyze the task requirements and determine:
 
 ### External Research Requirements
-- **Analyze** if the task involves specialized domains, protocols, standards, or complex technologies
-- **Determine** if external research is needed (security, APIs, frameworks, best practices)
-- **Set** research_required, research_scope ("none", "light", "deep"), and research_rationale in task metadata
+- **CRITICAL**: If workflow guidance already determined research requirements, DO NOT override them
+- **Only if not already set**: Analyze if the task involves specialized domains, protocols, standards, or complex technologies
+- **Only if not already set**: Determine if external research is needed (security, APIs, frameworks, best practices)
+- **Only if not already set**: Set research_required, research_scope ("none", "light", "deep"), and research_rationale in task metadata
 
 ### Internal Codebase Analysis
 - **Analyze** if the task requires understanding existing codebase patterns or components

@@ -1,8 +1,10 @@
 """
 Tests for task sizing functionality in MCP as a Judge.
 
-This module tests the task sizing feature that optimizes workflow decisions
-based on task complexity (XS, S, M, L, XL).
+This module tests the task sizing feature that determines planning complexity
+and validation depth based on task size (XS, S, M, L, XL). All tasks follow
+the unified workflow: CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING →
+REVIEW_READY → TESTING → COMPLETED.
 """
 
 from unittest.mock import AsyncMock
@@ -85,28 +87,28 @@ class TestTaskMetadataWithSizing:
 
 
 class TestShouldSkipPlanning:
-    """Test the should_skip_planning helper function."""
+    """Test the should_skip_planning helper function (unified workflow)."""
 
-    def test_skip_planning_for_xs_task(self):
-        """Test that XS tasks skip planning."""
+    def test_no_skip_planning_for_xs_task(self):
+        """Test that XS tasks require planning (unified workflow)."""
         task = TaskMetadata(
             title="Fix typo",
             description="Fix typo in documentation",
             task_size=TaskSize.XS,
         )
-        assert should_skip_planning(task) is True
+        assert should_skip_planning(task) is False
 
-    def test_skip_planning_for_s_task(self):
-        """Test that S tasks skip planning."""
+    def test_no_skip_planning_for_s_task(self):
+        """Test that S tasks require planning (unified workflow)."""
         task = TaskMetadata(
             title="Minor refactor",
             description="Simple refactoring",
             task_size=TaskSize.S,
         )
-        assert should_skip_planning(task) is True
+        assert should_skip_planning(task) is False
 
     def test_no_skip_planning_for_m_task(self):
-        """Test that M tasks do not skip planning."""
+        """Test that M tasks require planning (unified workflow)."""
         task = TaskMetadata(
             title="Standard feature",
             description="Implement standard feature",
@@ -115,7 +117,7 @@ class TestShouldSkipPlanning:
         assert should_skip_planning(task) is False
 
     def test_no_skip_planning_for_l_task(self):
-        """Test that L tasks do not skip planning."""
+        """Test that L tasks require planning (unified workflow)."""
         task = TaskMetadata(
             title="Complex feature",
             description="Implement complex feature",
@@ -124,7 +126,7 @@ class TestShouldSkipPlanning:
         assert should_skip_planning(task) is False
 
     def test_no_skip_planning_for_xl_task(self):
-        """Test that XL tasks do not skip planning."""
+        """Test that XL tasks require planning (unified workflow)."""
         task = TaskMetadata(
             title="Architecture redesign",
             description="Complete system redesign",
@@ -209,9 +211,9 @@ class TestWorkflowGuidanceWithSizing:
         assert task.task_size.value == "l"
 
     @pytest.mark.asyncio
-    async def test_small_task_skips_planning_deterministically(self):
-        """Test that XS/S tasks skip planning deterministically."""
-        from unittest.mock import AsyncMock
+    async def test_small_task_follows_unified_workflow(self):
+        """Test that XS/S tasks follow unified workflow with planning."""
+        from unittest.mock import AsyncMock, MagicMock, patch
 
         # Create a small task in CREATED state
         task = TaskMetadata(
@@ -221,36 +223,71 @@ class TestWorkflowGuidanceWithSizing:
             state=TaskState.CREATED,
         )
 
-        # Mock conversation service
-        mock_conversation_service = AsyncMock()
-        mock_conversation_service.get_conversation_history.return_value = []
-
-        # Calculate next stage
-        guidance = await calculate_next_stage(
-            task_metadata=task,
-            current_operation="set_coding_task",
-            conversation_service=mock_conversation_service,
-            ctx=None,
+        # Mock conversation service with proper async return
+        mock_conversation_service = MagicMock()
+        mock_conversation_service.get_conversation_history = AsyncMock(return_value=[])
+        mock_conversation_service.load_filtered_context_for_enrichment = AsyncMock(
+            return_value=[]
+        )
+        mock_conversation_service.format_conversation_history_as_json_array = MagicMock(
+            return_value=[]
         )
 
-        # Verify that planning is skipped but full workflow is explained
-        assert guidance.next_tool is None
-        assert "skip" in guidance.reasoning.lower()
-        assert (
-            "task size is s" in guidance.reasoning.lower()
-            or "small" in guidance.reasoning.lower()
-        )
-        assert "implement" in guidance.guidance.lower()
-        # Verify that the guidance mentions the full workflow steps
-        assert "judge_code_change" in guidance.guidance.lower()
-        assert (
-            "judge_testing_implementation" in guidance.guidance.lower()
-            or "testing" in guidance.guidance.lower()
-        )
-        assert (
-            "judge_coding_task_completion" in guidance.guidance.lower()
-            or "completion" in guidance.guidance.lower()
-        )
+        # Mock the LLM provider to return a proper workflow guidance response
+        mock_llm_response = """
+        {
+            "next_tool": "judge_coding_plan",
+            "reasoning": "Small task requires planning phase as part of unified workflow",
+            "preparation_needed": ["Create implementation plan", "Review requirements"],
+            "guidance": "Proceed with planning phase for this small task"
+        }
+        """
+
+        with (
+            patch(
+                "mcp_as_a_judge.messaging.llm_provider.llm_provider.send_message_with_fallback",
+                new_callable=AsyncMock,
+            ) as mock_send,
+            patch(
+                "mcp_as_a_judge.messaging.factory.MessagingProviderFactory.create_provider"
+            ) as mock_factory,
+            patch(
+                "mcp_as_a_judge.messaging.factory.MessagingProviderFactory.check_llm_capability"
+            ) as mock_check_llm,
+            patch(
+                "mcp_as_a_judge.messaging.factory.MessagingProviderFactory.check_sampling_capability"
+            ) as mock_check_sampling,
+        ):
+            # Mock successful LLM response
+            mock_send.return_value = mock_llm_response
+
+            # Mock the factory to return a working provider
+            mock_provider = AsyncMock()
+            mock_provider.is_available.return_value = True
+            mock_provider.send_message.return_value = mock_llm_response
+            mock_provider.provider_type = "llm_api"
+            mock_factory.return_value = mock_provider
+
+            # Mock capability checks to show LLM is available
+            mock_check_llm.return_value = True
+            mock_check_sampling.return_value = False
+
+            # Calculate next stage
+            guidance = await calculate_next_stage(
+                task_metadata=task,
+                current_operation="set_coding_task",
+                conversation_service=mock_conversation_service,
+                ctx=None,
+            )
+
+            # Verify that small tasks now follow unified workflow with planning
+            # The guidance should provide a clear next_tool (not None)
+            assert guidance.next_tool is not None
+            # Should mention planning or judge_coding_plan for unified workflow
+            assert (
+                "plan" in guidance.reasoning.lower()
+                or "judge_coding_plan" in str(guidance.next_tool).lower()
+            )
 
     @pytest.mark.asyncio
     async def test_large_task_requires_planning(self):

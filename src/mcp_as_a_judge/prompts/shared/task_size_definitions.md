@@ -2,11 +2,11 @@
 
 **XS (Extra Small)**: Simple fixes, typos, minor config changes (< 30 minutes)
 - Examples: Fix typo, update version number, small documentation fix
-- Workflow: Skip planning → CREATED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED
+- Workflow: Basic planning → CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED
 
-**S (Small)**: Minor features, simple refactoring (30 minutes - 2 hours)  
+**S (Small)**: Minor features, simple refactoring (30 minutes - 2 hours)
 - Examples: Add simple validation, minor UI change, basic function addition
-- Workflow: Skip planning → CREATED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED
+- Workflow: Basic planning → CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED
 
 **M (Medium)**: Standard features, moderate complexity (2-8 hours) - DEFAULT
 - Examples: New API endpoint, database schema change, component refactor
@@ -22,6 +22,9 @@
 
 ## Size-Based Workflow Routing
 
-- **XS/S Tasks**: Skip planning phase, minimal validation, but still require code review, testing, and completion
-- **M Tasks**: Simplified planning (basic plan/design/research only), streamlined validation
+All tasks follow the unified workflow: CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TESTING → COMPLETED
+
+Task size affects planning complexity and validation depth:
+- **XS/S Tasks**: Basic planning requirements (plan/design/research only), streamlined validation
+- **M Tasks**: Standard planning with moderate complexity, standard validation
 - **L/XL Tasks**: Comprehensive planning with full validation (library plans, risk assessment, design patterns)

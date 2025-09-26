@@ -41,8 +41,9 @@ from mcp_as_a_judge.messaging.llm_provider import llm_provider
 # Import the complete JudgeCodingPlanUserVars from models.py
 from mcp_as_a_judge.models import (
     JudgeCodeChangeUserVars,
+    PlanApprovalResponse,
+    PlanApprovalResult,
     SystemVars,
-    WorkflowGuidance,
 )
 from mcp_as_a_judge.models.enhanced_responses import (
     EnhancedResponseFactory,
@@ -65,9 +66,25 @@ from mcp_as_a_judge.tool_description.factory import (
     tool_description_provider,
 )
 from mcp_as_a_judge.workflow import calculate_next_stage
+from mcp_as_a_judge.workflow.workflow_guidance import (
+    WorkflowGuidance,
+)
 
 setup_logging("INFO")
 mcp = FastMCP(name="MCP-as-a-Judge")
+
+# Rebuild Pydantic models early to resolve forward references before tool registration
+try:
+    from mcp_as_a_judge.models import rebuild_plan_approval_model
+    from mcp_as_a_judge.models.enhanced_responses import rebuild_models
+
+    rebuild_models()
+    rebuild_plan_approval_model()
+except Exception as e:
+    # Non-critical - server can still function without rebuilt models
+    import logging
+
+    logging.debug(f"Server model rebuild failed (non-critical): {e}")
 initialize_llm_configuration()
 
 config = load_config()
@@ -141,6 +158,7 @@ async def set_coding_task(
             )
             action = "created"
             context_summary = f"Created new coding task '{task_metadata.title}' (ID: {task_metadata.task_id})"
+
         workflow_guidance = await calculate_next_stage(
             task_metadata=task_metadata,
             current_operation=f"set_coding_task_{action}",
@@ -148,38 +166,38 @@ async def set_coding_task(
             ctx=ctx,
         )
 
+        initial_guidance = workflow_guidance
+
         # Apply research requirements determined by LLM workflow guidance (for new tasks)
-        if action == "created" and workflow_guidance.research_required is not None:
+        if action == "created" and initial_guidance.research_required is not None:
             from mcp_as_a_judge.models.task_metadata import ResearchScope
 
-            task_metadata.research_required = workflow_guidance.research_required
-            task_metadata.research_rationale = (
-                workflow_guidance.research_rationale or ""
-            )
+            task_metadata.research_required = initial_guidance.research_required
+            task_metadata.research_rationale = initial_guidance.research_rationale or ""
 
             # Map research scope string to enum
-            if workflow_guidance.research_scope:
+            if initial_guidance.research_scope:
                 scope_mapping = {
                     "none": ResearchScope.NONE,
                     "light": ResearchScope.LIGHT,
                     "deep": ResearchScope.DEEP,
                 }
                 task_metadata.research_scope = scope_mapping.get(
-                    workflow_guidance.research_scope.lower(), ResearchScope.NONE
+                    initial_guidance.research_scope.lower(), ResearchScope.NONE
                 )
 
             # Set internal research and risk assessment requirements
-            if workflow_guidance.internal_research_required is not None:
+            if initial_guidance.internal_research_required is not None:
                 task_metadata.internal_research_required = (
-                    workflow_guidance.internal_research_required
+                    initial_guidance.internal_research_required
                 )
-            if workflow_guidance.risk_assessment_required is not None:
+            if initial_guidance.risk_assessment_required is not None:
                 task_metadata.risk_assessment_required = (
-                    workflow_guidance.risk_assessment_required
+                    initial_guidance.risk_assessment_required
                 )
-            if workflow_guidance.design_patterns_enforcement is not None:
+            if initial_guidance.design_patterns_enforcement is not None:
                 task_metadata.design_patterns_enforcement = (
-                    workflow_guidance.design_patterns_enforcement
+                    initial_guidance.design_patterns_enforcement
                 )
 
             # Update timestamp to reflect changes
@@ -187,6 +205,20 @@ async def set_coding_task(
 
             logger.info(
                 f"Applied LLM-determined research requirements: required={task_metadata.research_required}, scope={task_metadata.research_scope}, rationale='{task_metadata.research_rationale}'"
+            )
+
+        # Auto-transition all freshly created tasks to planning (unified workflow)
+        # so agents aren't forced to call set_coding_task twice in a row. Perform this
+        # after applying research flags so we preserve initial guidance data.
+        if action == "created" and task_metadata.state == TaskState.CREATED:
+            task_metadata.update_state(TaskState.PLANNING)
+            context_summary = f"{context_summary} Transitioned state to 'planning' for unified workflow."
+
+            workflow_guidance = await calculate_next_stage(
+                task_metadata=task_metadata,
+                current_operation="set_coding_task_updated",
+                conversation_service=conversation_service,
+                ctx=ctx,
             )
 
         # Save task metadata to conversation history using task_id as primary key
@@ -366,6 +398,329 @@ async def get_current_coding_task(ctx: Context) -> dict:
                 "guidance": "Call set_coding_task to initialize a new task and use its task_id UUID going forward.",
             },
         }
+
+
+@mcp.tool(
+    description=tool_description_provider.get_description("request_plan_approval")
+)  # type: ignore[misc,unused-ignore]
+async def request_plan_approval(
+    plan: str,
+    design: str,
+    research: str,
+    task_id: str,
+    ctx: Context,
+    research_urls: list[str] = [],  # noqa: B006
+    problem_domain: str = "",
+    problem_non_goals: list[str] = [],  # noqa: B006
+    library_plan: list[dict] = [],  # noqa: B006
+    internal_reuse_components: list[dict] = [],  # noqa: B006
+) -> PlanApprovalResult:
+    """Present the plan to the user for approval before proceeding to judge_coding_plan."""
+    # Log tool execution start
+    log_tool_execution("request_plan_approval", task_id)
+
+    try:
+        # Load task metadata
+        from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
+
+        task_metadata = await load_task_metadata_from_history(
+            task_id, conversation_service
+        )
+
+        if not task_metadata:
+            # Create a minimal task metadata for error response
+            from mcp_as_a_judge.models.task_metadata import TaskSize
+            from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
+
+            error_task_metadata = TaskMetadata(
+                title="Error Task", description="Task not found", task_size=TaskSize.M
+            )
+            error_guidance = WorkflowGuidance(
+                next_tool="set_coding_task",
+                reasoning="Task not found, need to create a new task",
+                preparation_needed=["Create a new task"],
+                guidance="Call set_coding_task to create a new task",
+            )
+            return PlanApprovalResult(
+                approved=False,
+                user_feedback="Task not found. Please call set_coding_task first.",
+                next_action="Call set_coding_task to create a new task",
+                current_task_metadata=error_task_metadata,
+                workflow_guidance=error_guidance,
+            )
+
+        # Update task state to PLAN_PENDING_APPROVAL
+        task_metadata.update_state(TaskState.PLAN_PENDING_APPROVAL)
+
+        # Format plan for user presentation
+        plan_presentation = f"""
+# Implementation Plan for: {task_metadata.title}
+
+## Overview
+{task_metadata.description}
+
+## Implementation Plan
+{plan}
+
+## Technical Design
+{design}
+
+## Research Summary
+{research}
+"""
+
+        if research_urls:
+            plan_presentation += "\n## Research Sources\n"
+            for url in research_urls:
+                plan_presentation += f"- {url}\n"
+
+        if problem_domain:
+            plan_presentation += f"\n## Problem Domain\n{problem_domain}\n"
+
+        if problem_non_goals:
+            plan_presentation += "\n## Non-Goals\n"
+            for goal in problem_non_goals:
+                plan_presentation += f"- {goal}\n"
+
+        if library_plan:
+            plan_presentation += "\n## Library Plan\n"
+            for lib in library_plan:
+                plan_presentation += f"- **{lib.get('purpose', 'Unknown')}**: {lib.get('selection', 'Unknown')} ({lib.get('source', 'Unknown')})\n"
+
+        if internal_reuse_components:
+            plan_presentation += "\n## Internal Components to Reuse\n"
+            for comp in internal_reuse_components:
+                plan_presentation += f"- **{comp.get('path', 'Unknown')}**: {comp.get('purpose', 'Unknown')}\n"
+
+        plan_presentation += """
+
+## Your Options
+Please review the plan above and choose one of the following:
+
+1. **Approve** - Proceed with this plan as-is
+2. **Modify** - Request changes to the plan (please provide specific feedback)
+3. **Reject** - Start over with a different approach
+"""
+
+        # Use elicitation to get user approval
+        elicitation_result = await elicitation_provider.elicit_user_input(
+            message=plan_presentation, schema=PlanApprovalResponse, ctx=ctx
+        )
+
+        if not elicitation_result.success:
+            error_guidance = WorkflowGuidance(
+                next_tool="request_plan_approval",
+                reasoning="Failed to get user input for plan approval",
+                preparation_needed=["Check elicitation system", "Retry plan approval"],
+                guidance="Retry plan approval or proceed without user input",
+            )
+            return PlanApprovalResult(
+                approved=False,
+                user_feedback="Failed to get user input: " + elicitation_result.message,
+                next_action="Retry plan approval or proceed without user input",
+                current_task_metadata=task_metadata,
+                workflow_guidance=error_guidance,
+            )
+
+        # Process user response
+        user_response = elicitation_result.data
+        action = user_response.get("action", "").lower()
+        feedback = user_response.get("feedback", "")
+
+        if action == "approve":
+            # User approved - keep state as PLAN_PENDING_APPROVAL until AI judge validates
+            # Do NOT set to PLAN_APPROVED yet - that happens only after judge_coding_plan approval
+
+            # Save the user-approved plan data to task metadata
+            history_input = json.dumps(
+                {
+                    "plan": plan,
+                    "design": design,
+                    "research": research,
+                    "research_urls": research_urls,
+                    "problem_domain": problem_domain,
+                    "problem_non_goals": problem_non_goals,
+                    "library_plan": library_plan,
+                    "internal_reuse_components": internal_reuse_components,
+                    "user_action": action,
+                    "user_feedback": feedback,
+                }
+            )
+
+            await save_task_metadata_to_history(
+                task_metadata=task_metadata,
+                user_request=history_input,
+                action="plan_user_approved",  # Changed to indicate user approval, not final approval
+                conversation_service=conversation_service,
+            )
+
+            # Generate workflow guidance for next step
+            from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
+
+            workflow_guidance = WorkflowGuidance(
+                next_tool="judge_coding_plan",
+                reasoning="Plan approved by user; proceed to AI validation before implementation",
+                preparation_needed=[
+                    "Ensure all plan components are complete (plan, design, research)",
+                    "Include library_plan and internal_reuse_components if applicable",
+                    "Add identified_risks and risk_mitigation_strategies if required",
+                ],
+                guidance="Call judge_coding_plan with the complete plan details for AI validation. After approval, proceed to implementation.",
+            )
+
+            return PlanApprovalResult(
+                approved=True,
+                user_feedback=feedback or "Plan approved by user",
+                next_action="Proceed to judge_coding_plan for validation",
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
+        elif action == "modify":
+            # User wants modifications - return to PLANNING state
+            task_metadata.update_state(TaskState.PLANNING)
+
+            # Update requirements with user feedback
+            if feedback:
+                task_metadata.update_requirements(
+                    f"{task_metadata.user_requirements}\n\nUser feedback on plan: {feedback}",
+                    source="plan_approval_feedback",
+                )
+
+            history_input = json.dumps(
+                {
+                    "plan": plan,
+                    "design": design,
+                    "research": research,
+                    "research_urls": research_urls,
+                    "problem_domain": problem_domain,
+                    "problem_non_goals": problem_non_goals,
+                    "library_plan": library_plan,
+                    "internal_reuse_components": internal_reuse_components,
+                    "user_action": action,
+                    "user_feedback": feedback,
+                }
+            )
+
+            await save_task_metadata_to_history(
+                task_metadata=task_metadata,
+                user_request=history_input,
+                action="plan_modification_requested",
+                conversation_service=conversation_service,
+            )
+
+            # Generate workflow guidance for plan revision
+            workflow_guidance = WorkflowGuidance(
+                next_tool=None,  # No specific tool, let AI create revised plan
+                reasoning="User requested plan modifications; revise plan based on feedback",
+                preparation_needed=[
+                    "Review user feedback carefully",
+                    "Revise plan to address specific concerns",
+                    "Ensure all plan components remain complete",
+                ],
+                guidance=f"User feedback: {feedback}. Revise the implementation plan to address these concerns, then call request_plan_approval again with the updated plan.",
+            )
+
+            return PlanApprovalResult(
+                approved=False,
+                user_feedback=feedback or "User requested plan modifications",
+                next_action="Revise plan based on user feedback and resubmit for approval",
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
+        else:  # reject or any other action
+            # User rejected - return to PLANNING state
+            task_metadata.update_state(TaskState.PLANNING)
+            history_input = json.dumps(
+                {
+                    "plan": plan,
+                    "design": design,
+                    "research": research,
+                    "research_urls": research_urls,
+                    "problem_domain": problem_domain,
+                    "problem_non_goals": problem_non_goals,
+                    "library_plan": library_plan,
+                    "internal_reuse_components": internal_reuse_components,
+                    "user_action": action,
+                    "user_feedback": feedback,
+                }
+            )
+
+            await save_task_metadata_to_history(
+                task_metadata=task_metadata,
+                user_request=history_input,
+                action="plan_rejected",
+                conversation_service=conversation_service,
+            )
+
+            # Generate workflow guidance for new plan creation
+            workflow_guidance = WorkflowGuidance(
+                next_tool=None,  # No specific tool, let AI create new plan
+                reasoning="User rejected the plan; create a completely new approach",
+                preparation_needed=[
+                    "Review user feedback for rejection reasons",
+                    "Consider alternative approaches and architectures",
+                    "Create a fundamentally different plan",
+                ],
+                guidance=f"User rejected the plan. Feedback: {feedback}. Create a completely new implementation plan with a different approach, then call request_plan_approval with the new plan.",
+            )
+
+            return PlanApprovalResult(
+                approved=False,
+                user_feedback=feedback or "Plan rejected by user",
+                next_action="Create a new plan with a different approach",
+                current_task_metadata=task_metadata,
+                workflow_guidance=workflow_guidance,
+            )
+
+    except Exception as e:
+        logger.error(f"Error in request_plan_approval: {e!s}")
+
+        # Create error workflow guidance
+        error_guidance = WorkflowGuidance(
+            next_tool=None,
+            reasoning="Error occurred during plan approval process",
+            preparation_needed=[
+                "Review error details",
+                "Check task metadata",
+                "Retry or proceed manually",
+            ],
+            guidance=f"Error in plan approval: {e!s}. Review the error and retry the plan approval process or proceed without user input if necessary.",
+        )
+
+        # Try to get task metadata for error response
+        try:
+            from mcp_as_a_judge.models.task_metadata import TaskSize
+            from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
+
+            error_task_metadata_maybe = await load_task_metadata_from_history(
+                task_id, conversation_service
+            )
+            if not error_task_metadata_maybe:
+                error_task_metadata = TaskMetadata(
+                    title="Error Task",
+                    description="Error occurred during plan approval",
+                    task_size=TaskSize.M,
+                )
+            else:
+                error_task_metadata = error_task_metadata_maybe
+        except Exception:
+            from mcp_as_a_judge.models.task_metadata import TaskSize
+
+            error_task_metadata = TaskMetadata(
+                title="Error Task",
+                description="Error occurred during plan approval",
+                task_size=TaskSize.M,
+            )
+
+        return PlanApprovalResult(
+            approved=False,
+            user_feedback=f"Error occurred: {e!s}",
+            next_action="Retry plan approval or proceed without user input",
+            current_task_metadata=error_task_metadata,
+            workflow_guidance=error_guidance,
+        )
 
 
 @mcp.tool(description=tool_description_provider.get_description("raise_obstacle"))  # type: ignore[misc,unused-ignore]
@@ -1596,7 +1951,27 @@ async def judge_coding_plan(
                 # Overwrite to ensure consistency across conversation history and routing
                 updated_task_metadata.task_id = canonical_task_id
 
-        # Calculate workflow guidance for the effective outcome
+        # Update task metadata state BEFORE calculating workflow guidance to ensure consistency
+        if effective_approved:
+            # Mark plan as approved for completion validation and update state
+            updated_task_metadata.mark_plan_approved()
+            updated_task_metadata.update_state(TaskState.PLAN_APPROVED)
+
+            # Delete previous failed plan attempts, keeping only the most recent approved one
+            await conversation_service.db.delete_previous_plan(
+                updated_task_metadata.task_id
+            )
+        else:
+            # Increment rejection count for tracking
+            updated_task_metadata.increment_plan_rejection()
+            logger.info(
+                f"Plan rejected. Rejection count: {updated_task_metadata.plan_rejection_count}/1"
+            )
+
+            # Keep/return to planning state and request plan improvements
+            updated_task_metadata.update_state(TaskState.PLANNING)
+
+        # Calculate workflow guidance with correct task state
         # Build a synthetic validation_result with the effective approval and improvements
         synthetic_eval = EnhancedResponseFactory.create_judge_response(
             approved=effective_approved,
@@ -1618,17 +1993,8 @@ async def judge_coding_plan(
             validation_result=synthetic_eval,
         )
 
-        # Deterministic next step for coding plan outcome to avoid loops
+        # Apply deterministic overrides for plan outcome to ensure correct routing
         if effective_approved:
-            # Mark plan as approved for completion validation and update state
-            updated_task_metadata.mark_plan_approved()
-            updated_task_metadata.update_state(TaskState.PLAN_APPROVED)
-
-            # Delete previous failed plan attempts, keeping only the most recent approved one
-            await conversation_service.db.delete_previous_plan(
-                updated_task_metadata.task_id
-            )
-
             # Force next step to code review implementation gate
             workflow_guidance.next_tool = "judge_code_change"
             if not workflow_guidance.reasoning:
@@ -1643,14 +2009,7 @@ async def judge_coding_plan(
             if not workflow_guidance.guidance:
                 workflow_guidance.guidance = "Start implementation. When a cohesive set of changes is ready, call judge_code_change with file paths and a concise summary or diff."
         else:
-            # Increment rejection count for tracking
-            updated_task_metadata.increment_plan_rejection()
-            logger.info(
-                f"Plan rejected. Rejection count: {updated_task_metadata.plan_rejection_count}/1"
-            )
-
-            # Keep/return to planning state and request plan improvements
-            updated_task_metadata.update_state(TaskState.PLANNING)
+            # Force next step to plan revision
             workflow_guidance.next_tool = "judge_coding_plan"
             if not workflow_guidance.reasoning:
                 workflow_guidance.reasoning = (

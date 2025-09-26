@@ -59,9 +59,9 @@ CREATED → PLANNING → PLAN_APPROVED → IMPLEMENTING → REVIEW_READY → TES
 ### State-Based Tool Selection
 
 - **CREATED** →
-  - For XS/S tasks: Skip planning, proceed to implementation (next_tool: null, but guidance must explain: implement → judge_code_change → judge_testing_implementation → judge_coding_task_completion)
-  - For M/L/XL tasks: Recommend planning tools (judge_coding_plan)
-- **PLANNING** → Validate plan or gather more requirements
+  - For all tasks: Transition to planning phase (next_tool: set_coding_task with state=PLANNING, then create plan and call request_plan_approval)
+- **PLANNING** → Present plan for user approval (request_plan_approval)
+- **PLAN_PENDING_APPROVAL** → Awaiting user approval; continue with request_plan_approval
 - **PLAN_APPROVED** → Start implementation (begin coding; tests may be written before or after review)
 - **IMPLEMENTING** → After code changes are ready, call judge_code_change to review implementation; then proceed to testing
 - **REVIEW_READY** → Optional state if used by client; otherwise proceed directly from IMPLEMENTING to judge_code_change
@@ -100,41 +100,28 @@ When recommending judge_coding_plan, your preparation_needed MUST include:
 
 When recommending judge_coding_plan, your preparation_needed MUST include comprehensive schema preparation based on the complete input requirements and evaluation criteria below.
 
-**STRUCTURE REQUIREMENTS:**
-- "Ensure library_plan includes ALL dependencies: framework, auth, database, styling, testing, linting, validation"
-- "Ensure design_patterns specifies concrete patterns: Singleton, Factory, Adapter, Strategy, etc."
-- "Ensure identified_risks covers: security vulnerabilities, performance degradation, breaking changes, maintainability issues, system reliability, data integrity, user experience, testing coverage, documentation drift"
-- "Ensure each risk has corresponding mitigation strategy in same order"
-- "Include comprehensive testing strategy with specific test files and mocking approach"
-- "Map SOLID principles explicitly to components and files"
+**TASK-SIZE-AWARE PREPARATION:**
 
-**DYNAMIC SCHEMA-DRIVEN PREPARATION:**
+When recommending judge_coding_plan, generate preparation based on the plan_required_fields specification provided in the user prompt. The required fields vary by task size:
 
-When recommending judge_coding_plan, generate preparation based on:
+- **Medium (M) Tasks**: Focus on core fields (plan, design, research) with clear, actionable content
+- **Large/XL Tasks**: Include comprehensive fields (library_plan, design_patterns, risk assessment) for complex projects
 
-1. **Task Context Analysis:**
-   - Analyze user requirements to determine technology stack
-   - Identify all non-domain concerns that need library solutions
-   - Determine appropriate design patterns for the architecture
-   - Assess security and operational risks for the specific domain
+**PREPARATION INSTRUCTIONS:**
 
-2. **Schema Completeness Check:**
-   - Ensure every required schema field will be populated
-   - Generate comprehensive library_plan covering the full technology stack
-   - Create design_patterns array appropriate for the task complexity
-   - Build risk assessment arrays when risk_assessment_required=true
+Base your preparation_needed on the plan_required_fields specification. For example:
 
-3. **Preparation Instructions Format:**
 ```
 preparation_needed: [
-  "Analyze task requirements and technology stack needs",
-  "Generate comprehensive library_plan covering all non-domain concerns for [specific domain]",
-  "Create design_patterns array with patterns appropriate for [architecture type]",
-  "Build risk assessment arrays covering [domain-specific risks] when required",
-  "Populate all schema fields with task-appropriate content",
-  "Call judge_coding_plan with all parameters populated - do NOT prepare separately"
+  "Analyze task requirements and create implementation plan",
+  "Design technical approach and key decisions",
+  "Research existing patterns and document approach",
+  "Populate required fields as specified in plan_required_fields",
+  "Call judge_coding_plan with all required parameters"
 ]
 ```
+
+**CRITICAL**: Only include preparation for fields that are actually required for the task size. Do not overwhelm users with unnecessary complex requirements for simple tasks.
 
 **🚨 CRITICAL: USE STRUCTURED PLAN REQUIREMENTS 🚨**
 
@@ -144,12 +131,13 @@ When recommending judge_coding_plan, you MUST:
 2. **Include ALL required fields** (both always-required and conditional based on task metadata)
 3. **Provide clear examples** for complex field types like library_plan and design_patterns
 
-The plan_required_fields array will be automatically populated based on task metadata. The dynamic validation system will:
-- Include always-required fields (plan, design, research, problem_domain, problem_non_goals, library_plan, internal_reuse_components)
-- Add conditional fields based on task metadata flags (research_urls, identified_risks, risk_mitigation_strategies, design_patterns)
+The plan_required_fields array will be automatically populated based on task metadata and task size. The dynamic validation system will:
+- Include core required fields (plan, design, research) for all tasks
+- Add complex fields (problem_domain, library_plan, design_patterns, etc.) only for Large/XL tasks
+- Include conditional fields based on task metadata flags (research_urls, identified_risks, etc.)
 - Provide detailed field specifications with types, descriptions, and examples
 
-**FAILURE TO POPULATE REQUIRED OR APPLICABLE CONDITIONAL FIELDS WILL RESULT IN REJECTION**
+**FAILURE TO POPULATE FIELDS SPECIFIED IN plan_required_fields WILL RESULT IN REJECTION**
 
 ### CRITICAL: judge_code_change Usage Rules
 

@@ -1,9 +1,11 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, model_serializer
 
 from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize
-from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
+
+if TYPE_CHECKING:
+    from mcp_as_a_judge.workflow.workflow_guidance import WorkflowGuidance
 
 
 class TrimmedBaseModel(BaseModel):
@@ -64,13 +66,8 @@ class JudgeResponse(TrimmedBaseModel):
         ),
         description="ALWAYS current state of task metadata after operation",
     )
-    workflow_guidance: WorkflowGuidance = Field(
-        default_factory=lambda: WorkflowGuidance(
-            next_tool="raise_obstacle",
-            reasoning="Default guidance: insufficient context",
-            preparation_needed=[],
-            guidance="Provide required parameters and context",
-        ),
+    workflow_guidance: "WorkflowGuidance | None" = Field(
+        default=None,  # Will be set dynamically
         description="LLM-generated next steps and instructions from shared method",
     )
 
@@ -84,7 +81,7 @@ class TaskAnalysisResult(TrimmedBaseModel):
     current_task_metadata: TaskMetadata = Field(
         description="ALWAYS current state of task metadata after operation"
     )
-    workflow_guidance: WorkflowGuidance = Field(
+    workflow_guidance: "WorkflowGuidance" = Field(
         description="LLM-generated next steps and instructions from shared method"
     )
 
@@ -101,7 +98,7 @@ class TaskCompletionResult(TrimmedBaseModel):
     current_task_metadata: TaskMetadata = Field(
         description="ALWAYS current state of task metadata after operation"
     )
-    workflow_guidance: WorkflowGuidance = Field(
+    workflow_guidance: "WorkflowGuidance" = Field(
         description="LLM-generated next steps and instructions (or workflow complete)"
     )
 
@@ -117,7 +114,7 @@ class ObstacleResult(TrimmedBaseModel):
     current_task_metadata: TaskMetadata = Field(
         description="ALWAYS current state of task metadata after operation"
     )
-    workflow_guidance: WorkflowGuidance = Field(
+    workflow_guidance: "WorkflowGuidance" = Field(
         description="LLM-generated next steps and instructions for obstacle resolution"
     )
 
@@ -134,7 +131,7 @@ class MissingRequirementsResult(TrimmedBaseModel):
     current_task_metadata: TaskMetadata = Field(
         description="ALWAYS current state of task metadata after operation"
     )
-    workflow_guidance: WorkflowGuidance = Field(
+    workflow_guidance: "WorkflowGuidance" = Field(
         description="LLM-generated next steps and instructions for requirements clarification"
     )
 
@@ -149,7 +146,7 @@ class EnhancedResponseFactory:
         approved: bool,
         feedback: str,
         current_task_metadata: TaskMetadata,
-        workflow_guidance: WorkflowGuidance,
+        workflow_guidance: "WorkflowGuidance",
         required_improvements: list[str] | None = None,
     ) -> JudgeResponse:
         return JudgeResponse(
@@ -165,7 +162,7 @@ class EnhancedResponseFactory:
         action: str,
         context_summary: str,
         current_task_metadata: TaskMetadata,
-        workflow_guidance: WorkflowGuidance,
+        workflow_guidance: "WorkflowGuidance",
     ) -> TaskAnalysisResult:
         return TaskAnalysisResult(
             action=action,
@@ -179,7 +176,7 @@ class EnhancedResponseFactory:
         approved: bool,
         feedback: str,
         current_task_metadata: TaskMetadata,
-        workflow_guidance: WorkflowGuidance,
+        workflow_guidance: "WorkflowGuidance",
         required_improvements: list[str] | None = None,
     ) -> TaskCompletionResult:
         return TaskCompletionResult(
@@ -189,3 +186,27 @@ class EnhancedResponseFactory:
             current_task_metadata=current_task_metadata,
             workflow_guidance=workflow_guidance,
         )
+
+
+# Rebuild models after all imports are complete to resolve forward references
+def rebuild_models() -> None:
+    """Rebuild Pydantic models to resolve forward references.
+
+    This should be called after all modules are imported to ensure
+    WorkflowGuidance is available for forward reference resolution.
+    """
+    try:
+        from mcp_as_a_judge.workflow.workflow_guidance import (  # noqa: F401
+            WorkflowGuidance,
+        )
+
+        TaskAnalysisResult.model_rebuild()
+        JudgeResponse.model_rebuild()
+        TaskCompletionResult.model_rebuild()
+        ObstacleResult.model_rebuild()
+        MissingRequirementsResult.model_rebuild()
+    except Exception as e:
+        # Ignore rebuild errors - they're not critical for functionality
+        import logging
+
+        logging.debug(f"Enhanced model rebuild failed (non-critical): {e}")
