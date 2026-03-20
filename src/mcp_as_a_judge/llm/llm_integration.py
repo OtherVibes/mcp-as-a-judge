@@ -56,6 +56,10 @@ class LLMConfig(BaseModel):
         default=DEFAULT_TEMPERATURE,
         description="Temperature for LLM responses (0.0-1.0) - Low for coding tasks",
     )
+    base_url: str | None = Field(
+        default=None,
+        description="Optional base URL for OpenAI-compatible or custom LLM endpoints",
+    )
 
 
 # API key patterns for vendor detection (ordered by specificity)
@@ -128,6 +132,7 @@ def create_llm_config(
     api_key: str | None = None,
     model_name: str | None = None,
     vendor: LLMVendor | None = None,
+    base_url: str | None = None,
     **kwargs: str,
 ) -> LLMConfig:
     """Create LLM configuration with vendor detection and defaults.
@@ -136,6 +141,7 @@ def create_llm_config(
         api_key: LLM API key
         model_name: Model name (optional, uses vendor default if not provided)
         vendor: LLM vendor (optional, auto-detected from API key if not provided)
+        base_url: Custom base URL for OpenAI-compatible or self-hosted endpoints
         **kwargs: Additional configuration options
 
     Returns:
@@ -151,14 +157,19 @@ def create_llm_config(
     if model_name is None:
         model_name = get_default_model(vendor)
 
-    return LLMConfig(api_key=api_key, model_name=model_name, vendor=vendor)
+    return LLMConfig(
+        api_key=api_key,
+        model_name=model_name,
+        vendor=vendor,
+        base_url=base_url,
+    )
 
 
 def load_llm_config_from_env() -> LLMConfig | None:
     """Load LLM configuration from environment variables.
 
-    Uses LLM_API_KEY environment variable and automatically detects
-    the vendor from the API key format.
+    Uses LLM_API_KEY and optional model/base URL environment variables and
+    automatically detects the vendor from the API key format.
 
     Returns:
         LLMConfig if LLM_API_KEY found in environment, None otherwise
@@ -166,9 +177,13 @@ def load_llm_config_from_env() -> LLMConfig | None:
     # Check for the single LLM_API_KEY environment variable
     api_key = os.getenv("LLM_API_KEY")
     if api_key:
-        # Get model name from environment if specified
         model_name = os.getenv("LLM_MODEL_NAME")
+        base_url = os.getenv("LLM_BASE_URL")
 
-        return create_llm_config(api_key=api_key, model_name=model_name)
+        return create_llm_config(
+            api_key=api_key,
+            model_name=model_name,
+            base_url=base_url,
+        )
 
     return None

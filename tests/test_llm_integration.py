@@ -6,7 +6,7 @@ and fallback functionality when MCP sampling is not available.
 """
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from mcp_as_a_judge.llm.llm_client import LLMClient, LLMClientManager
 from mcp_as_a_judge.llm.llm_integration import (
@@ -170,6 +170,18 @@ class TestLLMConfig:
         assert config.vendor == LLMVendor.ANTHROPIC
         assert config.model_name == "claude-3-opus"  # gitleaks:allow
 
+    def test_create_config_with_base_url(self):
+        """Test config creation with a custom base URL."""
+        base_url = "https://api.example.com/v1"
+        config = create_llm_config(
+            api_key="sk-test1234567890abcdef1234567890ab",
+            model_name="custom-model",
+            base_url=base_url,
+        )
+
+        assert config.base_url == base_url
+        assert config.model_name == "custom-model"
+
     def test_create_config_no_api_key(self):
         """Test config creation without API key."""
         config = create_llm_config()
@@ -216,6 +228,24 @@ class TestEnvironmentLoading:
             )  # gitleaks:allow
             assert config.vendor == LLMVendor.ANTHROPIC
             assert config.model_name == "claude-sonnet-4-20250514"  # gitleaks:allow
+
+    def test_load_base_url_from_env(self):
+        """Test loading a custom base URL from environment."""
+        with patch.dict(
+            os.environ,
+            {
+                "LLM_API_KEY": "sk-1234567890abcdef1234567890abcdef",
+                "LLM_MODEL_NAME": "deepseek-chat",
+                "LLM_BASE_URL": "https://api.deepseek.com/v1",
+            },
+            clear=True,
+        ):
+            config = load_llm_config_from_env()
+
+            assert config is not None
+            assert config.vendor == LLMVendor.OPENAI
+            assert config.model_name == "deepseek-chat"
+            assert config.base_url == "https://api.deepseek.com/v1"
 
     def test_load_no_env_vars(self):
         """Test loading when no environment variables are set."""
@@ -303,6 +333,30 @@ class TestLLMClient:
         client = LLMClient(config)
         assert client.config == config
         assert client._litellm is not None
+
+    async def test_generate_text_passes_base_url(self):
+        """Test that generate_text forwards base_url to LiteLLM."""
+        config = LLMConfig(
+            api_key="sk-1234567890abcdef1234567890abcdef",  # gitleaks:allow
+            vendor=LLMVendor.OPENAI,
+            model_name="gpt-4o",
+            base_url="https://api.deepseek.com/v1",
+        )
+        client = LLMClient(config)
+        response = MagicMock()
+        response.choices = [MagicMock(message=MagicMock(content="ok"))]
+
+        with patch.object(
+            client,
+            "_generate_text_with_retry",
+            new=AsyncMock(return_value=response),
+        ) as mock_generate:
+            result = await client.generate_text([{"role": "user", "content": "Hello"}])
+
+        assert result == "ok"
+        completion_params = mock_generate.await_args.args[0]
+        assert completion_params["base_url"] == "https://api.deepseek.com/v1"
+        assert completion_params["model"] == "openai/gpt-4o"
 
 
 class TestLLMClientManager:
