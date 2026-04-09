@@ -100,6 +100,11 @@ class LLMClient:
         vendor = self.config.vendor
         model_name = self.config.model_name
 
+        if self.config.api_base:
+            if model_name.startswith("openai/"):
+                return model_name
+            return f"openai/{model_name}"
+
         # Add vendor prefix if not already present
         if vendor == LLMVendor.OPENAI and not model_name.startswith("openai/"):
             return f"openai/{model_name}"
@@ -204,6 +209,9 @@ class LLMClient:
                 "reasoning_effort": DEFAULT_REASONING_EFFORT,  # Set reasoning to lowest level
                 **kwargs,
             }
+
+            if self.config.api_base:
+                completion_params["api_base"] = self.config.api_base
 
             # Add JSON response format if requested
             if kwargs.get("response_format") == "json":

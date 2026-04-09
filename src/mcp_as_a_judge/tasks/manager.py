@@ -144,6 +144,18 @@ async def load_task_metadata_from_history(
             )
         )
 
+        def normalize_snapshot(metadata_dict: dict) -> dict:
+            """Preserve canonical identity fields when snapshots omit defaults.
+
+            Some tool responses serialize nested TaskMetadata with exclude_defaults=True,
+            which can omit fields backed by default factories such as task_id and
+            created_at. When that snapshot is later reloaded, Pydantic regenerates
+            those fields, causing task identity drift across workflow steps.
+            """
+            normalized = dict(metadata_dict)
+            normalized.setdefault("task_id", task_id)
+            return normalized
+
         # Strategy: prefer the most recent record that explicitly includes a state.
         # Some tool outputs serialize with exclude_defaults=True, which can omit
         # default-valued fields like state when it's 'created'. That can cause
@@ -175,12 +187,14 @@ async def load_task_metadata_from_history(
 
             # Keep the newest snapshot as a fallback for pass 2 (first iteration)
             if latest_snapshot is None:
-                latest_snapshot = dict(metadata_dict)
+                latest_snapshot = normalize_snapshot(metadata_dict)
 
             # Prefer snapshots that explicitly carry state
             if metadata_dict.get("state"):
                 try:
-                    return TaskMetadata.model_validate(metadata_dict)
+                    return TaskMetadata.model_validate(
+                        normalize_snapshot(metadata_dict)
+                    )
                 except ValidationError:
                     # If this specific snapshot fails validation, keep searching
                     continue

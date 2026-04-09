@@ -170,6 +170,18 @@ class TestLLMConfig:
         assert config.vendor == LLMVendor.ANTHROPIC
         assert config.model_name == "claude-3-opus"  # gitleaks:allow
 
+    def test_create_config_with_custom_api_base(self):
+        """Test config creation with custom OpenAI-compatible base URL."""
+        config = create_llm_config(
+            api_key="custom-key",  # gitleaks:allow
+            model_name="gpt-4.1-mini",
+            api_base="https://proxy.example.com/v1/",
+        )
+
+        assert config.api_key == "custom-key"  # gitleaks:allow
+        assert config.api_base == "https://proxy.example.com/v1"
+        assert config.model_name == "gpt-4.1-mini"  # gitleaks:allow
+
     def test_create_config_no_api_key(self):
         """Test config creation without API key."""
         config = create_llm_config()
@@ -189,6 +201,7 @@ class TestEnvironmentLoading:
             {
                 "LLM_API_KEY": "sk-1234567890abcdef1234567890abcdef",
                 "LLM_MODEL_NAME": "gpt-4-turbo",
+                "LLM_API_BASE": "https://proxy.example.com/v1/",
             },
             clear=True,
         ):
@@ -200,6 +213,7 @@ class TestEnvironmentLoading:
             )  # gitleaks:allow
             assert config.vendor == LLMVendor.OPENAI
             assert config.model_name == "gpt-4-turbo"  # gitleaks:allow
+            assert config.api_base == "https://proxy.example.com/v1"
 
     def test_load_anthropic_from_env(self):
         """Test loading Anthropic config from environment."""
@@ -303,6 +317,18 @@ class TestLLMClient:
         client = LLMClient(config)
         assert client.config == config
         assert client._litellm is not None
+
+    def test_get_model_name_uses_openai_prefix_for_custom_base(self):
+        """Test custom base URL uses OpenAI-compatible model prefix."""
+        config = LLMConfig(
+            api_key="custom-key",  # gitleaks:allow
+            vendor=LLMVendor.UNKNOWN,
+            model_name="my-model",
+            api_base="https://proxy.example.com/v1",
+        )
+
+        client = LLMClient(config)
+        assert client._get_model_name() == "openai/my-model"
 
 
 class TestLLMClientManager:

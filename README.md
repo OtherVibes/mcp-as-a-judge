@@ -124,7 +124,8 @@ Notes:
      "args": ["run", "--rm", "-i", "--pull=always", "ghcr.io/othervibes/mcp-as-a-judge:latest"],
      "env": {
        "LLM_API_KEY": "your-openai-api-key-here",
-       "LLM_MODEL_NAME": "gpt-4o-mini"
+       "LLM_MODEL_NAME": "gpt-4o-mini",
+       "LLM_API_BASE": "https://your-openai-compatible-provider.example/v1"
      }
    }
    ```
@@ -132,6 +133,7 @@ Notes:
    **📝 Configuration Options (All Optional):**
    - **LLM_API_KEY**: Optional for GitHub Copilot + VS Code (has built-in MCP sampling)
    - **LLM_MODEL_NAME**: Optional custom model (see [Supported LLM Providers](#supported-llm-providers) for defaults)
+   - **LLM_API_BASE**: Optional custom OpenAI-compatible base URL (for proxies, balancers, self-hosted gateways)
    - The `--pull=always` flag ensures you always get the latest version automatically
 
    Then manually update when needed:
@@ -176,6 +178,7 @@ Notes:
 For [AI assistants without full MCP sampling support](#supported-ai-assistants) you can configure an LLM API key as a fallback. This ensures MCP as a Judge works even when the client doesn't support MCP sampling.
 
 - Set `LLM_API_KEY` (unified key). Vendor is auto-detected; optionally set `LLM_MODEL_NAME` to override the default.
+- Set `LLM_API_BASE` to route fallback requests through a custom OpenAI-compatible provider.
 
 ### **Supported LLM Providers**
 
@@ -191,6 +194,33 @@ For [AI assistants without full MCP sampling support](#supported-ai-assistants) 
 | **8** | **OpenRouter** | `sk-or-...` | `deepseek/deepseek-r1` | Best reasoning model available |
 | **9** | **xAI** | `xai-...` | `grok-code-fast-1` | Latest coding-focused model (Aug 2025) |
 | **10** | **Mistral** | `[a-f0-9]{64}` | `pixtral-large` | Most advanced model (124B params) |
+
+### **Custom OpenAI-Compatible Providers**
+
+If you run your own gateway, balancer, or proxy that exposes an OpenAI-format API, configure:
+
+- `LLM_API_KEY`: the key expected by your custom provider
+- `LLM_MODEL_NAME`: the model id exposed by that provider
+- `LLM_API_BASE`: the provider base URL, usually ending with `/v1`
+
+Example:
+
+```json
+{
+  "command": "uv",
+  "args": ["tool", "run", "mcp-as-a-judge"],
+  "env": {
+    "LLM_API_KEY": "your-custom-provider-key",
+    "LLM_MODEL_NAME": "gpt-4.1-mini",
+    "LLM_API_BASE": "https://your-openai-compatible-provider.example/v1"
+  }
+}
+```
+
+Notes:
+- `LLM_API_BASE` makes LiteLLM send requests to your custom OpenAI-compatible endpoint instead of the default provider URL.
+- Keep the endpoint OpenAI-compatible, including `/models` and chat/completions-style behavior.
+- If your key format is not recognizable, that is fine when `LLM_API_BASE` is set; requests will still be sent to the custom endpoint.
 
 
 
@@ -210,7 +240,8 @@ For [AI assistants without full MCP sampling support](#supported-ai-assistants) 
      "args": ["tool", "run", "mcp-as-a-judge"],
      "env": {
        "LLM_API_KEY": "your-openai-api-key-here",
-       "LLM_MODEL_NAME": "gpt-4.1"
+       "LLM_MODEL_NAME": "gpt-4.1",
+       "LLM_API_BASE": "https://your-openai-compatible-provider.example/v1"
      }
    }
    ```
@@ -218,6 +249,7 @@ For [AI assistants without full MCP sampling support](#supported-ai-assistants) 
    **📝 Configuration Options:**
    - **LLM_API_KEY**: Required for Cursor (limited MCP sampling)
    - **LLM_MODEL_NAME**: Optional custom model (see [Supported LLM Providers](#supported-llm-providers) for defaults)
+   - **LLM_API_BASE**: Optional custom OpenAI-compatible base URL
 
 #### **Claude Code**
 
@@ -258,7 +290,8 @@ For other MCP-compatible clients, use the standard MCP server configuration:
   "args": ["tool", "run", "mcp-as-a-judge"],
   "env": {
     "LLM_API_KEY": "your-openai-api-key-here",
-    "LLM_MODEL_NAME": "gpt-5"
+    "LLM_MODEL_NAME": "gpt-5",
+    "LLM_API_BASE": "https://your-openai-compatible-provider.example/v1"
   }
 }
 ```
@@ -266,6 +299,7 @@ For other MCP-compatible clients, use the standard MCP server configuration:
 **📝 Configuration Options:**
 - **LLM_API_KEY**: Required for most MCP clients (except GitHub Copilot + VS Code)
 - **LLM_MODEL_NAME**: Optional custom model (see [Supported LLM Providers](#supported-llm-providers) for defaults)
+- **LLM_API_BASE**: Optional custom OpenAI-compatible base URL
 
 
 
@@ -285,6 +319,7 @@ For other MCP-compatible clients, use the standard MCP server configuration:
 - When MCP sampling is not available, the server can use LLM API keys
 - Supports multiple providers via LiteLLM: OpenAI, Anthropic, Google, Azure, Groq, Mistral, xAI
 - Automatic vendor detection from API key patterns
+- Supports custom OpenAI-compatible providers via `LLM_API_BASE`
 - Default model selection per vendor when no model is specified
 
 
@@ -370,4 +405,3 @@ This project is licensed under the MIT License (see [LICENSE](LICENSE)).
 - [LiteLLM](https://github.com/BerriAI/litellm) for unified LLM API integration
 
 ---
-

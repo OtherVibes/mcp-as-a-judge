@@ -5,12 +5,15 @@ Tests the service layer that sits between the server and database.
 """
 
 import asyncio
+import json
 from datetime import datetime
 
 import pytest
 
 from mcp_as_a_judge.db.conversation_history_service import ConversationHistoryService
 from mcp_as_a_judge.db.db_config import load_config
+from mcp_as_a_judge.models.task_metadata import TaskMetadata, TaskSize, TaskState
+from mcp_as_a_judge.tasks.manager import load_task_metadata_from_history
 
 
 class TestConversationHistoryServiceIntegration:
@@ -204,6 +207,58 @@ class TestConversationHistoryServiceIntegration:
         assert "quotes" in special_json[0]["input"]
 
         print("✅ Special characters handled correctly")
+
+    @pytest.mark.asyncio
+    async def test_task_metadata_loader_preserves_canonical_task_id(self, service):
+        """Newest snapshots may omit task_id; loader must preserve session identity."""
+        session_id = "canonical-task-id-session"
+
+        full_metadata = TaskMetadata(
+            task_id=session_id,
+            title="Canonical Task",
+            description="Ensure task_id stays stable",
+            state=TaskState.PLANNING,
+            task_size=TaskSize.M,
+        )
+
+        await service.save_tool_interaction_and_cleanup(
+            session_id=session_id,
+            tool_name="set_coding_task",
+            tool_input="initial task",
+            tool_output=json.dumps(
+                {
+                    "action": "created",
+                    "current_task_metadata": full_metadata.model_dump(mode="json"),
+                }
+            ),
+        )
+
+        trimmed_snapshot = {
+            "title": full_metadata.title,
+            "description": full_metadata.description,
+            "state": TaskState.PLAN_PENDING_APPROVAL.value,
+            "task_size": TaskSize.M.value,
+            "updated_at": full_metadata.updated_at,
+            "tags": [],
+        }
+
+        await service.save_tool_interaction_and_cleanup(
+            session_id=session_id,
+            tool_name="request_plan_approval",
+            tool_input="approve plan",
+            tool_output=json.dumps(
+                {
+                    "approved": True,
+                    "current_task_metadata": trimmed_snapshot,
+                }
+            ),
+        )
+
+        loaded = await load_task_metadata_from_history(session_id, service)
+
+        assert loaded is not None
+        assert loaded.task_id == session_id
+        assert loaded.state == TaskState.PLAN_PENDING_APPROVAL
 
     @pytest.mark.asyncio
     async def test_service_performance_with_large_dataset(self, service):
